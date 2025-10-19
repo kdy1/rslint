@@ -4,6 +4,9 @@ package testutils
 import (
 	"testing"
 
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/typescript-estree/types"
 )
 
@@ -51,4 +54,18 @@ func CreateTestLocation(startLine, startColumn, endLine, endColumn int) *types.S
 		Start: CreateTestPosition(startLine, startColumn),
 		End:   CreateTestPosition(endLine, endColumn),
 	}
+}
+
+// CreateSourceFile creates a TypeScript SourceFile from code for testing purposes.
+func CreateSourceFile(code, filename string) *ast.SourceFile {
+	factory := ast.NewNodeFactory()
+	sourceFile := compiler.CreateSourceFile(
+		factory,
+		filename,
+		code,
+		core.ScriptTargetLatest,
+		false,
+		core.ScriptKindTS,
+	)
+	return sourceFile
 }

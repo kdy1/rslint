@@ -5,9 +5,13 @@ go 1.25.0
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/microsoft/typescript-go/shim/ast v0.0.0
+	github.com/microsoft/typescript-go/shim/compiler v0.0.0
+	github.com/microsoft/typescript-go/shim/core v0.0.0
+	github.com/microsoft/typescript-go/shim/scanner v0.0.0
 )
 
 require (
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250811204210-4789234c3ea1 // indirect
 	github.com/microsoft/typescript-go v0.0.0-20250829050502-5d1d69a77a4c // indirect
 	golang.org/x/sync v0.16.0 // indirect
@@ -16,6 +20,7 @@ require (
 
 replace (
 	github.com/microsoft/typescript-go/shim/ast => ../../shim/ast
+	github.com/microsoft/typescript-go/shim/compiler => ../../shim/compiler
 	github.com/microsoft/typescript-go/shim/core => ../../shim/core
 	github.com/microsoft/typescript-go/shim/scanner => ../../shim/scanner
 )
