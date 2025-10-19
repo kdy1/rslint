@@ -27,23 +27,23 @@ func (o *ObjectExpression) expressionNode() {}
 // Property represents a property in an object expression.
 type Property struct {
 	BaseNode
-	Key      Expression  `json:"key"`
-	Value    Expression  `json:"value"`
-	Kind     string      `json:"kind"` // "init", "get", or "set"
-	Method   bool        `json:"method"`
+	Key       Expression `json:"key"`
+	Value     Expression `json:"value"`
+	Kind      string     `json:"kind"` // "init", "get", or "set"
+	Method    bool       `json:"method"`
 	Shorthand bool       `json:"shorthand"`
-	Computed bool        `json:"computed"`
+	Computed  bool       `json:"computed"`
 }
 
 // FunctionExpression represents a function expression.
 type FunctionExpression struct {
 	BaseNode
-	ID         *Identifier   `json:"id"`
-	Params     []Pattern     `json:"params"`
+	ID         *Identifier     `json:"id"`
+	Params     []Pattern       `json:"params"`
 	Body       *BlockStatement `json:"body"`
-	Generator  bool          `json:"generator"`
-	Async      bool          `json:"async"`
-	Expression bool          `json:"expression"`
+	Generator  bool            `json:"generator"`
+	Async      bool            `json:"async"`
+	Expression bool            `json:"expression"`
 }
 
 func (f *FunctionExpression) expressionNode() {}
@@ -51,11 +51,11 @@ func (f *FunctionExpression) expressionNode() {}
 // ArrowFunctionExpression represents an arrow function expression (ES2015).
 type ArrowFunctionExpression struct {
 	BaseNode
-	Params     []Pattern   `json:"params"`
-	Body       Node        `json:"body"` // BlockStatement or Expression
-	Generator  bool        `json:"generator"`
-	Async      bool        `json:"async"`
-	Expression bool        `json:"expression"`
+	Params     []Pattern `json:"params"`
+	Body       Node      `json:"body"` // BlockStatement or Expression
+	Generator  bool      `json:"generator"`
+	Async      bool      `json:"async"`
+	Expression bool      `json:"expression"`
 }
 
 func (a *ArrowFunctionExpression) expressionNode() {}
@@ -194,7 +194,7 @@ func (t *TemplateLiteral) expressionNode() {}
 // TemplateElement represents an element in a template literal.
 type TemplateElement struct {
 	BaseNode
-	Tail  bool                  `json:"tail"`
+	Tail  bool                 `json:"tail"`
 	Value TemplateElementValue `json:"value"`
 }
 
@@ -207,7 +207,7 @@ type TemplateElementValue struct {
 // TaggedTemplateExpression represents a tagged template expression (ES2015).
 type TaggedTemplateExpression struct {
 	BaseNode
-	Tag  Expression       `json:"tag"`
+	Tag   Expression       `json:"tag"`
 	Quasi *TemplateLiteral `json:"quasi"`
 }
 
@@ -216,9 +216,9 @@ func (t *TaggedTemplateExpression) expressionNode() {}
 // ClassExpression represents a class expression (ES2015).
 type ClassExpression struct {
 	BaseNode
-	ID         *Identifier   `json:"id"`
-	SuperClass *Expression   `json:"superClass"`
-	Body       *ClassBody    `json:"body"`
+	ID         *Identifier `json:"id"`
+	SuperClass *Expression `json:"superClass"`
+	Body       *ClassBody  `json:"body"`
 }
 
 func (c *ClassExpression) expressionNode() {}

@@ -146,10 +146,10 @@ func (d *DoWhileStatement) statementNode() {}
 // ForStatement represents a for statement.
 type ForStatement struct {
 	BaseNode
-	Init   Node       `json:"init"` // VariableDeclaration or Expression or nil
+	Init   Node        `json:"init"` // VariableDeclaration or Expression or nil
 	Test   *Expression `json:"test"`
 	Update *Expression `json:"update"`
-	Body   Statement  `json:"body"`
+	Body   Statement   `json:"body"`
 }
 
 func (f *ForStatement) statementNode() {}
@@ -157,7 +157,7 @@ func (f *ForStatement) statementNode() {}
 // ForInStatement represents a for-in statement.
 type ForInStatement struct {
 	BaseNode
-	Left  Node       `json:"left"`  // VariableDeclaration or Pattern
+	Left  Node       `json:"left"` // VariableDeclaration or Pattern
 	Right Expression `json:"right"`
 	Body  Statement  `json:"body"`
 }
@@ -167,7 +167,7 @@ func (f *ForInStatement) statementNode() {}
 // ForOfStatement represents a for-of statement (ES2015).
 type ForOfStatement struct {
 	BaseNode
-	Left  Node       `json:"left"`  // VariableDeclaration or Pattern
+	Left  Node       `json:"left"` // VariableDeclaration or Pattern
 	Right Expression `json:"right"`
 	Body  Statement  `json:"body"`
 	Await bool       `json:"await"` // for await...of (ES2018)
@@ -186,7 +186,7 @@ type FunctionDeclaration struct {
 	Expression bool            `json:"expression"`
 }
 
-func (f *FunctionDeclaration) statementNode()    {}
+func (f *FunctionDeclaration) statementNode()   {}
 func (f *FunctionDeclaration) declarationNode() {}
 
 // VariableDeclaration represents a variable declaration.
@@ -196,7 +196,7 @@ type VariableDeclaration struct {
 	Kind         string               `json:"kind"` // "var", "let", or "const"
 }
 
-func (v *VariableDeclaration) statementNode()    {}
+func (v *VariableDeclaration) statementNode()   {}
 func (v *VariableDeclaration) declarationNode() {}
 
 // VariableDeclarator represents a variable declarator.
@@ -214,13 +214,13 @@ type ClassDeclaration struct {
 	Body       *ClassBody  `json:"body"`
 }
 
-func (c *ClassDeclaration) statementNode()    {}
+func (c *ClassDeclaration) statementNode()   {}
 func (c *ClassDeclaration) declarationNode() {}
 
 // ImportDeclaration represents an import declaration (ES2015).
 type ImportDeclaration struct {
 	BaseNode
-	Specifiers []Node     `json:"specifiers"` // ImportSpecifier, ImportDefaultSpecifier, or ImportNamespaceSpecifier
+	Specifiers []Node         `json:"specifiers"` // ImportSpecifier, ImportDefaultSpecifier, or ImportNamespaceSpecifier
 	Source     *SimpleLiteral `json:"source"`
 }
 
@@ -248,9 +248,9 @@ type ImportNamespaceSpecifier struct {
 // ExportNamedDeclaration represents a named export declaration (ES2015).
 type ExportNamedDeclaration struct {
 	BaseNode
-	Declaration Declaration    `json:"declaration"`
+	Declaration Declaration       `json:"declaration"`
 	Specifiers  []ExportSpecifier `json:"specifiers"`
-	Source      *SimpleLiteral `json:"source"`
+	Source      *SimpleLiteral    `json:"source"`
 }
 
 func (e *ExportNamedDeclaration) moduleDeclarationNode() {}

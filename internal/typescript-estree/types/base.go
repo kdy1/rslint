@@ -122,9 +122,9 @@ type RegExpValue struct {
 // BigIntLiteral represents a BigInt literal (ES2020).
 type BigIntLiteral struct {
 	BaseNode
-	Value interface{} `json:"value"` // Can be bigint or nil
-	Raw   string      `json:"raw"`
-	Bigint string     `json:"bigint"`
+	Value  interface{} `json:"value"` // Can be bigint or nil
+	Raw    string      `json:"raw"`
+	Bigint string      `json:"bigint"`
 }
 
 func (b *BigIntLiteral) expressionNode() {}
@@ -132,18 +132,18 @@ func (b *BigIntLiteral) literalNode()    {}
 
 // Comment represents a comment in the source code.
 type Comment struct {
-	Type  string         `json:"type"`  // "Line" or "Block"
-	Value string         `json:"value"` // The comment text
+	Type  string          `json:"type"`  // "Line" or "Block"
+	Value string          `json:"value"` // The comment text
 	Loc   *SourceLocation `json:"loc,omitempty"`
-	Range Range          `json:"range,omitempty"`
+	Range Range           `json:"range,omitempty"`
 }
 
 // Token represents a token in the source code.
 type Token struct {
-	Type  string         `json:"type"`
-	Value string         `json:"value"`
+	Type  string          `json:"type"`
+	Value string          `json:"value"`
 	Loc   *SourceLocation `json:"loc,omitempty"`
-	Range Range          `json:"range,omitempty"`
+	Range Range           `json:"range,omitempty"`
 }
 
 // PrivateIdentifier represents a private identifier (# prefix).

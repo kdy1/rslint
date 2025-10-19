@@ -167,7 +167,7 @@ func (t *TSParenthesizedType) tsTypeNode() {}
 // TSTypeReference represents a type reference.
 type TSTypeReference struct {
 	BaseNode
-	TypeName      Node     `json:"typeName"` // Identifier or TSQualifiedName
+	TypeName       Node                          `json:"typeName"` // Identifier or TSQualifiedName
 	TypeParameters *TSTypeParameterInstantiation `json:"typeParameters"`
 }
 
@@ -176,7 +176,7 @@ func (t *TSTypeReference) tsTypeNode() {}
 // TSQualifiedName represents a qualified name (A.B.C).
 type TSQualifiedName struct {
 	BaseNode
-	Left  Node        `json:"left"`  // Identifier or TSQualifiedName
+	Left  Node        `json:"left"` // Identifier or TSQualifiedName
 	Right *Identifier `json:"right"`
 }
 
@@ -291,10 +291,10 @@ func (t *TSTypeQuery) tsTypeNode() {}
 // TSMappedType represents a mapped type ({[K in keyof T]: U}).
 type TSMappedType struct {
 	BaseNode
-	TypeParameter  *TSTypeParameter  `json:"typeParameter"`
-	TypeAnnotation TSType            `json:"typeAnnotation"`
-	Optional       bool              `json:"optional"`
-	Readonly       bool              `json:"readonly"`
+	TypeParameter  *TSTypeParameter `json:"typeParameter"`
+	TypeAnnotation TSType           `json:"typeAnnotation"`
+	Optional       bool             `json:"optional"`
+	Readonly       bool             `json:"readonly"`
 }
 
 func (t *TSMappedType) tsTypeNode() {}
@@ -334,7 +334,7 @@ type TSInterfaceDeclaration struct {
 	Declare        bool                        `json:"declare"`
 }
 
-func (t *TSInterfaceDeclaration) statementNode()    {}
+func (t *TSInterfaceDeclaration) statementNode()   {}
 func (t *TSInterfaceDeclaration) declarationNode() {}
 
 // TSInterfaceBody represents the body of an interface.
@@ -359,7 +359,7 @@ type TSTypeAliasDeclaration struct {
 	Declare        bool                        `json:"declare"`
 }
 
-func (t *TSTypeAliasDeclaration) statementNode()    {}
+func (t *TSTypeAliasDeclaration) statementNode()   {}
 func (t *TSTypeAliasDeclaration) declarationNode() {}
 
 // TSEnumDeclaration represents an enum declaration.
@@ -371,26 +371,26 @@ type TSEnumDeclaration struct {
 	Declare bool           `json:"declare"`
 }
 
-func (t *TSEnumDeclaration) statementNode()    {}
+func (t *TSEnumDeclaration) statementNode()   {}
 func (t *TSEnumDeclaration) declarationNode() {}
 
 // TSEnumMember represents a member of an enum.
 type TSEnumMember struct {
 	BaseNode
-	ID         Node        `json:"id"` // Identifier or SimpleLiteral
+	ID          Node        `json:"id"` // Identifier or SimpleLiteral
 	Initializer *Expression `json:"initializer"`
 }
 
 // TSModuleDeclaration represents a namespace/module declaration.
 type TSModuleDeclaration struct {
 	BaseNode
-	ID      Node             `json:"id"` // Identifier or SimpleLiteral
-	Body    Node             `json:"body"` // TSModuleBlock or TSModuleDeclaration
-	Global  bool             `json:"global"`
-	Declare bool             `json:"declare"`
+	ID      Node `json:"id"`   // Identifier or SimpleLiteral
+	Body    Node `json:"body"` // TSModuleBlock or TSModuleDeclaration
+	Global  bool `json:"global"`
+	Declare bool `json:"declare"`
 }
 
-func (t *TSModuleDeclaration) statementNode()    {}
+func (t *TSModuleDeclaration) statementNode()   {}
 func (t *TSModuleDeclaration) declarationNode() {}
 
 // TSModuleBlock represents a module block.
@@ -405,7 +405,7 @@ type TSNamespaceExportDeclaration struct {
 	ID *Identifier `json:"id"`
 }
 
-func (t *TSNamespaceExportDeclaration) statementNode()    {}
+func (t *TSNamespaceExportDeclaration) statementNode()   {}
 func (t *TSNamespaceExportDeclaration) declarationNode() {}
 
 // TSImportEqualsDeclaration represents an import equals declaration.
@@ -416,7 +416,7 @@ type TSImportEqualsDeclaration struct {
 	IsExport        bool        `json:"isExport"`
 }
 
-func (t *TSImportEqualsDeclaration) statementNode()    {}
+func (t *TSImportEqualsDeclaration) statementNode()   {}
 func (t *TSImportEqualsDeclaration) declarationNode() {}
 
 // TSExternalModuleReference represents an external module reference (require()).
@@ -428,8 +428,8 @@ type TSExternalModuleReference struct {
 // TSAsExpression represents a type assertion using 'as'.
 type TSAsExpression struct {
 	BaseNode
-	Expression     Expression        `json:"expression"`
-	TypeAnnotation TSType            `json:"typeAnnotation"`
+	Expression     Expression `json:"expression"`
+	TypeAnnotation TSType     `json:"typeAnnotation"`
 }
 
 func (t *TSAsExpression) expressionNode() {}
@@ -454,11 +454,11 @@ func (t *TSNonNullExpression) expressionNode() {}
 // TSParameterProperty represents a parameter property in a constructor.
 type TSParameterProperty struct {
 	BaseNode
-	Parameter      Node   `json:"parameter"` // Identifier, AssignmentPattern, or BindingPattern
-	Accessibility  string `json:"accessibility"`  // "public", "protected", "private", or ""
-	Readonly       bool   `json:"readonly"`
-	Static         bool   `json:"static"`
-	Override       bool   `json:"override"`
+	Parameter     Node   `json:"parameter"`     // Identifier, AssignmentPattern, or BindingPattern
+	Accessibility string `json:"accessibility"` // "public", "protected", "private", or ""
+	Readonly      bool   `json:"readonly"`
+	Static        bool   `json:"static"`
+	Override      bool   `json:"override"`
 }
 
 // TSAbstractKeyword represents the abstract keyword.
@@ -487,7 +487,7 @@ type TSDeclareFunction struct {
 	Declare        bool                        `json:"declare"`
 }
 
-func (t *TSDeclareFunction) statementNode()    {}
+func (t *TSDeclareFunction) statementNode()   {}
 func (t *TSDeclareFunction) declarationNode() {}
 
 // TSExportAssignment represents an export assignment (export = x).
@@ -528,8 +528,8 @@ func (t *TSTemplateLiteralType) tsTypeNode() {}
 // TSImportType represents an import type (import("module").Type).
 type TSImportType struct {
 	BaseNode
-	Argument   TSType                        `json:"argument"`
-	Qualifier  Node                          `json:"qualifier"`
+	Argument       TSType                        `json:"argument"`
+	Qualifier      Node                          `json:"qualifier"`
 	TypeParameters *TSTypeParameterInstantiation `json:"typeParameters"`
 }
 

@@ -338,7 +338,7 @@ func TestTokenTypes(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
+		name      string
 		tokenType types.TokenType
 		expected  string
 	}{
