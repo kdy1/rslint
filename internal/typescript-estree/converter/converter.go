@@ -13,7 +13,7 @@ import (
 // Converter handles the conversion of TypeScript AST nodes to ESTree format.
 type Converter struct {
 	// sourceFile is the current source file being converted
-	sourceFile ast.SourceFile
+	sourceFile *ast.SourceFile
 
 	// options contains conversion configuration
 	options *ConvertOptions
@@ -29,7 +29,7 @@ type ConvertOptions struct {
 }
 
 // NewConverter creates a new converter instance.
-func NewConverter(sourceFile ast.SourceFile, options *ConvertOptions) *Converter {
+func NewConverter(sourceFile *ast.SourceFile, options *ConvertOptions) *Converter {
 	if options == nil {
 		options = &ConvertOptions{}
 	}
@@ -41,7 +41,7 @@ func NewConverter(sourceFile ast.SourceFile, options *ConvertOptions) *Converter
 
 // Convert converts a TypeScript AST node to an ESTree node.
 // This is a placeholder that will be implemented during the porting phase.
-func (c *Converter) Convert(node ast.Node) (types.Node, error) {
+func (c *Converter) Convert(node *ast.Node) (types.Node, error) {
 	// TODO: Implement actual conversion logic
 	// This will involve:
 	// 1. Analyzing the TypeScript node type
