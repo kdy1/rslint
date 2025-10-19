@@ -10,6 +10,6 @@ type MultiMap[K, V comparable] = collections.MultiMap[K,V]
 type OrderedMap[K comparable, V any] = collections.OrderedMap[K,V]
 type OrderedSet[T comparable] = collections.OrderedSet[T]
 type Set[T comparable] = collections.Set[T]
-type SyncManyToManySet[K, V comparable] = collections.SyncManyToManySet[K,V]
+// type SyncManyToManySet[K, V comparable] = collections.SyncManyToManySet[K,V]  // TODO: uncomment when typescript-go is updated
 type SyncMap[K comparable, V any] = collections.SyncMap[K,V]
 type SyncSet[T comparable] = collections.SyncSet[T]
