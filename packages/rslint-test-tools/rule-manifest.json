@@ -232,6 +232,12 @@
       "failing_case": []
     },
     {
+      "name": "no-webpack-loader-syntax",
+      "group": "eslint-plugin-import",
+      "status": "full",
+      "failing_case": []
+    },
+    {
       "name": "non-nullable-type-assertion-style",
       "group": "@typescript-eslint",
       "status": "partial-test",
