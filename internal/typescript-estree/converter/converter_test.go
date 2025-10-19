@@ -10,25 +10,51 @@ func TestConvertOptions(t *testing.T) {
 	t.Parallel()
 
 	opts := &converter.ConvertOptions{
-		PreserveComments: true,
-		IncludeTokens:    false,
+		FilePath:   "test.ts",
+		SourceType: "module",
+		Loc:        true,
+		Range:      true,
+		Tokens:     true,
+		Comment:    true,
 	}
 
-	if !opts.PreserveComments {
-		t.Error("Expected PreserveComments to be true")
+	if opts.FilePath != "test.ts" {
+		t.Errorf("Expected FilePath to be 'test.ts', got '%s'", opts.FilePath)
 	}
 
-	if opts.IncludeTokens {
-		t.Error("Expected IncludeTokens to be false")
+	if opts.SourceType != "module" {
+		t.Errorf("Expected SourceType to be 'module', got '%s'", opts.SourceType)
+	}
+
+	if !opts.Loc {
+		t.Error("Expected Loc to be true")
+	}
+
+	if !opts.Range {
+		t.Error("Expected Range to be true")
+	}
+
+	if !opts.Tokens {
+		t.Error("Expected Tokens to be true")
+	}
+
+	if !opts.Comment {
+		t.Error("Expected Comment to be true")
 	}
 }
 
-// TestConverter is a placeholder test for the converter.
-// This will be expanded when the actual converter is implemented.
-func TestConverter(t *testing.T) {
+func TestConvertProgram_NilSourceFile(t *testing.T) {
 	t.Parallel()
 
-	// TODO: Add actual conversion tests once implementation is complete
-	// For now, this ensures the test infrastructure is working
-	t.Skip("Converter implementation pending")
+	opts := &converter.ConvertOptions{
+		FilePath: "test.ts",
+	}
+
+	_, err := converter.ConvertProgram(nil, nil, opts)
+	if err == nil {
+		t.Error("Expected error for nil source file, got nil")
+	}
 }
+
+// TODO: Add more comprehensive converter tests once TypeScript source file creation is available
+// For now, the actual conversion will be tested through the parser integration tests
