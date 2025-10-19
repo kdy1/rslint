@@ -5,5 +5,4 @@ toolchain go1.25.0
 use (
 	.
 	./internal/typescript-estree
-	./typescript-go
 )

@@ -14,6 +14,7 @@ internal/typescript-estree/
 ├── converter/       # AST conversion logic - transforms TypeScript AST to ESTree
 ├── types/           # Type definitions for ESTree nodes
 ├── utils/           # Utility functions for AST manipulation
+├── version/         # TypeScript version detection and compatibility checking
 ├── testutils/       # Testing utilities and helpers
 └── README.md        # This file
 ```
@@ -151,6 +152,14 @@ The `utils` package provides:
 - Helper functions for AST manipulation
 - Position and location utilities
 - Common operations on nodes
+
+### Version Package
+
+The `version` package handles:
+- TypeScript version detection and parsing
+- Semantic version comparison
+- Compatibility checking and warnings
+- Version-specific feature flags
 
 ### Testutils Package
 
