@@ -59,10 +59,10 @@ func TestSetTypeScriptVersion(t *testing.T) {
 
 func TestIsVersionAtLeast(t *testing.T) {
 	tests := []struct {
-		name            string
-		currentVersion  string
-		checkVersion    string
-		expectedResult  bool
+		name           string
+		currentVersion string
+		checkVersion   string
+		expectedResult bool
 	}{
 		{
 			name:           "5.4.0 is at least 5.4",
