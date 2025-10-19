@@ -11,22 +11,27 @@ import "io"
 import "sync/atomic"
 import _ "unsafe"
 
-type CachedTyping = project.CachedTyping
+// TODO: Uncomment when typescript-go is updated to include this type
+// type CachedTyping = project.CachedTyping
 type Client = project.Client
-type ConfigFileEntry = project.ConfigFileEntry
+
+// TODO: Uncomment when typescript-go is updated to include this type
+// type ConfigFileEntry = project.ConfigFileEntry
 type ConfigFileRegistry = project.ConfigFileRegistry
 
 //go:linkname DiscoverTypings github.com/microsoft/typescript-go/internal/project.DiscoverTypings
 func DiscoverTypings(fs vfs.FS, log func(s string), typingsInfo *project.TypingsInfo, fileNames []string, projectRootPath string, packageNameToTypingLocation *collections.SyncMap[string, *project.CachedTyping], typesRegistry map[string]map[string]string) (cachedTypingPaths []string, newTypingNames []string, filesToWatch []string)
 
-type DocumentRegistry = project.DocumentRegistry
-type DocumentRegistryHooks = project.DocumentRegistryHooks
-type DocumentStore = project.DocumentStore
-type DocumentStoreOptions = project.DocumentStoreOptions
+// TODO: Uncomment when typescript-go is updated to include this type
+// type DocumentRegistry = project.DocumentRegistry
+// type DocumentRegistryHooks = project.DocumentRegistryHooks
+// type DocumentStore = project.DocumentStore
+// type DocumentStoreOptions = project.DocumentStoreOptions
 
 const EmptyName = project.EmptyName
 
-type ExtendedConfigFileEntry = project.ExtendedConfigFileEntry
+// TODO: Uncomment when typescript-go is updated to include this type
+// type ExtendedConfigFileEntry = project.ExtendedConfigFileEntry
 
 //go:linkname InstallNpmPackages github.com/microsoft/typescript-go/internal/project.InstallNpmPackages
 func InstallNpmPackages(packageNames []string, installPackages func(packages []string, hasError *atomic.Bool)) bool
@@ -41,14 +46,16 @@ const KindAuxiliary = project.KindAuxiliary
 const KindConfigured = project.KindConfigured
 const KindInferred = project.KindInferred
 
-type LogLevel = project.LogLevel
+// TODO: Uncomment when typescript-go is updated to include this type
+// type LogLevel = project.LogLevel
 
 const LogLevelNormal = project.LogLevelNormal
 const LogLevelRequestTime = project.LogLevelRequestTime
 const LogLevelTerse = project.LogLevelTerse
 const LogLevelVerbose = project.LogLevelVerbose
 
-type Logger = project.Logger
+// TODO: Uncomment when typescript-go is updated to include this type
+// type Logger = project.Logger
 
 const NameContainsNonURISafeCharacters = project.NameContainsNonURISafeCharacters
 const NameOk = project.NameOk
@@ -56,7 +63,8 @@ const NameStartsWithDot = project.NameStartsWithDot
 const NameStartsWithUnderscore = project.NameStartsWithUnderscore
 const NameTooLong = project.NameTooLong
 
-type NameValidationResult = project.NameValidationResult
+// TODO: Uncomment when typescript-go is updated to include this type
+// type NameValidationResult = project.NameValidationResult
 
 //go:linkname NewConfiguredProject github.com/microsoft/typescript-go/internal/project.NewConfiguredProject
 func NewConfiguredProject(configFileName string, configFilePath tspath.Path, host project.ProjectHost) *project.Project
@@ -79,31 +87,37 @@ func NewScriptInfo(fileName string, path tspath.Path, scriptKind core.ScriptKind
 //go:linkname NewService github.com/microsoft/typescript-go/internal/project.NewService
 func NewService(host project.ServiceHost, options project.ServiceOptions) *project.Service
 
-type NpmConfig = project.NpmConfig
-type NpmDependecyEntry = project.NpmDependecyEntry
+// TODO: Uncomment when typescript-go is updated to include this type
+// type NpmConfig = project.NpmConfig
+// type NpmDependecyEntry = project.NpmDependecyEntry
 
 //go:linkname NpmInstall github.com/microsoft/typescript-go/internal/project.NpmInstall
 func NpmInstall(cwd string, npmInstallArgs []string) ([]byte, error)
 
-type NpmInstallOperation = project.NpmInstallOperation
-type NpmLock = project.NpmLock
-type ParsedFileCache = project.ParsedFileCache
+// TODO: Uncomment when typescript-go is updated to include this type
+// type NpmInstallOperation = project.NpmInstallOperation
+// type NpmLock = project.NpmLock
+// type ParsedFileCache = project.ParsedFileCache
 type PendingReload = project.PendingReload
 
 const PendingReloadFileNames = project.PendingReloadFileNames
 const PendingReloadFull = project.PendingReloadFull
 const PendingReloadNone = project.PendingReloadNone
 
-type PendingRequest = project.PendingRequest
+// TODO: Uncomment when typescript-go is updated to include this type
+// type PendingRequest = project.PendingRequest
 type Project = project.Project
-type ProjectHost = project.ProjectHost
+
+// TODO: Uncomment when typescript-go is updated to include this type
+// type ProjectHost = project.ProjectHost
 
 //go:linkname RenderPackageNameValidationFailure github.com/microsoft/typescript-go/internal/project.RenderPackageNameValidationFailure
 func RenderPackageNameValidationFailure(typing string, result project.NameValidationResult, name string, isScopeName bool) string
 
-type ResolutionWithLookupLocations = project.ResolutionWithLookupLocations
-type ScriptInfo = project.ScriptInfo
-type Service = project.Service
+// TODO: Uncomment when typescript-go is updated to include this type
+// type ResolutionWithLookupLocations = project.ResolutionWithLookupLocations
+// type ScriptInfo = project.ScriptInfo
+// type Service = project.Service
 type ServiceHost = project.ServiceHost
 type ServiceOptions = project.ServiceOptions
 

@@ -101,7 +101,8 @@ func NewTsconfigSourceFileFromFilePath(configFileName string, configPath tspath.
 
 var OptionsDeclarations = tsoptions.OptionsDeclarations
 
-type OutputDtsAndProjectReference = tsoptions.OutputDtsAndProjectReference
+// TODO: Uncomment when typescript-go is updated to include this type
+// type OutputDtsAndProjectReference = tsoptions.OutputDtsAndProjectReference
 
 //go:linkname ParseCommandLine github.com/microsoft/typescript-go/internal/tsoptions.ParseCommandLine
 func ParseCommandLine(commandLine []string, host tsoptions.ParseConfigHost) *tsoptions.ParsedCommandLine
@@ -126,7 +127,9 @@ func ParseTypeAcquisition(key string, value any, allOptions *core.TypeAcquisitio
 func ParseWatchOptions(key string, value any, allOptions *core.WatchOptions) []*ast.Diagnostic
 
 type ParsedCommandLine = tsoptions.ParsedCommandLine
-type SourceAndProjectReference = tsoptions.SourceAndProjectReference
+
+// TODO: Uncomment when typescript-go is updated to include this type
+// type SourceAndProjectReference = tsoptions.SourceAndProjectReference
 
 //go:linkname TargetToLibMap github.com/microsoft/typescript-go/internal/tsoptions.TargetToLibMap
 func TargetToLibMap() map[core.ScriptTarget]string
