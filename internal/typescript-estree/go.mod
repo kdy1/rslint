@@ -2,7 +2,10 @@ module github.com/web-infra-dev/rslint/internal/typescript-estree
 
 go 1.25.0
 
-require github.com/microsoft/typescript-go/shim/ast v0.0.0
+require (
+	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/microsoft/typescript-go/shim/ast v0.0.0
+)
 
 require (
 	github.com/go-json-experiment/json v0.0.0-20250811204210-4789234c3ea1 // indirect
