@@ -4,6 +4,7 @@ package version
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Masterminds/semver/v3"
 )
@@ -34,8 +35,11 @@ var (
 	// versionCheckOnce ensures version checking only happens once
 	versionCheckOnce sync.Once
 
+	// versionCheckErr captures any error that occurred during version initialization
+	versionCheckErr error
+
 	// versionWarningIssued tracks whether a version warning has been issued
-	versionWarningIssued bool
+	versionWarningIssued atomic.Bool
 )
 
 // init initializes the version checking system
@@ -47,9 +51,8 @@ func init() {
 // This should be called during parser initialization with the detected TypeScript version
 func SetTypeScriptVersion(version string) error {
 	versionCheckOnce.Do(func() {
-		var err error
-		currentVersion, err = parseTypeScriptVersion(version)
-		if err != nil {
+		currentVersion, versionCheckErr = parseTypeScriptVersion(version)
+		if versionCheckErr != nil {
 			return
 		}
 
@@ -63,13 +66,13 @@ func SetTypeScriptVersion(version string) error {
 		}
 
 		// Issue warning if version is not explicitly supported
-		if !isVersionSupported(currentVersion) && !versionWarningIssued {
+		if !isVersionSupported(currentVersion) && !versionWarningIssued.Load() {
 			issueVersionWarning(currentVersion)
-			versionWarningIssued = true
+			versionWarningIssued.Store(true)
 		}
 	})
 
-	return nil
+	return versionCheckErr
 }
 
 // GetCurrentVersion returns the currently detected TypeScript version
@@ -153,9 +156,11 @@ func issueVersionWarning(version *semver.Version) {
 	fmt.Printf("Please consider upgrading to a supported version for the best experience.\n")
 }
 
-// GetSupportedVersions returns the list of explicitly supported TypeScript versions
+// GetSupportedVersions returns a copy of the list of explicitly supported TypeScript versions
 func GetSupportedVersions() []string {
-	return SupportedVersions
+	result := make([]string, len(SupportedVersions))
+	copy(result, SupportedVersions)
+	return result
 }
 
 // ResetVersionCheck resets the version checking state (primarily for testing)
@@ -163,5 +168,6 @@ func ResetVersionCheck() {
 	versionCheckOnce = sync.Once{}
 	TypeScriptVersionIsAtLeast = make(map[string]bool)
 	currentVersion = nil
-	versionWarningIssued = false
+	versionCheckErr = nil
+	versionWarningIssued.Store(false)
 }

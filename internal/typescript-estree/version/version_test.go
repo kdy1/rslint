@@ -388,3 +388,65 @@ func TestConcurrentVersionCheck(t *testing.T) {
 		t.Errorf("GetCurrentVersion() = %q, want %q", version, "5.4.0")
 	}
 }
+
+func TestSetTypeScriptVersion_InvalidVersions(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+	}{
+		{"Empty string", ""},
+		{"Invalid format", "invalid"},
+		{"Letters in version", "x.y.z"},
+		{"Special characters", "5.4.@"},
+		{"Double dots", "5..4"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ResetVersionCheck()
+			err := SetTypeScriptVersion(tt.version)
+			if err == nil {
+				t.Errorf("Expected error for invalid version %q, got nil", tt.version)
+			}
+		})
+	}
+}
+
+func TestSetTypeScriptVersion_ErrorPropagation(t *testing.T) {
+	// Reset state
+	ResetVersionCheck()
+
+	// Test that errors are properly propagated
+	err := SetTypeScriptVersion("not-a-version")
+	if err == nil {
+		t.Error("Expected error when setting invalid version, got nil")
+	}
+
+	// Verify the version was not set
+	version := GetCurrentVersion()
+	if version != "unknown" {
+		t.Errorf("Expected version to be 'unknown' after error, got %q", version)
+	}
+}
+
+func TestGetSupportedVersions_ReturnsCopy(t *testing.T) {
+	// Get the supported versions
+	versions1 := GetSupportedVersions()
+	versions2 := GetSupportedVersions()
+
+	// Verify they have the same content
+	if len(versions1) != len(versions2) {
+		t.Error("GetSupportedVersions() returned different length slices")
+	}
+
+	// Modify the first slice
+	if len(versions1) > 0 {
+		versions1[0] = "modified"
+	}
+
+	// Verify the second slice is unchanged
+	versions3 := GetSupportedVersions()
+	if len(versions3) > 0 && versions3[0] == "modified" {
+		t.Error("GetSupportedVersions() returns a mutable reference instead of a copy")
+	}
+}
