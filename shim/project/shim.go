@@ -19,8 +19,9 @@ type Client = project.Client
 // type ConfigFileEntry = project.ConfigFileEntry
 type ConfigFileRegistry = project.ConfigFileRegistry
 
+// TODO: Uncomment when typescript-go is updated to include CachedTyping type
 //go:linkname DiscoverTypings github.com/microsoft/typescript-go/internal/project.DiscoverTypings
-func DiscoverTypings(fs vfs.FS, log func(s string), typingsInfo *project.TypingsInfo, fileNames []string, projectRootPath string, packageNameToTypingLocation *collections.SyncMap[string, *project.CachedTyping], typesRegistry map[string]map[string]string) (cachedTypingPaths []string, newTypingNames []string, filesToWatch []string)
+// func DiscoverTypings(fs vfs.FS, log func(s string), typingsInfo *project.TypingsInfo, fileNames []string, projectRootPath string, packageNameToTypingLocation *collections.SyncMap[string, *project.CachedTyping], typesRegistry map[string]map[string]string) (cachedTypingPaths []string, newTypingNames []string, filesToWatch []string)
 
 // TODO: Uncomment when typescript-go is updated to include this type
 // type DocumentRegistry = project.DocumentRegistry
@@ -36,8 +37,9 @@ const EmptyName = project.EmptyName
 //go:linkname InstallNpmPackages github.com/microsoft/typescript-go/internal/project.InstallNpmPackages
 func InstallNpmPackages(packageNames []string, installPackages func(packages []string, hasError *atomic.Bool)) bool
 
+// TODO: Uncomment when typescript-go is updated to include CachedTyping type
 //go:linkname IsTypingUpToDate github.com/microsoft/typescript-go/internal/project.IsTypingUpToDate
-func IsTypingUpToDate(cachedTyping *project.CachedTyping, availableTypingVersions map[string]string) bool
+// func IsTypingUpToDate(cachedTyping *project.CachedTyping, availableTypingVersions map[string]string) bool
 
 type Kind = project.Kind
 
