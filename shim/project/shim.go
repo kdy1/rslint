@@ -2,12 +2,13 @@
 
 package project
 
-import "github.com/microsoft/typescript-go/internal/collections"
-import "github.com/microsoft/typescript-go/internal/core"
+// TODO: Uncomment when the functions using these imports are uncommented
+// import "github.com/microsoft/typescript-go/internal/collections"
+// import "github.com/microsoft/typescript-go/internal/core"
 import "github.com/microsoft/typescript-go/internal/project"
-import "github.com/microsoft/typescript-go/internal/tspath"
-import "github.com/microsoft/typescript-go/internal/vfs"
-import "io"
+// import "github.com/microsoft/typescript-go/internal/tspath"
+// import "github.com/microsoft/typescript-go/internal/vfs"
+// import "io"
 import "sync/atomic"
 import _ "unsafe"
 
@@ -20,7 +21,7 @@ type Client = project.Client
 type ConfigFileRegistry = project.ConfigFileRegistry
 
 // TODO: Uncomment when typescript-go is updated to include TypingsInfo and CachedTyping types
-//go:linkname DiscoverTypings github.com/microsoft/typescript-go/internal/project.DiscoverTypings
+// //go:linkname DiscoverTypings github.com/microsoft/typescript-go/internal/project.DiscoverTypings
 // func DiscoverTypings(fs vfs.FS, log func(s string), typingsInfo *project.TypingsInfo, fileNames []string, projectRootPath string, packageNameToTypingLocation *collections.SyncMap[string, *project.CachedTyping], typesRegistry map[string]map[string]string) (cachedTypingPaths []string, newTypingNames []string, filesToWatch []string)
 
 // TODO: Uncomment when typescript-go is updated to include this type
@@ -39,56 +40,64 @@ type ConfigFileRegistry = project.ConfigFileRegistry
 func InstallNpmPackages(packageNames []string, installPackages func(packages []string, hasError *atomic.Bool)) bool
 
 // TODO: Uncomment when typescript-go is updated to include CachedTyping type
-//go:linkname IsTypingUpToDate github.com/microsoft/typescript-go/internal/project.IsTypingUpToDate
+// //go:linkname IsTypingUpToDate github.com/microsoft/typescript-go/internal/project.IsTypingUpToDate
 // func IsTypingUpToDate(cachedTyping *project.CachedTyping, availableTypingVersions map[string]string) bool
 
 type Kind = project.Kind
 
-const KindAutoImportProvider = project.KindAutoImportProvider
-const KindAuxiliary = project.KindAuxiliary
+// TODO: Uncomment when typescript-go is updated to include these constants
+// const KindAutoImportProvider = project.KindAutoImportProvider
+// const KindAuxiliary = project.KindAuxiliary
 const KindConfigured = project.KindConfigured
 const KindInferred = project.KindInferred
 
-// TODO: Uncomment when typescript-go is updated to include this type
+// TODO: Uncomment when typescript-go is updated to include this type and constants
 // type LogLevel = project.LogLevel
-
-const LogLevelNormal = project.LogLevelNormal
-const LogLevelRequestTime = project.LogLevelRequestTime
-const LogLevelTerse = project.LogLevelTerse
-const LogLevelVerbose = project.LogLevelVerbose
+// const LogLevelNormal = project.LogLevelNormal
+// const LogLevelRequestTime = project.LogLevelRequestTime
+// const LogLevelTerse = project.LogLevelTerse
+// const LogLevelVerbose = project.LogLevelVerbose
 
 // TODO: Uncomment when typescript-go is updated to include this type
 // type Logger = project.Logger
 
-const NameContainsNonURISafeCharacters = project.NameContainsNonURISafeCharacters
-const NameOk = project.NameOk
-const NameStartsWithDot = project.NameStartsWithDot
-const NameStartsWithUnderscore = project.NameStartsWithUnderscore
-const NameTooLong = project.NameTooLong
+// TODO: Uncomment when typescript-go is updated to include these constants
+// const NameContainsNonURISafeCharacters = project.NameContainsNonURISafeCharacters
+// const NameOk = project.NameOk
+// const NameStartsWithDot = project.NameStartsWithDot
+// const NameStartsWithUnderscore = project.NameStartsWithUnderscore
+// const NameTooLong = project.NameTooLong
 
 // TODO: Uncomment when typescript-go is updated to include this type
 // type NameValidationResult = project.NameValidationResult
 
-//go:linkname NewConfiguredProject github.com/microsoft/typescript-go/internal/project.NewConfiguredProject
-func NewConfiguredProject(configFileName string, configFilePath tspath.Path, host project.ProjectHost) *project.Project
+// TODO: Uncomment when typescript-go is updated to include ProjectHost type
+// //go:linkname NewConfiguredProject github.com/microsoft/typescript-go/internal/project.NewConfiguredProject
+// func NewConfiguredProject(configFileName string, configFilePath tspath.Path, host project.ProjectHost) *project.Project
 
-//go:linkname NewDocumentStore github.com/microsoft/typescript-go/internal/project.NewDocumentStore
-func NewDocumentStore(options project.DocumentStoreOptions) *project.DocumentStore
+// TODO: Uncomment when typescript-go is updated to include DocumentStoreOptions and DocumentStore types
+// //go:linkname NewDocumentStore github.com/microsoft/typescript-go/internal/project.NewDocumentStore
+// func NewDocumentStore(options project.DocumentStoreOptions) *project.DocumentStore
 
-//go:linkname NewInferredProject github.com/microsoft/typescript-go/internal/project.NewInferredProject
-func NewInferredProject(compilerOptions *core.CompilerOptions, currentDirectory string, projectRootPath tspath.Path, host project.ProjectHost) *project.Project
+// TODO: Uncomment when typescript-go is updated to include ProjectHost type
+// //go:linkname NewInferredProject github.com/microsoft/typescript-go/internal/project.NewInferredProject
+// func NewInferredProject(compilerOptions *core.CompilerOptions, currentDirectory string, projectRootPath tspath.Path, host project.ProjectHost) *project.Project
 
-//go:linkname NewLogger github.com/microsoft/typescript-go/internal/project.NewLogger
-func NewLogger(outputs []io.Writer, file string, level project.LogLevel) *project.Logger
+// TODO: Uncomment when typescript-go is updated to include LogLevel and Logger types
+// //go:linkname NewLogger github.com/microsoft/typescript-go/internal/project.NewLogger
+// func NewLogger(outputs []io.Writer, file string, level project.LogLevel) *project.Logger
 
-//go:linkname NewProject github.com/microsoft/typescript-go/internal/project.NewProject
-func NewProject(name string, kind project.Kind, currentDirectory string, host project.ProjectHost) *project.Project
+// TODO: Uncomment when typescript-go is updated to include ProjectHost type
+// //go:linkname NewProject github.com/microsoft/typescript-go/internal/project.NewProject
+// func NewProject(name string, kind project.Kind, currentDirectory string, host project.ProjectHost) *project.Project
 
-//go:linkname NewScriptInfo github.com/microsoft/typescript-go/internal/project.NewScriptInfo
-func NewScriptInfo(fileName string, path tspath.Path, scriptKind core.ScriptKind, fs vfs.FS) *project.ScriptInfo
+// TODO: Uncomment when typescript-go is updated to include ScriptInfo type
+// //go:linkname NewScriptInfo github.com/microsoft/typescript-go/internal/project.NewScriptInfo
+// func NewScriptInfo(fileName string, path tspath.Path, scriptKind core.ScriptKind, fs vfs.FS) *project.ScriptInfo
 
-//go:linkname NewService github.com/microsoft/typescript-go/internal/project.NewService
-func NewService(host project.ServiceHost, options project.ServiceOptions) *project.Service
+// TODO: Uncomment when typescript-go is updated to include ServiceHost, ServiceOptions, and Service types
+// //go:linkname NewService github.com/microsoft/typescript-go/internal/project.NewService
+// func NewService(host project.ServiceHost, options project.ServiceOptions) *project.Service
 
 // TODO: Uncomment when typescript-go is updated to include this type
 // type NpmConfig = project.NpmConfig
@@ -114,25 +123,29 @@ type Project = project.Project
 // TODO: Uncomment when typescript-go is updated to include this type
 // type ProjectHost = project.ProjectHost
 
-//go:linkname RenderPackageNameValidationFailure github.com/microsoft/typescript-go/internal/project.RenderPackageNameValidationFailure
-func RenderPackageNameValidationFailure(typing string, result project.NameValidationResult, name string, isScopeName bool) string
+// TODO: Uncomment when typescript-go is updated to include NameValidationResult type
+// //go:linkname RenderPackageNameValidationFailure github.com/microsoft/typescript-go/internal/project.RenderPackageNameValidationFailure
+// func RenderPackageNameValidationFailure(typing string, result project.NameValidationResult, name string, isScopeName bool) string
 
-// TODO: Uncomment when typescript-go is updated to include this type
+// TODO: Uncomment when typescript-go is updated to include these types
 // type ResolutionWithLookupLocations = project.ResolutionWithLookupLocations
 // type ScriptInfo = project.ScriptInfo
 // type Service = project.Service
-type ServiceHost = project.ServiceHost
-type ServiceOptions = project.ServiceOptions
+// type ServiceHost = project.ServiceHost
+// type ServiceOptions = project.ServiceOptions
 
-const TsVersionToUse = project.TsVersionToUse
+// TODO: Uncomment when typescript-go is updated to include this constant
+// const TsVersionToUse = project.TsVersionToUse
+
+// TODO: Uncomment when typescript-go is updated to include these types
+// type TypingsInfo = project.TypingsInfo
+// type TypingsInstaller = project.TypingsInstaller
+// type TypingsInstallerOptions = project.TypingsInstallerOptions
+// type TypingsInstallerStatus = project.TypingsInstallerStatus
+
+// TODO: Uncomment when typescript-go is updated to include NameValidationResult type
+// //go:linkname ValidatePackageName github.com/microsoft/typescript-go/internal/project.ValidatePackageName
+// func ValidatePackageName(packageName string) (result project.NameValidationResult, name string, isScopeName bool)
 
 // TODO: Uncomment when typescript-go is updated to include this type
-// type TypingsInfo = project.TypingsInfo
-type TypingsInstaller = project.TypingsInstaller
-type TypingsInstallerOptions = project.TypingsInstallerOptions
-type TypingsInstallerStatus = project.TypingsInstallerStatus
-
-//go:linkname ValidatePackageName github.com/microsoft/typescript-go/internal/project.ValidatePackageName
-func ValidatePackageName(packageName string) (result project.NameValidationResult, name string, isScopeName bool)
-
-type WatcherHandle = project.WatcherHandle
+// type WatcherHandle = project.WatcherHandle
