@@ -1,3 +1,6 @@
+//go:build !wasm && !js
+// +build !wasm,!js
+
 // modified based on https://github.com/microsoft/typescript-go/blob/cedc0cbe6c188f9bfe6a51af00c79be48c9ab74d/cmd/tsgo/lsp.go#L1
 package main
 
