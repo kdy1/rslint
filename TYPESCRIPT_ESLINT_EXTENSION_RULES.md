@@ -1,10 +1,13 @@
 # TypeScript-ESLint Extension Rules Implementation
 
 ## Overview
+
 This document tracks the implementation of TypeScript-ESLint extension rules. Extension rules are TypeScript-aware versions of ESLint core rules that properly handle TypeScript-specific syntax.
 
 ## What are Extension Rules?
+
 Extension rules extend ESLint's core rules to support TypeScript syntax. They handle:
+
 - Type parameters and generic syntax
 - Enums and namespaces
 - Decorators
@@ -16,9 +19,11 @@ Extension rules extend ESLint's core rules to support TypeScript syntax. They ha
 ## Implementation Status
 
 ### Rules to Implement
+
 The following extension rules need to be implemented:
 
 #### Formatting & Style Rules (High Priority)
+
 - [ ] **block-spacing** - Enforce consistent spacing inside single-line blocks
 - [ ] **brace-style** - Enforce consistent brace style for blocks
 - [ ] **comma-dangle** - Require or disallow trailing commas
@@ -40,6 +45,7 @@ The following extension rules need to be implemented:
 - [ ] **no-extra-semi** - Disallow unnecessary semicolons
 
 #### Logic & Best Practices Rules (Medium Priority)
+
 - [ ] **class-methods-use-this** - Enforce that class methods utilize `this`
 - [ ] **default-param-last** - Enforce default parameters to be last
 - [ ] **init-declarations** - Require or disallow initialization in variable declarations
@@ -54,6 +60,7 @@ The following extension rules need to be implemented:
 - [ ] **no-useless-constructor** - Disallow unnecessary constructors
 
 ### Already Implemented
+
 - [x] **dot-notation** - Enforce dot notation whenever possible (exists in `internal/rules/dot_notation/`)
 - [x] **no-empty-function** - Disallow empty functions (exists in `internal/plugins/typescript/rules/no_empty_function/`)
 - [x] **no-implied-eval** - Disallow the use of `eval()`-like methods (exists in `internal/plugins/typescript/rules/no_implied_eval/`)
@@ -61,13 +68,17 @@ The following extension rules need to be implemented:
 ## Implementation Approach
 
 ### 1. Rule Generation
+
 Use the automated scaffolding tool:
+
 ```bash
 go run scripts/generate-rule.go -rule <rule-name> -plugin typescript-eslint -has-autofix -fetch
 ```
 
 ### 2. TypeScript-Specific Considerations
+
 Each rule must handle:
+
 - **Type Parameters**: `function foo<T>(param: T) {}`
 - **Enums**: `enum Foo { A, B }`
 - **Namespaces**: `namespace Foo {}`
@@ -79,7 +90,9 @@ Each rule must handle:
 - **Type Assertions**: `value as Type`, `<Type>value`
 
 ### 3. Test Requirements
+
 Each rule needs comprehensive tests including:
+
 - Valid TypeScript syntax cases
 - Invalid TypeScript syntax cases
 - Edge cases with generic types
@@ -88,7 +101,9 @@ Each rule needs comprehensive tests including:
 - Integration with autofix (where applicable)
 
 ### 4. Documentation
+
 Each rule should reference:
+
 - TypeScript-ESLint docs: https://typescript-eslint.io/rules/[rule-name]
 - ESLint core rule: https://eslint.org/docs/latest/rules/[rule-name]
 - Test cases from upstream: https://github.com/typescript-eslint/typescript-eslint/tree/main/packages/eslint-plugin/tests/rules
@@ -96,6 +111,7 @@ Each rule should reference:
 ## Technical Implementation Details
 
 ### Rule Structure
+
 ```go
 package rule_name
 
@@ -124,6 +140,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 ```
 
 ### AST Node Types Commonly Used
+
 - `FunctionDeclaration`, `ArrowFunction`, `MethodDeclaration`
 - `ClassDeclaration`, `InterfaceDeclaration`
 - `EnumDeclaration`, `ModuleDeclaration` (namespaces)
@@ -134,16 +151,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 ## Next Steps
 
 1. **Initialize Development Environment**
+
    - Ensure `typescript-go` submodule is initialized
    - Set up Go development environment
    - Install required dependencies
 
 2. **Implement Priority Rules**
+
    - Start with formatting rules (most commonly used)
    - Focus on rules with clear TypeScript-specific behavior
    - Implement autofixes for style rules
 
 3. **Testing & Validation**
+
    - Port test cases from TypeScript-ESLint
    - Add custom test cases for edge scenarios
    - Validate against real-world TypeScript code
@@ -156,15 +176,18 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 ## Resources
 
 ### Official Documentation
+
 - [TypeScript-ESLint Extension Rules](https://typescript-eslint.io/rules/?=extension)
 - [ESLint Core Rules](https://eslint.org/docs/latest/rules/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
 
 ### Test Resources
+
 - [TypeScript-ESLint Test Cases](https://github.com/typescript-eslint/typescript-eslint/tree/main/packages/eslint-plugin/tests/rules)
 - [ESLint Rule Tests](https://github.com/eslint/eslint/tree/main/tests/lib/rules)
 
 ### Example Implementations
+
 - Existing TypeScript rules in `internal/plugins/typescript/rules/`
 - Rule scaffolding tool in `scripts/generate-rule.go`
 
@@ -177,11 +200,14 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
     "@typescript-eslint/comma-dangle": ["error", "always-multiline"],
     "@typescript-eslint/quotes": ["error", "single"],
     "@typescript-eslint/semi": ["error", "always"],
-    "@typescript-eslint/space-before-function-paren": ["error", {
-      "anonymous": "always",
-      "named": "never",
-      "asyncArrow": "always"
-    }]
+    "@typescript-eslint/space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "always",
+        "named": "never",
+        "asyncArrow": "always"
+      }
+    ]
   }
 }
 ```
@@ -189,6 +215,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 ## Contributing
 
 When implementing a rule:
+
 1. Check if the rule already exists (see "Already Implemented" section)
 2. Generate scaffolding using the provided script
 3. Implement TypeScript-specific logic
