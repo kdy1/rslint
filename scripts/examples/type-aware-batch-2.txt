@@ -1,0 +1,12 @@
+dot-notation
+no-array-constructor
+no-throw-literal
+no-unnecessary-condition
+no-unnecessary-type-parameters
+prefer-includes
+prefer-nullish-coalescing
+prefer-readonly
+prefer-readonly-parameter-types
+prefer-regexp-exec
+prefer-string-starts-ends-with
+strict-boolean-expressions
