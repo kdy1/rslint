@@ -104,24 +104,25 @@ var CamelcaseRule = rule.CreateRule(rule.Rule{
 })
 
 func isCamelCase(name string) bool {
-	// Check for leading underscores (sometimes allowed)
-	name = strings.TrimLeft(name, "_")
+	// Trim leading and trailing underscores (allowed)
+	trimmed := strings.Trim(name, "_")
 
-	// Empty after trimming
-	if len(name) == 0 {
+	// Empty after trimming is allowed
+	if len(trimmed) == 0 {
 		return true
 	}
 
-	// Must start with lowercase letter
-	if name[0] < 'a' || name[0] > 'z' {
+	// Check if it's all uppercase (CONSTANT_CASE is allowed)
+	if trimmed == strings.ToUpper(trimmed) {
+		return true
+	}
+
+	// Check for underscores in the middle (not camelCase/PascalCase)
+	if strings.Contains(trimmed, "_") {
 		return false
 	}
 
-	// Check for underscores in the middle (not camelCase)
-	if strings.Contains(name, "_") {
-		return false
-	}
-
+	// camelCase or PascalCase (no underscores) is valid
 	return true
 }
 
@@ -136,7 +137,99 @@ func isAllowedByPattern(name string, patterns []string) bool {
 }
 
 func shouldCheckIdentifier(node *ast.Node, opts CamelcaseOptions) bool {
-	// TODO: Implement full checking logic based on context
-	// This is a placeholder that needs full implementation
-	return true
+	if node.Parent == nil {
+		return false
+	}
+
+	parent := node.Parent
+	parentKind := parent.Kind
+
+	// Check if we're in an import declaration and should ignore
+	if opts.IgnoreImports {
+		if isInImportDeclaration(node) {
+			return false
+		}
+	}
+
+	// Check if we're in a destructuring pattern and should ignore
+	if opts.IgnoreDestructuring {
+		if isInDestructuring(node) {
+			return false
+		}
+	}
+
+	// Check if identifier is a property access and properties = "never"
+	if opts.Properties == "never" {
+		if isPropertyName(node) {
+			return false
+		}
+	}
+
+	// Only check specific contexts where camelcase should apply:
+	// Variable declarations, function declarations, class declarations, etc.
+	switch parentKind {
+	case ast.KindVariableDeclaration,
+		ast.KindFunctionDeclaration,
+		ast.KindFunctionExpression,
+		ast.KindArrowFunction,
+		ast.KindClassDeclaration,
+		ast.KindClassExpression,
+		ast.KindMethodDeclaration,
+		ast.KindParameter,
+		ast.KindCatchClause,
+		ast.KindPropertyDeclaration,
+		ast.KindPropertySignature,
+		ast.KindEnumMember:
+		return true
+	case ast.KindPropertyAssignment:
+		// Check properties only if properties = "always"
+		return opts.Properties == "always"
+	}
+
+	return false
+}
+
+func isInImportDeclaration(node *ast.Node) bool {
+	current := node
+	for current != nil {
+		if current.Kind == ast.KindImportDeclaration || current.Kind == ast.KindImportEqualsDeclaration {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+func isInDestructuring(node *ast.Node) bool {
+	current := node
+	for current != nil {
+		if current.Kind == ast.KindObjectBindingPattern || current.Kind == ast.KindArrayBindingPattern {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+func isPropertyName(node *ast.Node) bool {
+	if node.Parent == nil {
+		return false
+	}
+	parent := node.Parent
+	// Check if this identifier is a property name (not property value)
+	switch parent.Kind {
+	case ast.KindPropertyAssignment:
+		prop := parent.AsPropertyAssignment()
+		return prop.Name() == node
+	case ast.KindPropertyDeclaration:
+		prop := parent.AsPropertyDeclaration()
+		return prop.Name() == node
+	case ast.KindMethodDeclaration:
+		method := parent.AsMethodDeclaration()
+		return method.Name() == node
+	case ast.KindPropertySignature:
+		sig := parent.AsPropertySignature()
+		return sig.Name() == node
+	}
+	return false
 }
