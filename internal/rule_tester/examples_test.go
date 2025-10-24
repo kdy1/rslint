@@ -3,6 +3,7 @@ package rule_tester_test
 import (
 	"testing"
 
+	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rule_tester"
 )
 
@@ -11,8 +12,8 @@ func Example_basicUsage() {
 	// In a real test, you would pass *testing.T
 	var t *testing.T
 
-	// Create mock rule for demonstration
-	var rule interface{} // Replace with actual rule
+	// Create mock rule for demonstration (in real tests, use an actual rule like &dotNotationRule)
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
@@ -77,7 +78,7 @@ func Example_commonFixtures() {
 // Example_loadFromJSON demonstrates loading tests from JSON
 func Example_loadFromJSON() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	// Load tests from JSON file
 	err := rule_tester.RunRuleTesterFromJSON(
@@ -85,7 +86,7 @@ func Example_loadFromJSON() {
 		"tsconfig.json",
 		"testdata/my_rule_tests.json",
 		t,
-		rule,
+		testRule,
 	)
 
 	_ = err // Handle error in real code
@@ -110,13 +111,13 @@ func Example_convertESLint() {
 // Example_withOptions demonstrates testing with rule options
 func Example_withOptions() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		[]rule_tester.ValidTestCase{
 			{
 				Code: "let x = 1;",
@@ -142,13 +143,13 @@ func Example_withOptions() {
 // Example_withSuggestions demonstrates testing suggestions
 func Example_withSuggestions() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		nil,
 		[]rule_tester.InvalidTestCase{
 			{
@@ -178,13 +179,13 @@ func Example_withSuggestions() {
 // Example_focusMode demonstrates using focus mode during development
 func Example_focusMode() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		[]rule_tester.ValidTestCase{
 			{Code: "const x = 1;"},
 			{Code: "const y = 2;", Only: true}, // Only this test runs
@@ -197,13 +198,13 @@ func Example_focusMode() {
 // Example_skipTest demonstrates skipping tests
 func Example_skipTest() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		[]rule_tester.ValidTestCase{
 			{Code: "const x = 1;"},
 			{Code: "// TODO: Fix this", Skip: true}, // This test is skipped
@@ -216,13 +217,13 @@ func Example_skipTest() {
 // Example_iterativeFixes demonstrates testing iterative fixes
 func Example_iterativeFixes() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		nil,
 		[]rule_tester.InvalidTestCase{
 			{
@@ -242,13 +243,13 @@ func Example_iterativeFixes() {
 // Example_customFileName demonstrates using custom filenames
 func Example_customFileName() {
 	var t *testing.T
-	var rule interface{}
+	var testRule *rule.Rule // Replace with actual rule in real tests
 
 	rule_tester.RunRuleTester(
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		[]rule_tester.ValidTestCase{
 			{
 				Code:     "import { foo } from './bar';",
