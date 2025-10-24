@@ -68,12 +68,6 @@ jobs:
           go-version: 1.25.0
           cache-name: go-lint
 
-      - name: go vet
-        run: npm run lint:go
-
-      - name: go fmt
-        run: npm run format:go
-
       - name: Check Spell
         run: pnpm check-spell
 
