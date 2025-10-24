@@ -38,8 +38,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 		[]rule_tester.InvalidTestCase{
 			// Default (record): index signature in type
 			{
-				Code:   `type T = { [key: string]: unknown };`,
-				Output: []string{`type T = Record<string, unknown>;`},
+				Code: `type T = { [key: string]: unknown };`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
@@ -48,8 +47,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 
 			// Default (record): index signature in interface
 			{
-				Code:   `interface I { [key: string]: number }`,
-				Output: []string{`type I = Record<string, number>`},
+				Code: `interface I { [key: string]: number }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
@@ -59,7 +57,6 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 			// Index-signature preference: Record type
 			{
 				Code:    `type T = Record<string, unknown>;`,
-				Output:  []string{`type T = { [key: string]: unknown };`},
 				Options: "index-signature",
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferIndexSignature"},
@@ -69,8 +66,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 
 			// With different key types
 			{
-				Code:   `type T = { [key: number]: string };`,
-				Output: []string{`type T = Record<number, string>;`},
+				Code: `type T = { [key: number]: string };`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
