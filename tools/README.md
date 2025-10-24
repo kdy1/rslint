@@ -157,7 +157,6 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
 ### From ESLint
 
 1. **Extract tests from ESLint repository**
-
    - Locate the rule in the ESLint repository
    - Export the test cases to JSON format
 
@@ -186,7 +185,6 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
 ### From TypeScript-ESLint
 
 1. **Extract tests from TypeScript-ESLint repository**
-
    - Locate the rule in the TypeScript-ESLint repository
    - Export the test cases to JSON format
 
