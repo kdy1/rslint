@@ -64,6 +64,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/unicode_bom"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +327,7 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerAllCoreEslintRules()
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -389,6 +391,11 @@ func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
 	}
+}
+
+// registerAllCoreEslintRules registers all core ESLint rules in the global registry
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("unicode-bom", unicode_bom.UnicodeBomRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
