@@ -20,17 +20,16 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
 			{
 				Code: `
-// Add invalid code example here
-var x = 1;
+console.log(x);
+const x = 1;
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
 						MessageId: "noUseBeforeDefine",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
+						Line:      2,
+						Column:    13,
 					},
 				},
 			},

@@ -20,17 +20,17 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
 			{
 				Code: `
-// Add invalid code example here
-var x = 1;
+for (let i = 0; i < 10; i++) {
+  setTimeout(function() { console.log(i); });
+}
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
 						MessageId: "default",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
+						Line:      3,
+						Column:    14,
 					},
 				},
 			},

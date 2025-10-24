@@ -20,17 +20,17 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
 			{
 				Code: `
-// Add invalid code example here
-var x = 1;
+function foo(a = 1, b) {
+  return a + b;
+}
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
 						MessageId: "shouldBeLast",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
+						Line:      2,
+						Column:    14,
 					},
 				},
 			},

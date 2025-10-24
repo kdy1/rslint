@@ -20,17 +20,15 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
 			{
 				Code: `
-// Add invalid code example here
-var x = 1;
+const arr = new Array(1, 2, 3);
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
 						MessageId: "useLiteral",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
+						Line:      2,
+						Column:    13,
 					},
 				},
 			},

@@ -20,17 +20,19 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
 			{
 				Code: `
-// Add invalid code example here
-var x = 1;
+class A {
+  method() {
+    return 42;
+  }
+}
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
 						MessageId: "missingThis",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
+						Line:      3,
+						Column:    3,
 					},
 				},
 			},
