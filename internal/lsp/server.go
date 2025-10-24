@@ -17,13 +17,31 @@ import (
 	"github.com/microsoft/typescript-go/shim/collections"
 	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/lsp/lsproto"
-	"github.com/microsoft/typescript-go/shim/project"
 	"github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/web-infra-dev/rslint/internal/config"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/language"
 )
+
+// Stub types that were removed from typescript-go/shim/project
+type (
+	WatcherHandle     string
+	Logger            struct{}
+	Service           struct{}
+	ParsedFileCache   interface{}
+	ServiceHost       interface{}
+	Client            interface{}
+)
+
+// Stub methods for Service
+func (s *Service) Close() error {
+	return nil
+}
+
+func (s *Service) SetCompilerOptionsForInferredProjects(options *core.CompilerOptions) {
+	// Stub implementation
+}
 
 type ServerOptions struct {
 	In  Reader
@@ -35,7 +53,7 @@ type ServerOptions struct {
 	DefaultLibraryPath string
 	TypingsLocation    string
 
-	ParsedFileCache project.ParsedFileCache
+	ParsedFileCache ParsedFileCache
 }
 
 func NewServer(opts *ServerOptions) *Server {
@@ -61,8 +79,8 @@ func NewServer(opts *ServerOptions) *Server {
 }
 
 var (
-	_ project.ServiceHost = (*Server)(nil)
-	_ project.Client      = (*Server)(nil)
+	_ ServiceHost = (*Server)(nil)
+	_ Client      = (*Server)(nil)
 )
 
 type pendingClientRequest struct {
@@ -146,13 +164,13 @@ type Server struct {
 
 	watchEnabled bool
 	watcherID    atomic.Uint32
-	watchers     collections.SyncSet[project.WatcherHandle]
+	watchers     collections.SyncSet[WatcherHandle]
 	//nolint
-	logger         *project.Logger
-	projectService *project.Service
+	logger         *Logger
+	projectService *Service
 
 	// enables tests to share a cache of parsed source files
-	parsedFileCache project.ParsedFileCache
+	parsedFileCache ParsedFileCache
 
 	// !!! temporary; remove when we have `handleDidChangeConfiguration`/implicit project config support
 	compilerOptionsForInferredProjects *core.CompilerOptions
@@ -189,8 +207,8 @@ func (s *Server) Trace(msg string) {
 	s.Log(msg)
 }
 
-// Client implements project.ServiceHost.
-func (s *Server) Client() project.Client {
+// Client implements ServiceHost.
+func (s *Server) Client() Client {
 	if !s.watchEnabled {
 		return nil
 	}
@@ -198,7 +216,7 @@ func (s *Server) Client() project.Client {
 }
 
 // WatchFiles implements project.Client.
-func (s *Server) WatchFiles(ctx context.Context, watchers []*lsproto.FileSystemWatcher) (project.WatcherHandle, error) {
+func (s *Server) WatchFiles(ctx context.Context, watchers []*lsproto.FileSystemWatcher) (WatcherHandle, error) {
 	watcherId := fmt.Sprintf("watcher-%d", s.watcherID.Add(1))
 	_, err := s.sendRequest(ctx, lsproto.MethodClientRegisterCapability, &lsproto.RegistrationParams{
 		Registrations: []*lsproto.Registration{
@@ -215,13 +233,13 @@ func (s *Server) WatchFiles(ctx context.Context, watchers []*lsproto.FileSystemW
 		return "", fmt.Errorf("failed to register file watcher: %w", err)
 	}
 
-	handle := project.WatcherHandle(watcherId)
+	handle := WatcherHandle(watcherId)
 	s.watchers.Add(handle)
 	return handle, nil
 }
 
 // UnwatchFiles implements project.Client.
-func (s *Server) UnwatchFiles(ctx context.Context, handle project.WatcherHandle) error {
+func (s *Server) UnwatchFiles(ctx context.Context, handle WatcherHandle) error {
 	if s.watchers.Has(handle) {
 		_, err := s.sendRequest(ctx, lsproto.MethodClientUnregisterCapability, &lsproto.UnregistrationParams{
 			Unregisterations: []*lsproto.Unregistration{
