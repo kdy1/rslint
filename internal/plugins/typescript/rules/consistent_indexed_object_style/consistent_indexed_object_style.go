@@ -2,7 +2,6 @@ package consistent_indexed_object_style
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -65,7 +64,7 @@ func isRecordType(typeNode *ast.Node) bool {
 	// Check if the type name is "Record"
 	if typeRef.TypeName.Kind == ast.KindIdentifier {
 		identifier := typeRef.TypeName.AsIdentifier()
-		if identifier != nil && identifier.EscapedText == "Record" {
+		if identifier != nil && identifier.Text == "Record" {
 			return true
 		}
 	}
@@ -85,19 +84,20 @@ func hasIndexSignature(members []ast.TypeElement) bool {
 
 // Convert index signature to Record type
 func convertIndexSignatureToRecord(ctx rule.RuleContext, indexSig *ast.IndexSignatureDeclaration) string {
-	if indexSig == nil || len(indexSig.Parameters.Arr) == 0 {
+	if indexSig == nil || indexSig.Parameters == nil || len(indexSig.Parameters.Nodes) == 0 {
 		return "Record<string, unknown>"
 	}
 
-	param := indexSig.Parameters.Arr[0]
+	param := indexSig.Parameters.Nodes[0]
 	if param == nil {
 		return "Record<string, unknown>"
 	}
 
 	// Get key type
 	keyType := "string"
-	if param.Type != nil {
-		keyRange := utils.TrimNodeTextRange(ctx.SourceFile, param.Type)
+	paramType := param.Type()
+	if paramType != nil {
+		keyRange := utils.TrimNodeTextRange(ctx.SourceFile, paramType)
 		keyType = ctx.SourceFile.Text()[keyRange.Pos():keyRange.End()]
 	}
 
@@ -113,12 +113,13 @@ func convertIndexSignatureToRecord(ctx rule.RuleContext, indexSig *ast.IndexSign
 
 // Convert Record type to index signature
 func convertRecordToIndexSignature(ctx rule.RuleContext, typeRef *ast.TypeReference) string {
-	if typeRef == nil || typeRef.TypeArguments == nil || len(typeRef.TypeArguments.Arr) < 2 {
+	typeArgs := typeRef.TypeArguments
+	if typeRef == nil || typeArgs == nil || len(typeArgs.Nodes) < 2 {
 		return "{ [key: string]: unknown }"
 	}
 
-	keyType := typeRef.TypeArguments.Arr[0]
-	valueType := typeRef.TypeArguments.Arr[1]
+	keyType := typeArgs.Nodes[0]
+	valueType := typeArgs.Nodes[1]
 
 	keyRange := utils.TrimNodeTextRange(ctx.SourceFile, keyType)
 	keyText := ctx.SourceFile.Text()[keyRange.Pos():keyRange.End()]
@@ -166,9 +167,8 @@ var ConsistentIndexedObjectStyleRule = rule.CreateRule(rule.Rule{
 						return
 					}
 
-					members := typeLiteral.Members.Arr
-					if len(members) == 1 && members[0].Kind == ast.KindIndexSignature {
-						indexSig := members[0].AsIndexSignatureDeclaration()
+					if typeLiteral.Members != nil && len(typeLiteral.Members.Nodes) == 1 && typeLiteral.Members.Nodes[0].Kind == ast.KindIndexSignature {
+						indexSig := typeLiteral.Members.Nodes[0].AsIndexSignatureDeclaration()
 						recordText := convertIndexSignatureToRecord(ctx, indexSig)
 
 						ctx.ReportNodeWithFixes(
@@ -191,22 +191,23 @@ var ConsistentIndexedObjectStyleRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				members := interfaceDecl.Members.Arr
-
 				// Only report if interface has a single index signature and nothing else
-				if opts.Style == "record" && len(members) == 1 && members[0].Kind == ast.KindIndexSignature {
+				if opts.Style == "record" && interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) == 1 && interfaceDecl.Members.Nodes[0].Kind == ast.KindIndexSignature {
+					members := interfaceDecl.Members.Nodes
 					indexSig := members[0].AsIndexSignatureDeclaration()
 					recordText := convertIndexSignatureToRecord(ctx, indexSig)
 
 					// Get interface name
-					nameRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Name)
+					nameRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Name())
 					interfaceName := ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 
 					// Get type parameters if any
 					typeParams := ""
-					if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Arr) > 0 {
-						typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.TypeParameters)
-						typeParams = ctx.SourceFile.Text()[typeParamsRange.Pos():typeParamsRange.End()]
+					if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Nodes) > 0 {
+						// Create a range from the first to the last type parameter
+						firstParam := interfaceDecl.TypeParameters.Nodes[0]
+						lastParam := interfaceDecl.TypeParameters.Nodes[len(interfaceDecl.TypeParameters.Nodes)-1]
+						typeParams = "<" + ctx.SourceFile.Text()[firstParam.Pos():lastParam.End()] + ">"
 					}
 
 					replacement := "type " + interfaceName + typeParams + " = " + recordText

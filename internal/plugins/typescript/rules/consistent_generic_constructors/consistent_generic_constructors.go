@@ -2,7 +2,7 @@ package consistent_generic_constructors
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/core"
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -62,7 +62,7 @@ func hasTypeArguments(typeNode *ast.Node) bool {
 		if typeRef == nil {
 			return false
 		}
-		return typeRef.TypeArguments != nil && len(typeRef.TypeArguments.Arr) > 0
+		return typeRef.TypeArguments != nil && len(typeRef.TypeArguments.Nodes) > 0
 	}
 
 	return false
@@ -73,7 +73,7 @@ func hasNewExpressionTypeArguments(newExpr *ast.NewExpression) bool {
 	if newExpr == nil {
 		return false
 	}
-	return newExpr.TypeArguments != nil && len(newExpr.TypeArguments.Arr) > 0
+	return newExpr.TypeArguments != nil && len(newExpr.TypeArguments.Nodes) > 0
 }
 
 // Get the type name from a type node
@@ -145,21 +145,24 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 						// Get type arguments text
 						typeRef := typeAnnotation.AsTypeReference()
 						if typeRef != nil && typeRef.TypeArguments != nil {
-							typeArgsRange := utils.TrimNodeTextRange(ctx.SourceFile, typeRef.TypeArguments)
-							typeArgsText := ctx.SourceFile.Text()[typeArgsRange.Pos():typeArgsRange.End()]
+							// Get the text of the type arguments including brackets
+							typeArgsNodes := typeRef.TypeArguments.Nodes
+							if len(typeArgsNodes) > 0 {
+								typeArgsText := "<" + ctx.SourceFile.Text()[typeArgsNodes[0].Pos():typeArgsNodes[len(typeArgsNodes)-1].End()] + ">"
 
-							// Create fix: move type args to constructor
-							ctx.ReportNodeWithFixes(
-								typeAnnotation,
-								buildPreferConstructorMessage(),
-								// Remove type args from annotation
-								rule.RuleFixReplaceRange(
-									core.NewTextRange(typeArgsRange.Pos(), typeArgsRange.End()),
-									"",
-								),
-								// Add type args to constructor
-								rule.RuleFixInsertAfter(newExpr.Expression, typeArgsText),
-							)
+								// Create fix: move type args to constructor
+								ctx.ReportNodeWithFixes(
+									typeAnnotation,
+									buildPreferConstructorMessage(),
+									// Remove type args from annotation (find the brackets)
+									rule.RuleFixReplaceRange(
+										scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, typeRef.TypeArguments.Pos()).WithEnd(typeRef.TypeArguments.End()),
+										"",
+									),
+									// Add type args to constructor
+									rule.RuleFixInsertAfter(newExpr.Expression, typeArgsText),
+								)
+							}
 						}
 					}
 				} else if !hasTypeArgs && hasConstructorArgs {
@@ -167,27 +170,29 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 					if opts.Style == "type-annotation" {
 						// Get constructor type arguments text
 						if newExpr.TypeArguments != nil {
-							typeArgsRange := utils.TrimNodeTextRange(ctx.SourceFile, newExpr.TypeArguments)
-							typeArgsText := ctx.SourceFile.Text()[typeArgsRange.Pos():typeArgsRange.End()]
+							typeArgsNodes := newExpr.TypeArguments.Nodes
+							if len(typeArgsNodes) > 0 {
+								typeArgsText := "<" + ctx.SourceFile.Text()[typeArgsNodes[0].Pos():typeArgsNodes[len(typeArgsNodes)-1].End()] + ">"
 
-							// Verify type annotation exists and matches constructor name
-							if typeAnnotation != nil {
-								typeName := getTypeName(typeAnnotation, ctx.SourceFile)
-								constructorName := getConstructorName(newExpr, ctx.SourceFile)
+								// Verify type annotation exists and matches constructor name
+								if typeAnnotation != nil {
+									typeName := getTypeName(typeAnnotation, ctx.SourceFile)
+									constructorName := getConstructorName(newExpr, ctx.SourceFile)
 
-								// Only report if names match (don't report when they differ)
-								if typeName == constructorName {
-									ctx.ReportNodeWithFixes(
-										newExpr,
-										buildPreferTypeAnnotationMessage(),
-										// Remove type args from constructor
-										rule.RuleFixReplaceRange(
-											core.NewTextRange(typeArgsRange.Pos(), typeArgsRange.End()),
-											"",
-										),
-										// Add type args to annotation
-										rule.RuleFixInsertAfter(typeAnnotation.AsTypeReference().TypeName, typeArgsText),
-									)
+									// Only report if names match (don't report when they differ)
+									if typeName == constructorName {
+										ctx.ReportNodeWithFixes(
+											node,
+											buildPreferTypeAnnotationMessage(),
+											// Remove type args from constructor
+											rule.RuleFixReplaceRange(
+												scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, newExpr.TypeArguments.Pos()).WithEnd(newExpr.TypeArguments.End()),
+												"",
+											),
+											// Add type args to annotation
+											rule.RuleFixInsertAfter(typeAnnotation.AsTypeReference().TypeName, typeArgsText),
+										)
+									}
 								}
 							}
 						}

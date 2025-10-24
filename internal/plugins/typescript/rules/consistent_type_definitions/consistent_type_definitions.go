@@ -61,19 +61,20 @@ func isObjectType(typeNode *ast.Node) bool {
 
 // Convert type alias to interface
 func convertTypeToInterface(ctx rule.RuleContext, typeAlias *ast.TypeAliasDeclaration) string {
-	if typeAlias == nil || typeAlias.Name == nil {
+	if typeAlias == nil || typeAlias.Name() == nil {
 		return ""
 	}
 
 	// Get name
-	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, typeAlias.Name)
+	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, typeAlias.Name())
 	name := ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 
 	// Get type parameters if any
 	typeParams := ""
-	if typeAlias.TypeParameters != nil && len(typeAlias.TypeParameters.Arr) > 0 {
-		typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, typeAlias.TypeParameters)
-		typeParams = ctx.SourceFile.Text()[typeParamsRange.Pos():typeParamsRange.End()]
+	if typeAlias.TypeParameters != nil && len(typeAlias.TypeParameters.Nodes) > 0 {
+		firstParam := typeAlias.TypeParameters.Nodes[0]
+		lastParam := typeAlias.TypeParameters.Nodes[len(typeAlias.TypeParameters.Nodes)-1]
+		typeParams = "<" + ctx.SourceFile.Text()[firstParam.Pos():lastParam.End()] + ">"
 	}
 
 	// Get type body
@@ -93,31 +94,33 @@ func convertTypeToInterface(ctx rule.RuleContext, typeAlias *ast.TypeAliasDeclar
 
 // Convert interface to type alias
 func convertInterfaceToType(ctx rule.RuleContext, interfaceDecl *ast.InterfaceDeclaration) string {
-	if interfaceDecl == nil || interfaceDecl.Name == nil {
+	if interfaceDecl == nil || interfaceDecl.Name() == nil {
 		return ""
 	}
 
 	// Get name
-	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Name)
+	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Name())
 	name := ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 
 	// Get type parameters if any
 	typeParams := ""
-	if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Arr) > 0 {
-		typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.TypeParameters)
-		typeParams = ctx.SourceFile.Text()[typeParamsRange.Pos():typeParamsRange.End()]
+	if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Nodes) > 0 {
+		firstParam := interfaceDecl.TypeParameters.Nodes[0]
+		lastParam := interfaceDecl.TypeParameters.Nodes[len(interfaceDecl.TypeParameters.Nodes)-1]
+		typeParams = "<" + ctx.SourceFile.Text()[firstParam.Pos():lastParam.End()] + ">"
 	}
 
 	// Get members and convert to type literal
 	membersText := ""
-	if interfaceDecl.Members != nil && len(interfaceDecl.Members.Arr) > 0 {
+	if interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) > 0 {
 		// Find the opening brace position
 		openBrace := -1
 		closeBrace := -1
 		sourceText := ctx.SourceFile.Text()
 
 		// Search for braces around the members
-		for i := interfaceDecl.Name.End(); i < interfaceDecl.End(); i++ {
+		nameEnd := interfaceDecl.Name().End()
+		for i := nameEnd; i < interfaceDecl.End(); i++ {
 			if sourceText[i] == '{' && openBrace == -1 {
 				openBrace = i
 			}

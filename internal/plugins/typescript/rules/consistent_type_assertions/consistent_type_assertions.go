@@ -2,7 +2,6 @@ package consistent_type_assertions
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -174,7 +173,7 @@ var ConsistentTypeAssertionsRule = rule.CreateRule(rule.Rule{
 				// Skip const assertions - always allowed
 				if asExpr.Type != nil && asExpr.Type.Kind == ast.KindTypeOperator {
 					typeOp := asExpr.Type.AsTypeOperatorNode()
-					if typeOp != nil && typeOp.Operator == ast.SyntaxKindConstKeyword {
+					if typeOp != nil && typeOp.Operator == ast.KindConstKeyword {
 						return
 					}
 				}
@@ -243,7 +242,7 @@ var ConsistentTypeAssertionsRule = rule.CreateRule(rule.Rule{
 				// Skip const assertions - always allowed
 				if typeAssertion.Type != nil && typeAssertion.Type.Kind == ast.KindTypeOperator {
 					typeOp := typeAssertion.Type.AsTypeOperatorNode()
-					if typeOp != nil && typeOp.Operator == ast.SyntaxKindConstKeyword {
+					if typeOp != nil && typeOp.Operator == ast.KindConstKeyword {
 						return
 					}
 				}

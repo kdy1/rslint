@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
@@ -165,7 +166,7 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 
 			// If completely banned, report immediately
 			if config.banned {
-				ctx.ReportPositionWithMessage(pos, end, buildBannedMessage(directiveName))
+				ctx.ReportRange(core.NewTextRange(pos, end), buildBannedMessage(directiveName))
 				return
 			}
 
@@ -173,13 +174,13 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			if config.requireDescription {
 				// Check minimum length
 				if len(description) < config.minimumDescriptionLength {
-					ctx.ReportPositionWithMessage(pos, end, buildDescriptionTooShortMessage(directiveName, config.minimumDescriptionLength))
+					ctx.ReportRange(core.NewTextRange(pos, end), buildDescriptionTooShortMessage(directiveName, config.minimumDescriptionLength))
 					return
 				}
 
 				// Check description format if pattern is specified
 				if config.descriptionFormat != nil && !config.descriptionFormat.MatchString(description) {
-					ctx.ReportPositionWithMessage(pos, end, buildDescriptionNotMatchFormatMessage(directiveName))
+					ctx.ReportRange(core.NewTextRange(pos, end), buildDescriptionNotMatchFormatMessage(directiveName))
 					return
 				}
 			}
@@ -195,9 +196,16 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 				text := sourceFile.Text()
 
 				// Scan all comments in the file
-				// Check leading comments of every position
-				for pos := 0; pos < len(text); pos++ {
-					for commentRange := range scanner.GetLeadingCommentRanges(sourceFile.Factory, text, pos) {
+				// Use the scanner to find comment ranges
+				s := scanner.GetScannerForSourceFile(ctx.SourceFile, 0)
+				for {
+					token := s.Scan()
+					if token == ast.KindEndOfFileToken {
+						break
+					}
+
+					// Check for comments before this token
+					for commentRange := range scanner.GetLeadingCommentRanges(text, s.TokenStart()) {
 						commentText := text[commentRange.Pos():commentRange.End()]
 						checkComment(commentText, commentRange.Pos(), commentRange.End())
 					}
