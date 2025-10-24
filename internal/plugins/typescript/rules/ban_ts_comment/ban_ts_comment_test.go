@@ -16,22 +16,26 @@ func TestBanTsComment(t *testing.T) {
 		[]rule_tester.ValidTestCase{
 			// No directive comments
 			{Code: `const x = 1;`},
-			{Code: `// Regular comment\nconst x = 1;`},
+			{Code: `// Regular comment
+const x = 1;`},
 
 			// ts-expect-error with allow-with-description
 			{
-				Code: `// @ts-expect-error: TS2345 Argument type is incorrect\nconst x: number = "test";`,
+				Code: `// @ts-expect-error: TS2345 Argument type is incorrect
+const x: number = "test";`,
 				Options: map[string]interface{}{
 					"ts-expect-error": "allow-with-description",
 				},
 			},
 
 			// ts-check is allowed by default
-			{Code: `// @ts-check\nconst x = 1;`},
+			{Code: `// @ts-check
+const x = 1;`},
 
 			// Allow ts-ignore when configured
 			{
-				Code: `// @ts-ignore\nconst x = 1;`,
+				Code: `// @ts-ignore
+const x = 1;`,
 				Options: map[string]interface{}{
 					"ts-ignore": false,
 				},
@@ -40,7 +44,8 @@ func TestBanTsComment(t *testing.T) {
 		[]rule_tester.InvalidTestCase{
 			// Banned by default: ts-expect-error
 			{
-				Code: `// @ts-expect-error\nconst x: number = "test";`,
+				Code: `// @ts-expect-error
+const x: number = "test";`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
@@ -48,7 +53,8 @@ func TestBanTsComment(t *testing.T) {
 
 			// Banned by default: ts-ignore
 			{
-				Code: `// @ts-ignore\nconst x = 1;`,
+				Code: `// @ts-ignore
+const x = 1;`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
@@ -56,7 +62,8 @@ func TestBanTsComment(t *testing.T) {
 
 			// Banned by default: ts-nocheck
 			{
-				Code: `// @ts-nocheck\nconst x = 1;`,
+				Code: `// @ts-nocheck
+const x = 1;`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
@@ -64,7 +71,8 @@ func TestBanTsComment(t *testing.T) {
 
 			// Description too short with allow-with-description
 			{
-				Code: `// @ts-expect-error: hi\nconst x: number = "test";`,
+				Code: `// @ts-expect-error: hi
+const x: number = "test";`,
 				Options: map[string]interface{}{
 					"ts-expect-error":          "allow-with-description",
 					"minimumDescriptionLength": 10,
@@ -76,7 +84,8 @@ func TestBanTsComment(t *testing.T) {
 
 			// Block comment with ts-ignore
 			{
-				Code: `/* @ts-ignore */\nconst x = 1;`,
+				Code: `/* @ts-ignore */
+const x = 1;`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},

@@ -137,6 +137,9 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			"ts-check":        parseDirectiveOption(opts.TsCheck, opts.MinimumDescriptionLength),
 		}
 
+		// Track whether we've already processed comments to avoid duplicate checks
+		processed := false
+
 		checkComment := func(commentText string, pos int, end int) {
 			// Normalize comment text: remove leading // or /* and trailing */
 			text := strings.TrimSpace(commentText)
@@ -153,6 +156,8 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			// Extract directive name and description
 			parts := strings.SplitN(text[1:], " ", 2) // Skip @ symbol
 			directiveName := parts[0]
+			// Remove trailing colon if present (e.g., "@ts-expect-error:" becomes "ts-expect-error")
+			directiveName = strings.TrimSuffix(directiveName, ":")
 			description := ""
 			if len(parts) > 1 {
 				description = strings.TrimSpace(parts[1])
@@ -186,20 +191,26 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
+		processComments := func() {
+			if processed {
+				return
+			}
+			processed = true
+
+			sourceFile := ctx.SourceFile
+			text := sourceFile.Text()
+
+			// Use ForEachComment to iterate over all comments in the file
+			utils.ForEachComment(&sourceFile.Node, func(comment *ast.CommentRange) {
+				commentText := text[comment.Pos():comment.End()]
+				checkComment(commentText, comment.Pos(), comment.End())
+			}, sourceFile)
+		}
+
 		return rule.RuleListeners{
-			ast.KindSourceFile: func(node *ast.Node) {
-				if node.Kind != ast.KindSourceFile {
-					return
-				}
-
-				sourceFile := ctx.SourceFile
-				text := sourceFile.Text()
-
-				// Use ForEachComment to iterate over all comments in the file
-				utils.ForEachComment(node, func(comment *ast.CommentRange) {
-					commentText := text[comment.Pos():comment.End()]
-					checkComment(commentText, comment.Pos(), comment.End())
-				}, sourceFile)
+			// Process comments on EndOfFile token which is always present
+			ast.KindEndOfFile: func(node *ast.Node) {
+				processComments()
 			},
 		}
 	},
