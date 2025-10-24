@@ -39,7 +39,7 @@ var ParameterPropertiesRule = rule.CreateRule(rule.Rule{
 		// Or prefer "class-property" (separate property declaration + assignment)
 
 		return rule.RuleListeners{
-			ast.KindConstructorDeclaration: func(node *ast.Node) {
+			ast.KindConstructor: func(node *ast.Node) {
 				// TODO: Check constructor parameters and class properties
 			},
 		}

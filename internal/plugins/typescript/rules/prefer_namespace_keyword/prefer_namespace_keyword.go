@@ -26,7 +26,7 @@ var PreferNamespaceKeywordRule = rule.CreateRule(rule.Rule{
 				// 3. Report and suggest using 'namespace' instead
 
 				// Get the module keyword position
-				nameRange := utils.TrimNodeTextRange(ctx.SourceFile, moduleDecl.Name)
+				nameRange := utils.TrimNodeTextRange(ctx.SourceFile, moduleDecl.Name())
 				moduleText := ctx.SourceFile.Text()[node.Pos():nameRange.Pos()]
 
 				// Simple check for 'module' keyword
