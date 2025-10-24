@@ -153,3 +153,4 @@ autofixes
 kebab
 PascalCase
 tmpl
+nonoctal
