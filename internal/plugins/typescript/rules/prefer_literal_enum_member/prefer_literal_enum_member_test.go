@@ -1,4 +1,4 @@
-package no_redundant_type_constituents
+package prefer_literal_enum_member
 
 import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestNoRedundantTypeConstituentsRule(t *testing.T) {
+func TestPreferLiteralEnumMemberRule(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
 		t,
-		&NoRedundantTypeConstituentsRule,
+		&PreferLiteralEnumMemberRule,
 		[]rule_tester.ValidTestCase{
 			// TODO: Add valid test cases
 			{Code: `
@@ -28,7 +28,7 @@ var x = 1;
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "errorTypeOverrides",
+						MessageId: "notLiteral",
 						Line:      2, // TODO: Update line number
 						Column:    1, // TODO: Update column number
 					},

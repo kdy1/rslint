@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package prefer_literal_enum_member
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// PreferLiteralEnumMemberRule implements the prefer-literal-enum-member rule
+// Require all enum members to be literal values
+var PreferLiteralEnumMemberRule = rule.CreateRule(rule.Rule{
+	Name: "prefer-literal-enum-member",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "notLiteral",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

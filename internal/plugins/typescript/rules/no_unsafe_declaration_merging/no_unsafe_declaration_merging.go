@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package no_unsafe_declaration_merging
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// NoUnsafeDeclarationMergingRule implements the no-unsafe-declaration-merging rule
+// Disallow unsafe declaration merging
+var NoUnsafeDeclarationMergingRule = rule.CreateRule(rule.Rule{
+	Name: "no-unsafe-declaration-merging",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "unsafeMerging",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

@@ -1,4 +1,4 @@
-package no_redundant_type_constituents
+package explicit_module_boundary_types
 
 import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestNoRedundantTypeConstituentsRule(t *testing.T) {
+func TestExplicitModuleBoundaryTypesRule(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
 		t,
-		&NoRedundantTypeConstituentsRule,
+		&ExplicitModuleBoundaryTypesRule,
 		[]rule_tester.ValidTestCase{
 			// TODO: Add valid test cases
 			{Code: `
@@ -28,7 +28,7 @@ var x = 1;
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "errorTypeOverrides",
+						MessageId: "anyTypedArg",
 						Line:      2, // TODO: Update line number
 						Column:    1, // TODO: Update column number
 					},

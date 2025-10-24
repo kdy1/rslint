@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package no_unnecessary_type_constraint
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// NoUnnecessaryTypeConstraintRule implements the no-unnecessary-type-constraint rule
+// Disallow unnecessary constraints on generic types
+var NoUnnecessaryTypeConstraintRule = rule.CreateRule(rule.Rule{
+	Name: "no-unnecessary-type-constraint",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "removeUnnecessaryConstraint",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

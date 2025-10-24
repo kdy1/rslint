@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package explicit_member_accessibility
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// ExplicitMemberAccessibilityRule implements the explicit-member-accessibility rule
+// Require explicit accessibility modifiers on class properties and methods
+var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
+	Name: "explicit-member-accessibility",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "addExplicitAccessibility",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package explicit_module_boundary_types
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// ExplicitModuleBoundaryTypesRule implements the explicit-module-boundary-types rule
+// Require explicit return and argument types on exported functions
+var ExplicitModuleBoundaryTypesRule = rule.CreateRule(rule.Rule{
+	Name: "explicit-module-boundary-types",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "anyTypedArg",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

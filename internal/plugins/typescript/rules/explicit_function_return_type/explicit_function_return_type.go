@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package explicit_function_return_type
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// ExplicitFunctionReturnTypeRule implements the explicit-function-return-type rule
+// Require explicit return types on functions and class methods
+var ExplicitFunctionReturnTypeRule = rule.CreateRule(rule.Rule{
+	Name: "explicit-function-return-type",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "missingReturnType",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

@@ -1,14 +1,14 @@
-package restrict_template_expressions
+package no_inferrable_types
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-// RestrictTemplateExpressionsRule implements the restrict-template-expressions rule
-// Enforce template literal expressions to be of `string` type
-var RestrictTemplateExpressionsRule = rule.CreateRule(rule.Rule{
-	Name: "restrict-template-expressions",
+// NoInferrableTypesRule implements the no-inferrable-types rule
+// Disallow explicit type declarations for variables or parameters initialized to a number, string, or boolean
+var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
+	Name: "no-inferrable-types",
 	Run:  run,
 })
 
@@ -25,7 +25,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Example: Check some condition and report
 			// if violatesRule(node) {
 			//     ctx.ReportNode(node, rule.RuleMessage{
-			//         Id:          "invalidType",
+			//         Id:          "noInferrableType",
 			//         Description: "TODO: Add error message",
 			//     })
 			// }

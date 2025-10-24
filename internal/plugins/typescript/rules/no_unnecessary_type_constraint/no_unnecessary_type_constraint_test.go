@@ -1,4 +1,4 @@
-package no_redundant_type_constituents
+package no_unnecessary_type_constraint
 
 import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestNoRedundantTypeConstituentsRule(t *testing.T) {
+func TestNoUnnecessaryTypeConstraintRule(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
 		t,
-		&NoRedundantTypeConstituentsRule,
+		&NoUnnecessaryTypeConstraintRule,
 		[]rule_tester.ValidTestCase{
 			// TODO: Add valid test cases
 			{Code: `
@@ -28,7 +28,7 @@ var x = 1;
 `,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "errorTypeOverrides",
+						MessageId: "removeUnnecessaryConstraint",
 						Line:      2, // TODO: Update line number
 						Column:    1, // TODO: Update column number
 					},
