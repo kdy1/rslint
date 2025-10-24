@@ -147,3 +147,8 @@ co-locate
 shadcn
 subtests
 testdata
+scaffolding
+autofix
+autofixes
+kebab
+PascalCase
