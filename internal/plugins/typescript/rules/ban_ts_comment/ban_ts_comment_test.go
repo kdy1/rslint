@@ -11,6 +11,8 @@ func TestBanTsComment(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
+		t,
+		&BanTsCommentRule,
 		[]rule_tester.ValidTestCase{
 			// No directive comments
 			{Code: `const x = 1;`},
@@ -39,7 +41,7 @@ func TestBanTsComment(t *testing.T) {
 			// Banned by default: ts-expect-error
 			{
 				Code: `// @ts-expect-error\nconst x: number = "test";`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
 			},
@@ -47,7 +49,7 @@ func TestBanTsComment(t *testing.T) {
 			// Banned by default: ts-ignore
 			{
 				Code: `// @ts-ignore\nconst x = 1;`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
 			},
@@ -55,7 +57,7 @@ func TestBanTsComment(t *testing.T) {
 			// Banned by default: ts-nocheck
 			{
 				Code: `// @ts-nocheck\nconst x = 1;`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
 			},
@@ -67,7 +69,7 @@ func TestBanTsComment(t *testing.T) {
 					"ts-expect-error":          "allow-with-description",
 					"minimumDescriptionLength": 10,
 				},
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveCommentRequiresDescription"},
 				},
 			},
@@ -75,12 +77,10 @@ func TestBanTsComment(t *testing.T) {
 			// Block comment with ts-ignore
 			{
 				Code: `/* @ts-ignore */\nconst x = 1;`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "tsDirectiveComment"},
 				},
 			},
 		},
-		t,
-		&BanTsCommentRule,
 	)
 }

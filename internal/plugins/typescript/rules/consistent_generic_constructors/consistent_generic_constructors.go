@@ -148,15 +148,20 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 							// Get the text of the type arguments including brackets
 							typeArgsNodes := typeRef.TypeArguments.Nodes
 							if len(typeArgsNodes) > 0 {
-								typeArgsText := "<" + ctx.SourceFile.Text()[typeArgsNodes[0].Pos():typeArgsNodes[len(typeArgsNodes)-1].End()] + ">"
+								// Get the full text including the angle brackets
+								// TypeArguments.Pos() should be the position of '<'
+								// TypeArguments.End() should be the position after '>'
+								typeArgsStartPos := typeRef.TypeArguments.Pos()
+								typeArgsEndPos := typeRef.TypeArguments.End()
+								typeArgsText := ctx.SourceFile.Text()[typeArgsStartPos:typeArgsEndPos]
 
 								// Create fix: move type args to constructor
 								ctx.ReportNodeWithFixes(
 									typeAnnotation,
 									buildPreferConstructorMessage(),
-									// Remove type args from annotation (find the brackets)
+									// Remove type args from annotation
 									rule.RuleFixReplaceRange(
-										scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, typeRef.TypeArguments.Pos()).WithEnd(typeRef.TypeArguments.End()),
+										scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
 										"",
 									),
 									// Add type args to constructor
@@ -172,25 +177,58 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 						if newExpr.TypeArguments != nil {
 							typeArgsNodes := newExpr.TypeArguments.Nodes
 							if len(typeArgsNodes) > 0 {
-								typeArgsText := "<" + ctx.SourceFile.Text()[typeArgsNodes[0].Pos():typeArgsNodes[len(typeArgsNodes)-1].End()] + ">"
+								// Get the full text including the angle brackets
+								typeArgsStartPos := newExpr.TypeArguments.Pos()
+								typeArgsEndPos := newExpr.TypeArguments.End()
+								typeArgsText := ctx.SourceFile.Text()[typeArgsStartPos:typeArgsEndPos]
 
-								// Verify type annotation exists and matches constructor name
+								// Build the constructor name (what type annotation should be)
+								constructorName := getConstructorName(newExpr, ctx.SourceFile)
+
+								// If there's a type annotation, verify it matches constructor name
 								if typeAnnotation != nil {
 									typeName := getTypeName(typeAnnotation, ctx.SourceFile)
-									constructorName := getConstructorName(newExpr, ctx.SourceFile)
 
-									// Only report if names match (don't report when they differ)
+									// Only provide fix if names match
 									if typeName == constructorName {
 										ctx.ReportNodeWithFixes(
 											node,
 											buildPreferTypeAnnotationMessage(),
 											// Remove type args from constructor
 											rule.RuleFixReplaceRange(
-												scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, newExpr.TypeArguments.Pos()).WithEnd(newExpr.TypeArguments.End()),
+												scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
 												"",
 											),
 											// Add type args to annotation
 											rule.RuleFixInsertAfter(typeAnnotation.AsTypeReference().TypeName, typeArgsText),
+										)
+									} else {
+										// Names don't match, report without fix
+										ctx.ReportNode(node, buildPreferTypeAnnotationMessage())
+									}
+								} else {
+									// No type annotation exists - need to add one
+									// Get variable name
+									varName := ""
+									if varDecl.Name != nil {
+										nameRange := utils.TrimNodeTextRange(ctx.SourceFile, varDecl.Name)
+										varName = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
+									}
+
+									if varName != "" {
+										// Create the full type annotation including generic args
+										fullTypeAnnotation := ": " + constructorName + typeArgsText
+
+										ctx.ReportNodeWithFixes(
+											node,
+											buildPreferTypeAnnotationMessage(),
+											// Add type annotation after variable name
+											rule.RuleFixInsertAfter(varDecl.Name, fullTypeAnnotation),
+											// Remove type args from constructor
+											rule.RuleFixReplaceRange(
+												scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
+												"",
+											),
 										)
 									}
 								}

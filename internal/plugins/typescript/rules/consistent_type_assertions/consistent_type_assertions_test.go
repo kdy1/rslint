@@ -54,6 +54,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "as"},
 				},
+				Output: []string{`const x = value as string;`},
 			},
 
 			// Prefer angle-bracket: 'as' used
@@ -65,6 +66,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "angle-bracket"},
 				},
+				Output: []string{`const x = <string>value;`},
 			},
 
 			// Never: disallow all assertions

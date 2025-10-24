@@ -40,6 +40,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "interfaceOverType"},
 				},
+				Output: []string{`interface T { x: number }`},
 			},
 
 			// Default (interface): multiple properties
@@ -48,6 +49,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "interfaceOverType"},
 				},
+				Output: []string{`interface T { x: number; y: string }`},
 			},
 
 			// Type preference: interface used
@@ -57,6 +59,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "typeOverInterface"},
 				},
+				Output: []string{`type T = { x: number }`},
 			},
 
 			// Type preference: interface with multiple properties
@@ -66,6 +69,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "typeOverInterface"},
 				},
+				Output: []string{`type T = { x: number; y: string }`},
 			},
 		},
 	)

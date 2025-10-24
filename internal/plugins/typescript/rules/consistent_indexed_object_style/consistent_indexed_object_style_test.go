@@ -11,6 +11,8 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
+		t,
+		&ConsistentIndexedObjectStyleRule,
 		[]rule_tester.ValidTestCase{
 			// Default: prefer Record
 			{Code: `type T = Record<string, unknown>;`},
@@ -37,7 +39,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 			// Default (record): index signature in type
 			{
 				Code: `type T = { [key: string]: unknown };`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
 			},
@@ -45,7 +47,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 			// Default (record): index signature in interface
 			{
 				Code: `interface I { [key: string]: number }`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
 			},
@@ -54,7 +56,7 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 			{
 				Code:    `type T = Record<string, unknown>;`,
 				Options: "index-signature",
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferIndexSignature"},
 				},
 			},
@@ -62,12 +64,10 @@ func TestConsistentIndexedObjectStyle(t *testing.T) {
 			// With different key types
 			{
 				Code: `type T = { [key: number]: string };`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferRecord"},
 				},
 			},
 		},
-		t,
-		&ConsistentIndexedObjectStyleRule,
 	)
 }
