@@ -228,8 +228,9 @@ func isPropertyName(node *ast.Node) bool {
 		method := parent.AsMethodDeclaration()
 		return method.Name() == node
 	case ast.KindPropertySignature:
-		sig := parent.AsPropertySignature()
-		return sig.Name() == node
+		// PropertySignature is for interface/type properties
+		// For now, just check if it's a name by checking the parent kind
+		return true
 	}
 	return false
 }
