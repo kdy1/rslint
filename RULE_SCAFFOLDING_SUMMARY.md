@@ -11,6 +11,7 @@ This PR introduces automated code generation tools to significantly accelerate t
 **Purpose:** Automatically generates rule implementation and test file boilerplate.
 
 **Features:**
+
 - ✅ Generates complete Go rule implementation with proper package structure
 - ✅ Creates test file templates with placeholder test cases
 - ✅ Supports metadata fetching from ESLint/TypeScript-ESLint GitHub repositories
@@ -21,6 +22,7 @@ This PR introduces automated code generation tools to significantly accelerate t
 - ✅ Plugin support (TypeScript-ESLint, Import, Core ESLint)
 
 **Usage Example:**
+
 ```bash
 # Generate a TypeScript-ESLint rule with autofix
 go run scripts/generate-rule.go \
@@ -43,6 +45,7 @@ go run scripts/generate-rule.go \
 **Purpose:** Automatically registers generated rules in the global rule registry.
 
 **Features:**
+
 - ✅ Adds import statements to `internal/config/config.go`
 - ✅ Adds registration calls in alphabetical order
 - ✅ Auto-detects unregistered rules across all plugins
@@ -51,6 +54,7 @@ go run scripts/generate-rule.go \
 - ✅ Idempotent (skips already registered rules)
 
 **Usage Example:**
+
 ```bash
 # Register a specific rule
 go run scripts/register-rule.go \
@@ -64,6 +68,7 @@ go run scripts/register-rule.go -auto
 ### 3. Documentation
 
 **`docs/RULE_SCAFFOLDING_GUIDE.md`** - Comprehensive guide covering:
+
 - Tool reference and flag documentation
 - Step-by-step workflow examples
 - Rule template structure explanation
@@ -72,6 +77,7 @@ go run scripts/register-rule.go -auto
 - Integration with testing tools from PR #11
 
 **`scripts/README.md`** - Scripts directory documentation:
+
 - Overview of all available scripts
 - Common workflows and patterns
 - Example batch files
@@ -99,6 +105,7 @@ internal/plugins/typescript/rules/no_explicit_any/
 ```
 
 **Generated rule file includes:**
+
 - Package declaration with correct naming convention
 - Import statements for required dependencies
 - Options struct (if requested)
@@ -111,6 +118,7 @@ internal/plugins/typescript/rules/no_explicit_any/
 - Autofix scaffolding (if requested)
 
 **Generated test file includes:**
+
 - Package declaration matching the rule
 - Appropriate fixtures import
 - Main test function with `RunRuleTester()`
@@ -132,12 +140,14 @@ internal/plugins/typescript/rules/no_explicit_any/
 ### Metadata Fetching
 
 When using `-fetch`, the tool attempts to retrieve:
+
 - Rule description from upstream repositories
 - Message IDs from the rule's meta object
 - Category information
 - Type checking requirements
 
 Supports fetching from:
+
 - TypeScript-ESLint: `github.com/typescript-eslint/typescript-eslint`
 - ESLint Core: `github.com/eslint/eslint`
 - Import Plugin: `github.com/import-js/eslint-plugin-import`
@@ -145,6 +155,7 @@ Supports fetching from:
 ### Rule Registry Management
 
 The `register-rule.go` tool:
+
 1. Parses `internal/config/config.go`
 2. Finds the appropriate registration function
 3. Inserts import in alphabetical order among internal imports
@@ -226,12 +237,14 @@ go build ./...
 ```
 
 **Estimated time savings:**
+
 - Manual setup: ~30-45 minutes per rule
 - With scaffolding tools: ~5-10 minutes for setup, focus on implementation
 
 ## Success Metrics
 
 **Tool Capabilities:**
+
 - ✅ Generates compilable Go code (even before implementation)
 - ✅ Follows RSLint naming conventions (snake_case directories, PascalCase types)
 - ✅ Preserves existing code formatting standards
@@ -241,6 +254,7 @@ go build ./...
 - ✅ Integrates with testing infrastructure
 
 **Generated Code Quality:**
+
 - ✅ Proper package structure and imports
 - ✅ Correct rule variable naming
 - ✅ Dual-format options parsing (array/object)
@@ -249,6 +263,7 @@ go build ./...
 - ✅ Test file with proper structure
 
 **Developer Experience:**
+
 - ✅ Clear, comprehensive documentation
 - ✅ Multiple usage examples
 - ✅ Troubleshooting guide
@@ -260,6 +275,7 @@ go build ./...
 ### Before These Tools
 
 Manually creating a rule required:
+
 1. Creating directory structure
 2. Writing boilerplate imports and package declaration
 3. Defining rule variable with correct naming
@@ -275,6 +291,7 @@ Manually creating a rule required:
 ### After These Tools
 
 With scaffolding tools:
+
 1. Run `generate-rule.go` (generates all boilerplate)
 2. Run `register-rule.go` (registers automatically)
 3. Focus on implementing actual rule logic
@@ -283,6 +300,7 @@ With scaffolding tools:
 **Time: 5-10 minutes for setup, then focus on implementation**
 
 **For 150 rules:**
+
 - Time saved: ~50-80 hours of boilerplate work
 - Consistency: All rules follow exact same patterns
 - Quality: No manual errors in structure/naming
@@ -334,21 +352,21 @@ go build .
 
 ### New Files
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `scripts/generate-rule.go` | ~650 | Rule code generator |
-| `scripts/register-rule.go` | ~380 | Rule registry manager |
-| `scripts/README.md` | ~320 | Scripts documentation |
-| `docs/RULE_SCAFFOLDING_GUIDE.md` | ~680 | Comprehensive user guide |
-| `scripts/examples/typescript-eslint-rules.txt` | ~28 | Example batch file |
-| `scripts/examples/eslint-core-rules.txt` | ~22 | Example batch file |
-| `scripts/examples/import-plugin-rules.txt` | ~20 | Example batch file |
-| `RULE_SCAFFOLDING_SUMMARY.md` | This file | Implementation summary |
+| File                                           | Lines     | Purpose                  |
+| ---------------------------------------------- | --------- | ------------------------ |
+| `scripts/generate-rule.go`                     | ~650      | Rule code generator      |
+| `scripts/register-rule.go`                     | ~380      | Rule registry manager    |
+| `scripts/README.md`                            | ~320      | Scripts documentation    |
+| `docs/RULE_SCAFFOLDING_GUIDE.md`               | ~680      | Comprehensive user guide |
+| `scripts/examples/typescript-eslint-rules.txt` | ~28       | Example batch file       |
+| `scripts/examples/eslint-core-rules.txt`       | ~22       | Example batch file       |
+| `scripts/examples/import-plugin-rules.txt`     | ~20       | Example batch file       |
+| `RULE_SCAFFOLDING_SUMMARY.md`                  | This file | Implementation summary   |
 
 ### Modified Files
 
-| File | Changes | Purpose |
-|------|---------|---------|
+| File                     | Changes  | Purpose                       |
+| ------------------------ | -------- | ----------------------------- |
 | `scripts/dictionary.txt` | +8 lines | Add scaffolding-related words |
 
 **Total:** ~2,100+ lines of new code and documentation

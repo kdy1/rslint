@@ -81,19 +81,19 @@ Generates rule implementation and test files.
 
 #### Flags
 
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `-rule` | string | *required* | Rule name in kebab-case (e.g., `no-explicit-any`) |
-| `-plugin` | string | `typescript-eslint` | Plugin name: `typescript-eslint`, `import`, or empty for core rules |
-| `-description` | string | "" | Brief description of the rule |
-| `-ast-nodes` | string | "" | Comma-separated list of AST node types to listen to |
-| `-requires-types` | bool | `false` | Whether the rule requires TypeScript type information |
-| `-has-options` | bool | `false` | Whether the rule has configuration options |
-| `-has-autofix` | bool | `false` | Whether the rule provides automatic fixes |
-| `-batch` | string | "" | Path to file containing rule names (one per line) for batch generation |
-| `-dry-run` | bool | `false` | Preview what would be generated without creating files |
-| `-fetch` | bool | `false` | Attempt to fetch rule metadata from ESLint/TypeScript-ESLint repos |
-| `-output` | string | "" | Custom output directory (defaults to appropriate plugin directory) |
+| Flag              | Type   | Default             | Description                                                            |
+| ----------------- | ------ | ------------------- | ---------------------------------------------------------------------- |
+| `-rule`           | string | _required_          | Rule name in kebab-case (e.g., `no-explicit-any`)                      |
+| `-plugin`         | string | `typescript-eslint` | Plugin name: `typescript-eslint`, `import`, or empty for core rules    |
+| `-description`    | string | ""                  | Brief description of the rule                                          |
+| `-ast-nodes`      | string | ""                  | Comma-separated list of AST node types to listen to                    |
+| `-requires-types` | bool   | `false`             | Whether the rule requires TypeScript type information                  |
+| `-has-options`    | bool   | `false`             | Whether the rule has configuration options                             |
+| `-has-autofix`    | bool   | `false`             | Whether the rule provides automatic fixes                              |
+| `-batch`          | string | ""                  | Path to file containing rule names (one per line) for batch generation |
+| `-dry-run`        | bool   | `false`             | Preview what would be generated without creating files                 |
+| `-fetch`          | bool   | `false`             | Attempt to fetch rule metadata from ESLint/TypeScript-ESLint repos     |
+| `-output`         | string | ""                  | Custom output directory (defaults to appropriate plugin directory)     |
 
 #### Examples
 
@@ -137,6 +137,7 @@ go run scripts/generate-rule.go \
 **Batch Generation:**
 
 Create a file `rules.txt`:
+
 ```
 no-explicit-any
 no-unsafe-assignment
@@ -146,6 +147,7 @@ no-unsafe-return
 ```
 
 Then run:
+
 ```bash
 go run scripts/generate-rule.go \
   -batch rules.txt \
@@ -169,13 +171,13 @@ Registers rules in the global rule registry.
 
 #### Flags
 
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `-rule` | string | "" | Rule name to register (e.g., `no-explicit-any`) |
-| `-plugin` | string | `typescript-eslint` | Plugin name: `typescript-eslint`, `import`, or empty |
-| `-config` | string | `internal/config/config.go` | Path to config.go file |
-| `-dry-run` | bool | `false` | Preview changes without modifying files |
-| `-auto` | bool | `false` | Auto-detect and register all unregistered rules |
+| Flag       | Type   | Default                     | Description                                          |
+| ---------- | ------ | --------------------------- | ---------------------------------------------------- |
+| `-rule`    | string | ""                          | Rule name to register (e.g., `no-explicit-any`)      |
+| `-plugin`  | string | `typescript-eslint`         | Plugin name: `typescript-eslint`, `import`, or empty |
+| `-config`  | string | `internal/config/config.go` | Path to config.go file                               |
+| `-dry-run` | bool   | `false`                     | Preview changes without modifying files              |
+| `-auto`    | bool   | `false`                     | Auto-detect and register all unregistered rules      |
 
 #### Examples
 
@@ -342,6 +344,7 @@ go run scripts/generate-rule.go \
 ```
 
 Common AST node types:
+
 - `FunctionDeclaration`
 - `ClassDeclaration`
 - `InterfaceDeclaration`
@@ -438,6 +441,7 @@ go fmt ./internal/plugins/typescript/rules/my_rule/
 ```
 
 If errors persist, check:
+
 - Import paths are correct
 - Variable names match expectations
 - AST node type names are valid
@@ -471,6 +475,7 @@ import "github.com/web-infra-dev/rslint/internal/rules/fixtures"
 ### Issue: Auto-registration doesn't find rules
 
 **Solution:** Ensure:
+
 1. Rule directory contains a non-test `.go` file
 2. Directory name matches snake_case pattern
 3. Rule is in the expected plugin path
@@ -478,11 +483,13 @@ import "github.com/web-infra-dev/rslint/internal/rules/fixtures"
 ### Issue: Metadata fetch fails
 
 **Solution:** Check:
+
 1. Internet connection is available
 2. Rule name matches the upstream repository
 3. Rule exists in the specified plugin
 
 For debugging, try:
+
 ```bash
 # Manual URL check
 curl https://raw.githubusercontent.com/typescript-eslint/typescript-eslint/main/packages/eslint-plugin/src/rules/no-explicit-any.ts

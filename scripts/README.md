@@ -11,6 +11,7 @@ This directory contains automation scripts and tools for RSLint development.
 Automated tool to scaffold new ESLint and TypeScript-ESLint rule implementations.
 
 **Quick Start:**
+
 ```bash
 # Generate a TypeScript-ESLint rule
 go run scripts/generate-rule.go -rule no-explicit-any -plugin typescript-eslint
@@ -23,6 +24,7 @@ go run scripts/generate-rule.go -batch scripts/examples/typescript-eslint-rules.
 ```
 
 **Features:**
+
 - Generates complete rule implementation files with proper structure
 - Creates test file templates with placeholder test cases
 - Supports metadata fetching from ESLint/TypeScript-ESLint repos
@@ -37,6 +39,7 @@ go run scripts/generate-rule.go -batch scripts/examples/typescript-eslint-rules.
 Automated tool to register rules in the global rule registry.
 
 **Quick Start:**
+
 ```bash
 # Register a specific rule
 go run scripts/register-rule.go -rule no-explicit-any -plugin typescript-eslint
@@ -46,6 +49,7 @@ go run scripts/register-rule.go -auto
 ```
 
 **Features:**
+
 - Adds import statements to config.go
 - Adds registration calls in alphabetical order
 - Auto-detection of unregistered rules
@@ -61,6 +65,7 @@ The `scripts/examples/` directory contains example batch files for common rule g
 ### `typescript-eslint-rules.txt`
 
 List of common TypeScript-ESLint rules to implement:
+
 ```bash
 go run scripts/generate-rule.go -batch scripts/examples/typescript-eslint-rules.txt -plugin typescript-eslint -fetch
 ```
@@ -68,6 +73,7 @@ go run scripts/generate-rule.go -batch scripts/examples/typescript-eslint-rules.
 ### `eslint-core-rules.txt`
 
 List of core ESLint rules to implement:
+
 ```bash
 go run scripts/generate-rule.go -batch scripts/examples/eslint-core-rules.txt -plugin "" -fetch
 ```
@@ -75,6 +81,7 @@ go run scripts/generate-rule.go -batch scripts/examples/eslint-core-rules.txt -p
 ### `import-plugin-rules.txt`
 
 List of eslint-plugin-import rules to implement:
+
 ```bash
 go run scripts/generate-rule.go -batch scripts/examples/import-plugin-rules.txt -plugin import -fetch
 ```
@@ -233,6 +240,7 @@ See [docs/RULE_TESTING_GUIDE.md](../docs/RULE_TESTING_GUIDE.md) for comprehensiv
 ### Generated code doesn't compile
 
 Run `go fmt` on the generated files:
+
 ```bash
 go fmt ./internal/plugins/typescript/rules/my_rule/
 ```
@@ -244,6 +252,7 @@ Verify the rule variable name matches the pattern `{PascalCaseRuleName}Rule`.
 ### Auto-registration doesn't find rules
 
 Ensure:
+
 1. Rule directory contains a non-test `.go` file
 2. Directory name is in snake_case
 3. Rule is in the expected plugin path
@@ -251,6 +260,7 @@ Ensure:
 ### Metadata fetch fails
 
 Check:
+
 1. Internet connection is available
 2. Rule name matches the upstream repository
 3. Rule exists in the specified plugin
