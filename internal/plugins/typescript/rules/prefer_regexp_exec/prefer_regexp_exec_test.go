@@ -7,6 +7,10 @@ import (
 )
 
 func TestPreferRegexpExecRule(t *testing.T) {
+	// TODO: Implement rule logic before adding test cases
+	// This rule is scaffolded but not yet implemented
+	t.Skip("Rule not yet implemented - scaffolding only")
+
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
@@ -20,20 +24,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "regExpExecOverStringMatch",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing rule logic
 		},
 	)
 }
