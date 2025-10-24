@@ -151,11 +151,20 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Extract directive name and description
-			parts := strings.SplitN(text[1:], " ", 2) // Skip @ symbol
-			directiveName := parts[0]
-			description := ""
-			if len(parts) > 1 {
-				description = strings.TrimSpace(parts[1])
+			// Handle both space and colon as separators (e.g., "@ts-expect-error" or "@ts-expect-error: description")
+			afterAt := text[1:] // Skip @ symbol
+
+			// First try to split by colon, then by space
+			var directiveName, description string
+			if colonIdx := strings.Index(afterAt, ":"); colonIdx != -1 {
+				directiveName = strings.TrimSpace(afterAt[:colonIdx])
+				description = strings.TrimSpace(afterAt[colonIdx+1:])
+			} else if spaceIdx := strings.Index(afterAt, " "); spaceIdx != -1 {
+				directiveName = strings.TrimSpace(afterAt[:spaceIdx])
+				description = strings.TrimSpace(afterAt[spaceIdx+1:])
+			} else {
+				directiveName = strings.TrimSpace(afterAt)
+				description = ""
 			}
 
 			// Check if this is a directive we care about
