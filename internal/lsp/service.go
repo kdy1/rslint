@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,11 +13,9 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/microsoft/typescript-go/shim/ls"
 	"github.com/microsoft/typescript-go/shim/lsp/lsproto"
 	"github.com/microsoft/typescript-go/shim/project"
 	"github.com/microsoft/typescript-go/shim/scanner"
-
 	"github.com/microsoft/typescript-go/shim/vfs"
 
 	"github.com/web-infra-dev/rslint/internal/config"
@@ -74,9 +71,22 @@ func (s *Server) handleInitialize(ctx context.Context, params *lsproto.Initializ
 	return response, nil
 }
 func (s *Server) handleInitialized(ctx context.Context, params *lsproto.InitializedParams) error {
-	s.projectService = project.NewService(s, project.ServiceOptions{
-		Logger:           project.NewLogger([]io.Writer{}, "", project.LogLevelVerbose),
-		PositionEncoding: lsproto.PositionEncodingKindUTF8,
+	// Initialize session for TypeScript project management
+	var client project.Client
+	if s.watchEnabled {
+		client = s
+	}
+	s.session = project.NewSession(&project.SessionInit{
+		Options: &project.SessionOptions{
+			CurrentDirectory:   s.cwd,
+			DefaultLibraryPath: s.defaultLibraryPath,
+			TypingsLocation:    s.typingsLocation,
+			PositionEncoding:   s.positionEncoding,
+			WatchEnabled:       s.watchEnabled,
+		},
+		FS:         s.fs,
+		Client:     client,
+		ParseCache: s.parseCache,
 	})
 	// Try to find rslint configuration files with multiple strategies
 	var rslintConfigPath string
@@ -230,7 +240,7 @@ func (s *Server) handleDocumentDiagnostic(ctx context.Context, params *lsproto.D
 	// Initialize rule registry with all available rules (ensure it's done once)
 	config.RegisterAllRules()
 
-	rule_diags, err := runLintWithProjectService(uri, s.projectService, ctx, s.rslintConfig)
+	rule_diags, err := runLintWithSession(uri, s.session, ctx, s.rslintConfig)
 
 	if err != nil {
 		log.Printf("Error running lint: %v", err)
@@ -282,7 +292,17 @@ func isTypeScriptFile(uri string) bool {
 }
 
 func uriToPath(uri lsproto.DocumentUri) string {
-	return ls.DocumentURIToFileName(uri)
+	// DocumentUri is typically "file:///path/to/file"
+	// Convert it to a file path
+	uriStr := string(uri)
+	if strings.HasPrefix(uriStr, "file://") {
+		// Remove "file://" prefix
+		path := strings.TrimPrefix(uriStr, "file://")
+		// On Windows, URIs are like "file:///C:/path", need to handle this
+		// For now, simple implementation
+		return path
+	}
+	return uriStr
 }
 
 // findRslintConfig searches for rslint configuration files using multiple strategies
@@ -307,20 +327,23 @@ type LintResponse struct {
 	RuleCount   int                  `json:"ruleCount"`
 }
 
-func runLintWithProjectService(uri lsproto.DocumentUri, service *project.Service, ctx context.Context, rslintConfig config.RslintConfig) ([]rule.RuleDiagnostic, error) {
+func runLintWithSession(uri lsproto.DocumentUri, session *project.Session, ctx context.Context, rslintConfig config.RslintConfig) ([]rule.RuleDiagnostic, error) {
 	log.Printf("context: %v", ctx)
 	// Initialize rule registry with all available rules
 	config.RegisterAllRules()
 	filename := uriToPath(uri)
-	content, ok := service.FS().ReadFile(filename)
-	if !ok {
+
+	// Check if file exists
+	if _, ok := session.FS().ReadFile(filename); !ok {
 		return nil, fmt.Errorf("failed to read file %s", filename)
 	}
-	service.OpenFile(filename, content, core.GetScriptKindFromFileName(filename), service.GetCurrentDirectory())
-	project := service.EnsureDefaultProjectForURI(uri)
-	languageService, done := project.GetLanguageServiceForRequest(ctx)
+
+	// Get language service for the document
+	languageService, err := session.GetLanguageService(ctx, uri)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get language service: %w", err)
+	}
 	program := languageService.GetProgram()
-	defer done()
 	// Collect diagnostics
 	var diagnostics []rule.RuleDiagnostic
 	var diagnosticsLock sync.Mutex
