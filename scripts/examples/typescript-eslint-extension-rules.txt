@@ -1,0 +1,45 @@
+# TypeScript-ESLint Extension Rules
+# These are TypeScript-aware alternatives to ESLint core rules
+# Usage: go run scripts/generate-rule.go -batch scripts/examples/typescript-eslint-extension-rules.txt -plugin typescript-eslint -fetch
+
+# Extension rules to port (excluding already implemented ones)
+# Already implemented: dot-notation, no-empty-function, no-implied-eval, no-unused-vars,
+#                      prefer-promise-reject-errors, require-await, return-await, only-throw-error
+
+# Class-related extension rules
+class-methods-use-this
+no-useless-constructor
+
+# Function/Parameter extension rules
+default-param-last
+max-params
+
+# Variable/Declaration extension rules
+init-declarations
+no-array-constructor
+no-redeclare
+no-shadow
+no-use-before-define
+
+# Function scope extension rules
+no-invalid-this
+no-loop-func
+
+# Expression extension rules
+no-unused-expressions
+
+# Number/Literal extension rules
+no-loss-of-precision
+no-magic-numbers
+
+# Class member extension rules
+no-dupe-class-members
+
+# Import/Export extension rules
+no-restricted-imports
+
+# Destructuring extension rules
+prefer-destructuring
+
+# Error handling extension rules
+no-throw-literal
