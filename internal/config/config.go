@@ -64,64 +64,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/unbound_method"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/rules/array_callback_return"
-	"github.com/web-infra-dev/rslint/internal/rules/constructor_super"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
-	"github.com/web-infra-dev/rslint/internal/rules/for_direction"
-	"github.com/web-infra-dev/rslint/internal/rules/getter_return"
-	"github.com/web-infra-dev/rslint/internal/rules/no_async_promise_executor"
-	"github.com/web-infra-dev/rslint/internal/rules/no_await_in_loop"
-	"github.com/web-infra-dev/rslint/internal/rules/no_class_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_compare_neg_zero"
-	"github.com/web-infra-dev/rslint/internal/rules/no_cond_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_const_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_constant_binary_expression"
-	"github.com/web-infra-dev/rslint/internal/rules/no_constant_condition"
-	"github.com/web-infra-dev/rslint/internal/rules/no_constructor_return"
-	"github.com/web-infra-dev/rslint/internal/rules/no_control_regex"
-	"github.com/web-infra-dev/rslint/internal/rules/no_debugger"
-	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_args"
-	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_class_members"
-	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_else_if"
-	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_keys"
-	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_case"
-	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_imports"
-	"github.com/web-infra-dev/rslint/internal/rules/no_empty_character_class"
-	"github.com/web-infra-dev/rslint/internal/rules/no_empty_pattern"
-	"github.com/web-infra-dev/rslint/internal/rules/no_ex_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_fallthrough"
-	"github.com/web-infra-dev/rslint/internal/rules/no_func_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_import_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_inner_declarations"
-	"github.com/web-infra-dev/rslint/internal/rules/no_invalid_regexp"
-	"github.com/web-infra-dev/rslint/internal/rules/no_irregular_whitespace"
-	"github.com/web-infra-dev/rslint/internal/rules/no_loss_of_precision"
-	"github.com/web-infra-dev/rslint/internal/rules/no_misleading_character_class"
-	"github.com/web-infra-dev/rslint/internal/rules/no_new_native_nonconstructor"
-	"github.com/web-infra-dev/rslint/internal/rules/no_obj_calls"
-	"github.com/web-infra-dev/rslint/internal/rules/no_promise_executor_return"
-	"github.com/web-infra-dev/rslint/internal/rules/no_prototype_builtins"
-	"github.com/web-infra-dev/rslint/internal/rules/no_self_assign"
-	"github.com/web-infra-dev/rslint/internal/rules/no_self_compare"
-	"github.com/web-infra-dev/rslint/internal/rules/no_setter_return"
-	"github.com/web-infra-dev/rslint/internal/rules/no_sparse_arrays"
-	"github.com/web-infra-dev/rslint/internal/rules/no_template_curly_in_string"
-	"github.com/web-infra-dev/rslint/internal/rules/no_this_before_super"
-	"github.com/web-infra-dev/rslint/internal/rules/no_undef"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unexpected_multiline"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unmodified_loop_condition"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unreachable"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unreachable_loop"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unsafe_finally"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unsafe_negation"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unsafe_optional_chaining"
-	"github.com/web-infra-dev/rslint/internal/rules/no_unused_private_class_members"
-	"github.com/web-infra-dev/rslint/internal/rules/no_use_before_define"
-	"github.com/web-infra-dev/rslint/internal/rules/no_useless_assignment"
-	"github.com/web-infra-dev/rslint/internal/rules/no_useless_backreference"
-	"github.com/web-infra-dev/rslint/internal/rules/require_atomic_updates"
-	"github.com/web-infra-dev/rslint/internal/rules/use_isnan"
-	"github.com/web-infra-dev/rslint/internal/rules/valid_typeof"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -384,63 +327,6 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
-	GlobalRuleRegistry.Register("array-callback-return", array_callback_return.ArrayCallbackReturnRule)
-	GlobalRuleRegistry.Register("constructor-super", constructor_super.ConstructorSuperRule)
-	GlobalRuleRegistry.Register("for-direction", for_direction.ForDirectionRule)
-	GlobalRuleRegistry.Register("getter-return", getter_return.GetterReturnRule)
-	GlobalRuleRegistry.Register("no-async-promise-executor", no_async_promise_executor.NoAsyncPromiseExecutorRule)
-	GlobalRuleRegistry.Register("no-await-in-loop", no_await_in_loop.NoAwaitInLoopRule)
-	GlobalRuleRegistry.Register("no-class-assign", no_class_assign.NoClassAssignRule)
-	GlobalRuleRegistry.Register("no-compare-neg-zero", no_compare_neg_zero.NoCompareNegZeroRule)
-	GlobalRuleRegistry.Register("no-cond-assign", no_cond_assign.NoCondAssignRule)
-	GlobalRuleRegistry.Register("no-const-assign", no_const_assign.NoConstAssignRule)
-	GlobalRuleRegistry.Register("no-constant-binary-expression", no_constant_binary_expression.NoConstantBinaryExpressionRule)
-	GlobalRuleRegistry.Register("no-constant-condition", no_constant_condition.NoConstantConditionRule)
-	GlobalRuleRegistry.Register("no-constructor-return", no_constructor_return.NoConstructorReturnRule)
-	GlobalRuleRegistry.Register("no-control-regex", no_control_regex.NoControlRegexRule)
-	GlobalRuleRegistry.Register("no-debugger", no_debugger.NoDebuggerRule)
-	GlobalRuleRegistry.Register("no-dupe-args", no_dupe_args.NoDupeArgsRule)
-	GlobalRuleRegistry.Register("no-dupe-class-members", no_dupe_class_members.NoDupeClassMembersRule)
-	GlobalRuleRegistry.Register("no-dupe-else-if", no_dupe_else_if.NoDupeElseIfRule)
-	GlobalRuleRegistry.Register("no-dupe-keys", no_dupe_keys.NoDupeKeysRule)
-	GlobalRuleRegistry.Register("no-duplicate-case", no_duplicate_case.NoDuplicateCaseRule)
-	GlobalRuleRegistry.Register("no-duplicate-imports", no_duplicate_imports.NoDuplicateImportsRule)
-	GlobalRuleRegistry.Register("no-empty-character-class", no_empty_character_class.NoEmptyCharacterClassRule)
-	GlobalRuleRegistry.Register("no-empty-pattern", no_empty_pattern.NoEmptyPatternRule)
-	GlobalRuleRegistry.Register("no-ex-assign", no_ex_assign.NoExAssignRule)
-	GlobalRuleRegistry.Register("no-fallthrough", no_fallthrough.NoFallthroughRule)
-	GlobalRuleRegistry.Register("no-func-assign", no_func_assign.NoFuncAssignRule)
-	GlobalRuleRegistry.Register("no-import-assign", no_import_assign.NoImportAssignRule)
-	GlobalRuleRegistry.Register("no-inner-declarations", no_inner_declarations.NoInnerDeclarationsRule)
-	GlobalRuleRegistry.Register("no-invalid-regexp", no_invalid_regexp.NoInvalidRegexpRule)
-	GlobalRuleRegistry.Register("no-irregular-whitespace", no_irregular_whitespace.NoIrregularWhitespaceRule)
-	GlobalRuleRegistry.Register("no-loss-of-precision", no_loss_of_precision.NoLossOfPrecisionRule)
-	GlobalRuleRegistry.Register("no-misleading-character-class", no_misleading_character_class.NoMisleadingCharacterClassRule)
-	GlobalRuleRegistry.Register("no-new-native-nonconstructor", no_new_native_nonconstructor.NoNewNativeNonconstructorRule)
-	GlobalRuleRegistry.Register("no-obj-calls", no_obj_calls.NoObjCallsRule)
-	GlobalRuleRegistry.Register("no-promise-executor-return", no_promise_executor_return.NoPromiseExecutorReturnRule)
-	GlobalRuleRegistry.Register("no-prototype-builtins", no_prototype_builtins.NoPrototypeBuiltinsRule)
-	GlobalRuleRegistry.Register("no-self-assign", no_self_assign.NoSelfAssignRule)
-	GlobalRuleRegistry.Register("no-self-compare", no_self_compare.NoSelfCompareRule)
-	GlobalRuleRegistry.Register("no-setter-return", no_setter_return.NoSetterReturnRule)
-	GlobalRuleRegistry.Register("no-sparse-arrays", no_sparse_arrays.NoSparseArraysRule)
-	GlobalRuleRegistry.Register("no-template-curly-in-string", no_template_curly_in_string.NoTemplateCurlyInStringRule)
-	GlobalRuleRegistry.Register("no-this-before-super", no_this_before_super.NoThisBeforeSuperRule)
-	GlobalRuleRegistry.Register("no-undef", no_undef.NoUndefRule)
-	GlobalRuleRegistry.Register("no-unexpected-multiline", no_unexpected_multiline.NoUnexpectedMultilineRule)
-	GlobalRuleRegistry.Register("no-unmodified-loop-condition", no_unmodified_loop_condition.NoUnmodifiedLoopConditionRule)
-	GlobalRuleRegistry.Register("no-unreachable", no_unreachable.NoUnreachableRule)
-	GlobalRuleRegistry.Register("no-unreachable-loop", no_unreachable_loop.NoUnreachableLoopRule)
-	GlobalRuleRegistry.Register("no-unsafe-finally", no_unsafe_finally.NoUnsafeFinallyRule)
-	GlobalRuleRegistry.Register("no-unsafe-negation", no_unsafe_negation.NoUnsafeNegationRule)
-	GlobalRuleRegistry.Register("no-unsafe-optional-chaining", no_unsafe_optional_chaining.NoUnsafeOptionalChainingRule)
-	GlobalRuleRegistry.Register("no-unused-private-class-members", no_unused_private_class_members.NoUnusedPrivateClassMembersRule)
-	GlobalRuleRegistry.Register("no-use-before-define", no_use_before_define.NoUseBeforeDefineRule)
-	GlobalRuleRegistry.Register("no-useless-assignment", no_useless_assignment.NoUselessAssignmentRule)
-	GlobalRuleRegistry.Register("no-useless-backreference", no_useless_backreference.NoUselessBackreferenceRule)
-	GlobalRuleRegistry.Register("require-atomic-updates", require_atomic_updates.RequireAtomicUpdatesRule)
-	GlobalRuleRegistry.Register("use-isnan", use_isnan.UseIsnanRule)
-	GlobalRuleRegistry.Register("valid-typeof", valid_typeof.ValidTypeofRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
