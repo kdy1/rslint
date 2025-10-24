@@ -19,7 +19,7 @@ func Example_basicUsage() {
 		"/path/to/root",
 		"tsconfig.json",
 		t,
-		rule,
+		testRule,
 		// Valid test cases
 		[]rule_tester.ValidTestCase{
 			{Code: "const x = 1;"},
