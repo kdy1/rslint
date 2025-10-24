@@ -30,12 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          [
-            ubuntu-latest,
-            windows-latest,
-            darwin-latest,
-          ]
+        runner: [ubuntu-latest, windows-latest, darwin-latest]
         go-version: ['1.25.0']
     steps:
       - name: Checkout code
