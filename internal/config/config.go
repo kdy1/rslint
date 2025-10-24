@@ -10,6 +10,8 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	importPlugin "github.com/web-infra-dev/rslint/internal/plugins/import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_self_import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_webpack_loader_syntax"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/adjacent_overload_signatures"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/array_type"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/await_thenable"
@@ -63,7 +65,37 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/unbound_method"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/rules/array_callback_return"
+	"github.com/web-infra-dev/rslint/internal/rules/constructor_super"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/for_direction"
+	"github.com/web-infra-dev/rslint/internal/rules/getter_return"
+	"github.com/web-infra-dev/rslint/internal/rules/no_async_promise_executor"
+	"github.com/web-infra-dev/rslint/internal/rules/no_class_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_compare_neg_zero"
+	"github.com/web-infra-dev/rslint/internal/rules/no_cond_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_const_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_constant_binary_expression"
+	"github.com/web-infra-dev/rslint/internal/rules/no_constant_condition"
+	"github.com/web-infra-dev/rslint/internal/rules/no_constructor_return"
+	"github.com/web-infra-dev/rslint/internal/rules/no_control_regex"
+	"github.com/web-infra-dev/rslint/internal/rules/no_debugger"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_args"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_class_members"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_else_if"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_keys"
+	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_case"
+	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_imports"
+	"github.com/web-infra-dev/rslint/internal/rules/no_empty_character_class"
+	"github.com/web-infra-dev/rslint/internal/rules/no_empty_pattern"
+	"github.com/web-infra-dev/rslint/internal/rules/no_ex_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_fallthrough"
+	"github.com/web-infra-dev/rslint/internal/rules/no_func_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_import_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_inner_declarations"
+	"github.com/web-infra-dev/rslint/internal/rules/no_invalid_regexp"
+	"github.com/web-infra-dev/rslint/internal/rules/no_irregular_whitespace"
+	"github.com/web-infra-dev/rslint/internal/rules/no_loss_of_precision"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +358,36 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	GlobalRuleRegistry.Register("array-callback-return", array_callback_return.ArrayCallbackReturnRule)
+	GlobalRuleRegistry.Register("constructor-super", constructor_super.ConstructorSuperRule)
+	GlobalRuleRegistry.Register("for-direction", for_direction.ForDirectionRule)
+	GlobalRuleRegistry.Register("getter-return", getter_return.GetterReturnRule)
+	GlobalRuleRegistry.Register("no-async-promise-executor", no_async_promise_executor.NoAsyncPromiseExecutorRule)
+	GlobalRuleRegistry.Register("no-class-assign", no_class_assign.NoClassAssignRule)
+	GlobalRuleRegistry.Register("no-compare-neg-zero", no_compare_neg_zero.NoCompareNegZeroRule)
+	GlobalRuleRegistry.Register("no-cond-assign", no_cond_assign.NoCondAssignRule)
+	GlobalRuleRegistry.Register("no-const-assign", no_const_assign.NoConstAssignRule)
+	GlobalRuleRegistry.Register("no-constant-binary-expression", no_constant_binary_expression.NoConstantBinaryExpressionRule)
+	GlobalRuleRegistry.Register("no-constant-condition", no_constant_condition.NoConstantConditionRule)
+	GlobalRuleRegistry.Register("no-constructor-return", no_constructor_return.NoConstructorReturnRule)
+	GlobalRuleRegistry.Register("no-control-regex", no_control_regex.NoControlRegexRule)
+	GlobalRuleRegistry.Register("no-debugger", no_debugger.NoDebuggerRule)
+	GlobalRuleRegistry.Register("no-dupe-args", no_dupe_args.NoDupeArgsRule)
+	GlobalRuleRegistry.Register("no-dupe-class-members", no_dupe_class_members.NoDupeClassMembersRule)
+	GlobalRuleRegistry.Register("no-dupe-else-if", no_dupe_else_if.NoDupeElseIfRule)
+	GlobalRuleRegistry.Register("no-dupe-keys", no_dupe_keys.NoDupeKeysRule)
+	GlobalRuleRegistry.Register("no-duplicate-case", no_duplicate_case.NoDuplicateCaseRule)
+	GlobalRuleRegistry.Register("no-duplicate-imports", no_duplicate_imports.NoDuplicateImportsRule)
+	GlobalRuleRegistry.Register("no-empty-character-class", no_empty_character_class.NoEmptyCharacterClassRule)
+	GlobalRuleRegistry.Register("no-empty-pattern", no_empty_pattern.NoEmptyPatternRule)
+	GlobalRuleRegistry.Register("no-ex-assign", no_ex_assign.NoExAssignRule)
+	GlobalRuleRegistry.Register("no-fallthrough", no_fallthrough.NoFallthroughRule)
+	GlobalRuleRegistry.Register("no-func-assign", no_func_assign.NoFuncAssignRule)
+	GlobalRuleRegistry.Register("no-import-assign", no_import_assign.NoImportAssignRule)
+	GlobalRuleRegistry.Register("no-inner-declarations", no_inner_declarations.NoInnerDeclarationsRule)
+	GlobalRuleRegistry.Register("no-invalid-regexp", no_invalid_regexp.NoInvalidRegexpRule)
+	GlobalRuleRegistry.Register("no-irregular-whitespace", no_irregular_whitespace.NoIrregularWhitespaceRule)
+	GlobalRuleRegistry.Register("no-loss-of-precision", no_loss_of_precision.NoLossOfPrecisionRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -388,6 +450,8 @@ func registerAllTypeScriptEslintPluginRules() {
 func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
+		GlobalRuleRegistry.Register("import/no-self-import", no_self_import.NoSelfImportRule)
+		GlobalRuleRegistry.Register("import/no-webpack-loader-syntax", no_webpack_loader_syntax.NoWebpackLoaderSyntax)
 	}
 }
 

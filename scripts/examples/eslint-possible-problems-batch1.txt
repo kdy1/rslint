@@ -1,0 +1,35 @@
+# ESLint Core Rules - Batch 1: Possible Problems Category
+# This batch file contains 30 high-priority ESLint core rules
+# Usage: go run scripts/generate-rule.go -batch scripts/examples/eslint-possible-problems-batch1.txt -plugin "" -fetch
+
+# Possible Problems - Batch 1
+array-callback-return
+constructor-super
+for-direction
+getter-return
+no-async-promise-executor
+no-class-assign
+no-compare-neg-zero
+no-cond-assign
+no-const-assign
+no-constant-binary-expression
+no-constant-condition
+no-constructor-return
+no-control-regex
+no-debugger
+no-dupe-args
+no-dupe-class-members
+no-dupe-else-if
+no-dupe-keys
+no-duplicate-case
+no-duplicate-imports
+no-empty-character-class
+no-empty-pattern
+no-ex-assign
+no-fallthrough
+no-func-assign
+no-import-assign
+no-inner-declarations
+no-invalid-regexp
+no-irregular-whitespace
+no-loss-of-precision
