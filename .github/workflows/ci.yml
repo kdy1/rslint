@@ -57,7 +57,7 @@ jobs:
           go test -parallel 8 ./internal/...
   lint:
     name: Lint&Check
-    runs-on: rspack-ubuntu-22.04-large
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [rspack-ubuntu-22.04-large, windows-latest]
+        os: [ubuntu-latest, windows-latest]
         go-version: ['1.25.0']
     steps:
       - name: Checkout code
@@ -150,7 +150,7 @@ jobs:
 
   test-wasm:
     name: Test WASM
-    runs-on: rspack-ubuntu-22.04-large
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
