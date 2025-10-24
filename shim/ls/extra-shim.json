@@ -2,6 +2,7 @@
   "IgnoreFunctions": [
     "DeprecateSortText",
     "GetCompletionItemData",
-    "NewSymbolAndEntries"
+    "NewSymbolAndEntries",
+    "NewExportInfoMap"
   ]
 }

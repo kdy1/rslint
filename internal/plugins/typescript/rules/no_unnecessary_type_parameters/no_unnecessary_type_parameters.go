@@ -6,7 +6,7 @@ import (
 )
 
 // NoUnnecessaryTypeParametersRule implements the no-unnecessary-type-parameters rule
-// Disallow type parameters that aren
+// Disallow type parameters that aren't used
 var NoUnnecessaryTypeParametersRule = rule.CreateRule(rule.Rule{
 	Name: "no-unnecessary-type-parameters",
 	Run:  run,

@@ -112,8 +112,6 @@ const ModuleReferenceKindReference = ls.ModuleReferenceKindReference
 func NewConverters(positionEncoding lsproto.PositionEncodingKind, getLineMap func(fileName string) *ls.LSPLineMap) *ls.Converters
 //go:linkname NewDefaultUserPreferences github.com/microsoft/typescript-go/internal/ls.NewDefaultUserPreferences
 func NewDefaultUserPreferences() *ls.UserPreferences
-//go:linkname NewExportInfoMap github.com/microsoft/typescript-go/internal/ls.NewExportInfoMap
-func NewExportInfoMap(globalsTypingCacheLocation string) *ls.exportInfoMap
 //go:linkname NewLanguageService github.com/microsoft/typescript-go/internal/ls.NewLanguageService
 func NewLanguageService(program *compiler.Program, host ls.Host) *ls.LanguageService
 type OrganizeImportsCaseFirst = ls.OrganizeImportsCaseFirst
