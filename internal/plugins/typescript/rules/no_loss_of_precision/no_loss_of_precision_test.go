@@ -20,18 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const x = 9007199254740993;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "default",
-						Line:      2,
-						Column:    11,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }

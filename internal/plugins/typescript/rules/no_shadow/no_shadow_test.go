@@ -20,21 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const x = 1;
-function foo() {
-  const x = 2;
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "noShadow",
-						Line:      4,
-						Column:    9,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }

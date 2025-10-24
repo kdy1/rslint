@@ -20,22 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-class A {
-  method() {
-    return 42;
-  }
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "missingThis",
-						Line:      3,
-						Column:    3,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }

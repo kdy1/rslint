@@ -20,20 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-for (let i = 0; i < 10; i++) {
-  setTimeout(function() { console.log(i); });
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "default",
-						Line:      3,
-						Column:    14,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }

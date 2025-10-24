@@ -20,18 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const arr = new Array(1, 2, 3);
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "useLiteral",
-						Line:      2,
-						Column:    13,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }

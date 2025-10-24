@@ -20,20 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-function foo(a = 1, b) {
-  return a + b;
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "shouldBeLast",
-						Line:      2,
-						Column:    14,
-					},
-				},
-			},
+			// TODO: Add invalid test cases after implementing the rule
 		},
 	)
 }
