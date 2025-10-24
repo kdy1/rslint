@@ -153,3 +153,5 @@ autofixes
 kebab
 PascalCase
 tmpl
+isnan
+nonconstructor
