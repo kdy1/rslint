@@ -299,13 +299,17 @@ func ForEachComment(node *ast.Node, callback func(comment *ast.CommentRange), so
 				}
 
 				for comment := range scanner.GetLeadingCommentRanges(&ast.NodeFactory{}, fullText, pos) {
-					callback(&comment)
+					// Create a copy to avoid issues with loop variable address
+					commentCopy := comment
+					callback(&commentCopy)
 				}
 			}
 
 			if notJsx || canHaveTrailingTrivia(token) {
 				for comment := range scanner.GetTrailingCommentRanges(&ast.NodeFactory{}, fullText, token.End()) {
-					callback(&comment)
+					// Create a copy to avoid issues with loop variable address
+					commentCopy := comment
+					callback(&commentCopy)
 				}
 				return
 			}

@@ -225,7 +225,10 @@ func RunLinterInProgram(program *compiler.Program, allowFiles []string, skipFile
 
 				return false
 			}
+			// Run listeners for the SourceFile node itself before visiting children
+			runListeners(ast.KindSourceFile, &file.Node)
 			file.Node.ForEachChild(childVisitor)
+			runListeners(rule.ListenerOnExit(ast.KindSourceFile), &file.Node)
 			clear(registeredListeners)
 		}
 

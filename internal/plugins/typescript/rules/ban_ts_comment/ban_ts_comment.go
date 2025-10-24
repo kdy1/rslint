@@ -137,9 +137,6 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			"ts-check":        parseDirectiveOption(opts.TsCheck, opts.MinimumDescriptionLength),
 		}
 
-		// Track whether we've already processed comments to avoid duplicate checks
-		processed := false
-
 		checkComment := func(commentText string, pos int, end int) {
 			// Normalize comment text: remove leading // or /* and trailing */
 			text := strings.TrimSpace(commentText)
@@ -156,8 +153,6 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			// Extract directive name and description
 			parts := strings.SplitN(text[1:], " ", 2) // Skip @ symbol
 			directiveName := parts[0]
-			// Remove trailing colon if present (e.g., "@ts-expect-error:" becomes "ts-expect-error")
-			directiveName = strings.TrimSuffix(directiveName, ":")
 			description := ""
 			if len(parts) > 1 {
 				description = strings.TrimSpace(parts[1])
@@ -191,26 +186,38 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		processComments := func() {
-			if processed {
-				return
-			}
-			processed = true
-
-			sourceFile := ctx.SourceFile
-			text := sourceFile.Text()
-
-			// Use ForEachComment to iterate over all comments in the file
-			utils.ForEachComment(&sourceFile.Node, func(comment *ast.CommentRange) {
-				commentText := text[comment.Pos():comment.End()]
-				checkComment(commentText, comment.Pos(), comment.End())
-			}, sourceFile)
-		}
-
 		return rule.RuleListeners{
-			// Process comments on EndOfFile token which is always present
-			ast.KindEndOfFile: func(node *ast.Node) {
-				processComments()
+			ast.KindSourceFile: func(node *ast.Node) {
+				sourceFile := ctx.SourceFile
+				text := sourceFile.Text()
+
+				// Use ForEachComment to iterate over all comments in the file
+				utils.ForEachComment(node, func(comment *ast.CommentRange) {
+					// The scanner seems to return incorrect end positions, so calculate the correct end manually
+					start := comment.Pos()
+					end := start
+
+					// Check if it's a // comment
+					if end+1 < len(text) && text[end] == '/' && text[end+1] == '/' {
+						// Find the end of the line
+						end += 2
+						for end < len(text) && text[end] != '\n' && text[end] != '\r' {
+							end++
+						}
+					} else if end+1 < len(text) && text[end] == '/' && text[end+1] == '*' {
+						// Find the closing */
+						end += 2
+						for end+1 < len(text) && !(text[end] == '*' && text[end+1] == '/') {
+							end++
+						}
+						if end+1 < len(text) {
+							end += 2
+						}
+					}
+
+					commentText := text[start:end]
+					checkComment(commentText, start, end)
+				}, sourceFile)
 			},
 		}
 	},
