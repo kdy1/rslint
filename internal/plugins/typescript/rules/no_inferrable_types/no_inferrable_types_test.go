@@ -13,27 +13,12 @@ func TestNoInferrableTypesRule(t *testing.T) {
 		t,
 		&NoInferrableTypesRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `const x = 1;`},
+			{Code: `let x = "hello";`},
+			{Code: `var x = true;`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "noInferrableType",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

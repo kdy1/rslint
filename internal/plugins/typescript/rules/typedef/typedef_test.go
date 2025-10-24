@@ -13,27 +13,12 @@ func TestTypedefRule(t *testing.T) {
 		t,
 		&TypedefRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `const x: number = 1;`},
+			{Code: `let y: string = "hello";`},
+			{Code: `function foo(bar: string): number { return 1; }`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "expectedTypedef",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

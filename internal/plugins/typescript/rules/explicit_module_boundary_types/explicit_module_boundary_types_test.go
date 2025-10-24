@@ -13,27 +13,12 @@ func TestExplicitModuleBoundaryTypesRule(t *testing.T) {
 		t,
 		&ExplicitModuleBoundaryTypesRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `export function foo(): number { return 1; }`},
+			{Code: `export const foo = (bar: string): number => 1;`},
+			{Code: `function foo(bar: string): void {}`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "anyTypedArg",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

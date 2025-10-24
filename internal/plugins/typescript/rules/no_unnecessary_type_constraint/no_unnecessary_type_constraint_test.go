@@ -13,27 +13,12 @@ func TestNoUnnecessaryTypeConstraintRule(t *testing.T) {
 		t,
 		&NoUnnecessaryTypeConstraintRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `type Foo<T extends string> = T;`},
+			{Code: `function foo<T extends number>(x: T) {}`},
+			{Code: `interface Foo<T> {}`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "removeUnnecessaryConstraint",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

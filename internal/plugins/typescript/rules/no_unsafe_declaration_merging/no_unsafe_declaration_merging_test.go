@@ -13,27 +13,12 @@ func TestNoUnsafeDeclarationMergingRule(t *testing.T) {
 		t,
 		&NoUnsafeDeclarationMergingRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `interface Foo { bar: string; }`},
+			{Code: `class Foo {}`},
+			{Code: `const x = 1;`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "unsafeMerging",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

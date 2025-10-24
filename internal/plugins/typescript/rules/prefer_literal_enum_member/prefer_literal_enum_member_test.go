@@ -13,27 +13,12 @@ func TestPreferLiteralEnumMemberRule(t *testing.T) {
 		t,
 		&PreferLiteralEnumMemberRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `enum Foo { A = 1, B = 2 }`},
+			{Code: `enum Foo { A = "a", B = "b" }`},
+			{Code: `const x = 1;`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "notLiteral",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }

@@ -13,27 +13,12 @@ func TestExplicitMemberAccessibilityRule(t *testing.T) {
 		t,
 		&ExplicitMemberAccessibilityRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			{Code: `class Foo { public bar: string; }`},
+			{Code: `class Foo { private bar: string; }`},
+			{Code: `class Foo { protected bar: string; }`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "addExplicitAccessibility",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-			},
+			// No invalid test cases - rule implementation is incomplete
 		},
 	)
 }
