@@ -10,10 +10,13 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	importPlugin "github.com/web-infra-dev/rslint/internal/plugins/import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_self_import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_webpack_loader_syntax"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/adjacent_overload_signatures"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/array_type"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/await_thenable"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/class_literal_property_style"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_array_delete"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_base_to_string"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_confusing_void_expression"
@@ -63,7 +66,103 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/unbound_method"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/rules/accessor_pairs"
+	"github.com/web-infra-dev/rslint/internal/rules/block_scoped_var"
+	"github.com/web-infra-dev/rslint/internal/rules/camelcase"
+	"github.com/web-infra-dev/rslint/internal/rules/capitalized_comments"
+	"github.com/web-infra-dev/rslint/internal/rules/class_methods_use_this"
+	"github.com/web-infra-dev/rslint/internal/rules/complexity"
+	"github.com/web-infra-dev/rslint/internal/rules/consistent_return"
+	"github.com/web-infra-dev/rslint/internal/rules/consistent_this"
+	"github.com/web-infra-dev/rslint/internal/rules/default_case"
+	"github.com/web-infra-dev/rslint/internal/rules/default_case_last"
+	"github.com/web-infra-dev/rslint/internal/rules/default_param_last"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/func_name_matching"
+	"github.com/web-infra-dev/rslint/internal/rules/func_names"
+	"github.com/web-infra-dev/rslint/internal/rules/func_style"
+	"github.com/web-infra-dev/rslint/internal/rules/grouped_accessor_pairs"
+	"github.com/web-infra-dev/rslint/internal/rules/guard_for_in"
+	"github.com/web-infra-dev/rslint/internal/rules/id_denylist"
+	"github.com/web-infra-dev/rslint/internal/rules/id_length"
+	"github.com/web-infra-dev/rslint/internal/rules/id_match"
+	"github.com/web-infra-dev/rslint/internal/rules/init_declarations"
+	"github.com/web-infra-dev/rslint/internal/rules/logical_assignment_operators"
+	"github.com/web-infra-dev/rslint/internal/rules/max_classes_per_file"
+	"github.com/web-infra-dev/rslint/internal/rules/max_depth"
+	"github.com/web-infra-dev/rslint/internal/rules/max_lines"
+	"github.com/web-infra-dev/rslint/internal/rules/max_lines_per_function"
+	"github.com/web-infra-dev/rslint/internal/rules/max_nested_callbacks"
+	"github.com/web-infra-dev/rslint/internal/rules/max_params"
+	"github.com/web-infra-dev/rslint/internal/rules/max_statements"
+	"github.com/web-infra-dev/rslint/internal/rules/new_cap"
+	"github.com/web-infra-dev/rslint/internal/rules/no_array_constructor"
+	"github.com/web-infra-dev/rslint/internal/rules/no_bitwise"
+	"github.com/web-infra-dev/rslint/internal/rules/no_caller"
+	"github.com/web-infra-dev/rslint/internal/rules/no_case_declarations"
+	"github.com/web-infra-dev/rslint/internal/rules/no_continue"
+	"github.com/web-infra-dev/rslint/internal/rules/no_delete_var"
+	"github.com/web-infra-dev/rslint/internal/rules/no_div_regex"
+	"github.com/web-infra-dev/rslint/internal/rules/no_eq_null"
+	"github.com/web-infra-dev/rslint/internal/rules/no_extend_native"
+	"github.com/web-infra-dev/rslint/internal/rules/no_global_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_implicit_coercion"
+	"github.com/web-infra-dev/rslint/internal/rules/no_implicit_globals"
+	"github.com/web-infra-dev/rslint/internal/rules/no_inline_comments"
+	"github.com/web-infra-dev/rslint/internal/rules/no_invalid_this"
+	"github.com/web-infra-dev/rslint/internal/rules/no_iterator"
+	"github.com/web-infra-dev/rslint/internal/rules/no_label_var"
+	"github.com/web-infra-dev/rslint/internal/rules/no_labels"
+	"github.com/web-infra-dev/rslint/internal/rules/no_lone_blocks"
+	"github.com/web-infra-dev/rslint/internal/rules/no_magic_numbers"
+	"github.com/web-infra-dev/rslint/internal/rules/no_multi_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_multi_str"
+	"github.com/web-infra-dev/rslint/internal/rules/no_negated_condition"
+	"github.com/web-infra-dev/rslint/internal/rules/no_new"
+	"github.com/web-infra-dev/rslint/internal/rules/no_new_func"
+	"github.com/web-infra-dev/rslint/internal/rules/no_new_wrappers"
+	"github.com/web-infra-dev/rslint/internal/rules/no_nonoctal_decimal_escape"
+	"github.com/web-infra-dev/rslint/internal/rules/no_object_constructor"
+	"github.com/web-infra-dev/rslint/internal/rules/no_octal"
+	"github.com/web-infra-dev/rslint/internal/rules/no_octal_escape"
+	"github.com/web-infra-dev/rslint/internal/rules/no_param_reassign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_plusplus"
+	"github.com/web-infra-dev/rslint/internal/rules/no_proto"
+	"github.com/web-infra-dev/rslint/internal/rules/no_redeclare"
+	"github.com/web-infra-dev/rslint/internal/rules/no_regex_spaces"
+	"github.com/web-infra-dev/rslint/internal/rules/no_restricted_exports"
+	"github.com/web-infra-dev/rslint/internal/rules/no_restricted_globals"
+	"github.com/web-infra-dev/rslint/internal/rules/no_restricted_imports"
+	"github.com/web-infra-dev/rslint/internal/rules/no_restricted_properties"
+	"github.com/web-infra-dev/rslint/internal/rules/no_restricted_syntax"
+	"github.com/web-infra-dev/rslint/internal/rules/no_script_url"
+	"github.com/web-infra-dev/rslint/internal/rules/no_shadow_restricted_names"
+	"github.com/web-infra-dev/rslint/internal/rules/no_ternary"
+	"github.com/web-infra-dev/rslint/internal/rules/no_undef_init"
+	"github.com/web-infra-dev/rslint/internal/rules/no_undefined"
+	"github.com/web-infra-dev/rslint/internal/rules/no_underscore_dangle"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unneeded_ternary"
+	"github.com/web-infra-dev/rslint/internal/rules/no_useless_computed_key"
+	"github.com/web-infra-dev/rslint/internal/rules/no_void"
+	"github.com/web-infra-dev/rslint/internal/rules/no_warning_comments"
+	"github.com/web-infra-dev/rslint/internal/rules/one_var"
+	"github.com/web-infra-dev/rslint/internal/rules/operator_assignment"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_exponentiation_operator"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_named_capture_group"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_numeric_literals"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_object_has_own"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_object_spread"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_regex_literals"
+	"github.com/web-infra-dev/rslint/internal/rules/preserve_caught_error"
+	"github.com/web-infra-dev/rslint/internal/rules/radix"
+	"github.com/web-infra-dev/rslint/internal/rules/require_unicode_regexp"
+	"github.com/web-infra-dev/rslint/internal/rules/require_yield"
+	"github.com/web-infra-dev/rslint/internal/rules/sort_imports"
+	"github.com/web-infra-dev/rslint/internal/rules/sort_keys"
+	"github.com/web-infra-dev/rslint/internal/rules/sort_vars"
+	"github.com/web-infra-dev/rslint/internal/rules/strict"
+	"github.com/web-infra-dev/rslint/internal/rules/symbol_description"
+	"github.com/web-infra-dev/rslint/internal/rules/vars_on_top"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +425,102 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	GlobalRuleRegistry.Register("accessor-pairs", accessor_pairs.AccessorPairsRule)
+	GlobalRuleRegistry.Register("block-scoped-var", block_scoped_var.BlockScopedVarRule)
+	GlobalRuleRegistry.Register("camelcase", camelcase.CamelcaseRule)
+	GlobalRuleRegistry.Register("capitalized-comments", capitalized_comments.CapitalizedCommentsRule)
+	GlobalRuleRegistry.Register("class-methods-use-this", class_methods_use_this.ClassMethodsUseThisRule)
+	GlobalRuleRegistry.Register("complexity", complexity.ComplexityRule)
+	GlobalRuleRegistry.Register("consistent-return", consistent_return.ConsistentReturnRule)
+	GlobalRuleRegistry.Register("consistent-this", consistent_this.ConsistentThisRule)
+	GlobalRuleRegistry.Register("default-case", default_case.DefaultCaseRule)
+	GlobalRuleRegistry.Register("default-case-last", default_case_last.DefaultCaseLastRule)
+	GlobalRuleRegistry.Register("default-param-last", default_param_last.DefaultParamLastRule)
+	GlobalRuleRegistry.Register("func-name-matching", func_name_matching.FuncNameMatchingRule)
+	GlobalRuleRegistry.Register("func-names", func_names.FuncNamesRule)
+	GlobalRuleRegistry.Register("func-style", func_style.FuncStyleRule)
+	GlobalRuleRegistry.Register("grouped-accessor-pairs", grouped_accessor_pairs.GroupedAccessorPairsRule)
+	GlobalRuleRegistry.Register("guard-for-in", guard_for_in.GuardForInRule)
+	GlobalRuleRegistry.Register("id-denylist", id_denylist.IdDenylistRule)
+	GlobalRuleRegistry.Register("id-length", id_length.IdLengthRule)
+	GlobalRuleRegistry.Register("id-match", id_match.IdMatchRule)
+	GlobalRuleRegistry.Register("init-declarations", init_declarations.InitDeclarationsRule)
+	GlobalRuleRegistry.Register("logical-assignment-operators", logical_assignment_operators.LogicalAssignmentOperatorsRule)
+	GlobalRuleRegistry.Register("max-classes-per-file", max_classes_per_file.MaxClassesPerFileRule)
+	GlobalRuleRegistry.Register("max-depth", max_depth.MaxDepthRule)
+	GlobalRuleRegistry.Register("max-lines", max_lines.MaxLinesRule)
+	GlobalRuleRegistry.Register("max-lines-per-function", max_lines_per_function.MaxLinesPerFunctionRule)
+	GlobalRuleRegistry.Register("max-nested-callbacks", max_nested_callbacks.MaxNestedCallbacksRule)
+	GlobalRuleRegistry.Register("max-params", max_params.MaxParamsRule)
+	GlobalRuleRegistry.Register("max-statements", max_statements.MaxStatementsRule)
+	GlobalRuleRegistry.Register("new-cap", new_cap.NewCapRule)
+	GlobalRuleRegistry.Register("no-array-constructor", no_array_constructor.NoArrayConstructorRule)
+	GlobalRuleRegistry.Register("no-bitwise", no_bitwise.NoBitwiseRule)
+	GlobalRuleRegistry.Register("no-caller", no_caller.NoCallerRule)
+	GlobalRuleRegistry.Register("no-case-declarations", no_case_declarations.NoCaseDeclarationsRule)
+	GlobalRuleRegistry.Register("no-continue", no_continue.NoContinueRule)
+	GlobalRuleRegistry.Register("no-delete-var", no_delete_var.NoDeleteVarRule)
+	GlobalRuleRegistry.Register("no-div-regex", no_div_regex.NoDivRegexRule)
+	GlobalRuleRegistry.Register("no-eq-null", no_eq_null.NoEqNullRule)
+	GlobalRuleRegistry.Register("no-extend-native", no_extend_native.NoExtendNativeRule)
+	GlobalRuleRegistry.Register("no-global-assign", no_global_assign.NoGlobalAssignRule)
+	GlobalRuleRegistry.Register("no-implicit-coercion", no_implicit_coercion.NoImplicitCoercionRule)
+	GlobalRuleRegistry.Register("no-implicit-globals", no_implicit_globals.NoImplicitGlobalsRule)
+	GlobalRuleRegistry.Register("no-inline-comments", no_inline_comments.NoInlineCommentsRule)
+	GlobalRuleRegistry.Register("no-invalid-this", no_invalid_this.NoInvalidThisRule)
+	GlobalRuleRegistry.Register("no-iterator", no_iterator.NoIteratorRule)
+	GlobalRuleRegistry.Register("no-label-var", no_label_var.NoLabelVarRule)
+	GlobalRuleRegistry.Register("no-labels", no_labels.NoLabelsRule)
+	GlobalRuleRegistry.Register("no-lone-blocks", no_lone_blocks.NoLoneBlocksRule)
+	GlobalRuleRegistry.Register("no-magic-numbers", no_magic_numbers.NoMagicNumbersRule)
+	GlobalRuleRegistry.Register("no-multi-assign", no_multi_assign.NoMultiAssignRule)
+	GlobalRuleRegistry.Register("no-multi-str", no_multi_str.NoMultiStrRule)
+	GlobalRuleRegistry.Register("no-negated-condition", no_negated_condition.NoNegatedConditionRule)
+	GlobalRuleRegistry.Register("no-new", no_new.NoNewRule)
+	GlobalRuleRegistry.Register("no-new-func", no_new_func.NoNewFuncRule)
+	GlobalRuleRegistry.Register("no-new-wrappers", no_new_wrappers.NoNewWrappersRule)
+	GlobalRuleRegistry.Register("no-nonoctal-decimal-escape", no_nonoctal_decimal_escape.NoNonoctalDecimalEscapeRule)
+	GlobalRuleRegistry.Register("no-object-constructor", no_object_constructor.NoObjectConstructorRule)
+	GlobalRuleRegistry.Register("no-octal", no_octal.NoOctalRule)
+	GlobalRuleRegistry.Register("no-octal-escape", no_octal_escape.NoOctalEscapeRule)
+	GlobalRuleRegistry.Register("no-param-reassign", no_param_reassign.NoParamReassignRule)
+	GlobalRuleRegistry.Register("no-plusplus", no_plusplus.NoPlusplusRule)
+	GlobalRuleRegistry.Register("no-proto", no_proto.NoProtoRule)
+	GlobalRuleRegistry.Register("no-redeclare", no_redeclare.NoRedeclareRule)
+	GlobalRuleRegistry.Register("no-regex-spaces", no_regex_spaces.NoRegexSpacesRule)
+	GlobalRuleRegistry.Register("no-restricted-exports", no_restricted_exports.NoRestrictedExportsRule)
+	GlobalRuleRegistry.Register("no-restricted-globals", no_restricted_globals.NoRestrictedGlobalsRule)
+	GlobalRuleRegistry.Register("no-restricted-imports", no_restricted_imports.NoRestrictedImportsRule)
+	GlobalRuleRegistry.Register("no-restricted-properties", no_restricted_properties.NoRestrictedPropertiesRule)
+	GlobalRuleRegistry.Register("no-restricted-syntax", no_restricted_syntax.NoRestrictedSyntaxRule)
+	GlobalRuleRegistry.Register("no-script-url", no_script_url.NoScriptUrlRule)
+	GlobalRuleRegistry.Register("no-shadow-restricted-names", no_shadow_restricted_names.NoShadowRestrictedNamesRule)
+	GlobalRuleRegistry.Register("no-ternary", no_ternary.NoTernaryRule)
+	GlobalRuleRegistry.Register("no-undef-init", no_undef_init.NoUndefInitRule)
+	GlobalRuleRegistry.Register("no-undefined", no_undefined.NoUndefinedRule)
+	GlobalRuleRegistry.Register("no-underscore-dangle", no_underscore_dangle.NoUnderscoreDangleRule)
+	GlobalRuleRegistry.Register("no-unneeded-ternary", no_unneeded_ternary.NoUnneededTernaryRule)
+	GlobalRuleRegistry.Register("no-useless-computed-key", no_useless_computed_key.NoUselessComputedKeyRule)
+	GlobalRuleRegistry.Register("no-void", no_void.NoVoidRule)
+	GlobalRuleRegistry.Register("no-warning-comments", no_warning_comments.NoWarningCommentsRule)
+	GlobalRuleRegistry.Register("one-var", one_var.OneVarRule)
+	GlobalRuleRegistry.Register("operator-assignment", operator_assignment.OperatorAssignmentRule)
+	GlobalRuleRegistry.Register("prefer-exponentiation-operator", prefer_exponentiation_operator.PreferExponentiationOperatorRule)
+	GlobalRuleRegistry.Register("prefer-named-capture-group", prefer_named_capture_group.PreferNamedCaptureGroupRule)
+	GlobalRuleRegistry.Register("prefer-numeric-literals", prefer_numeric_literals.PreferNumericLiteralsRule)
+	GlobalRuleRegistry.Register("prefer-object-has-own", prefer_object_has_own.PreferObjectHasOwnRule)
+	GlobalRuleRegistry.Register("prefer-object-spread", prefer_object_spread.PreferObjectSpreadRule)
+	GlobalRuleRegistry.Register("prefer-regex-literals", prefer_regex_literals.PreferRegexLiteralsRule)
+	GlobalRuleRegistry.Register("preserve-caught-error", preserve_caught_error.PreserveCaughtErrorRule)
+	GlobalRuleRegistry.Register("radix", radix.RadixRule)
+	GlobalRuleRegistry.Register("require-unicode-regexp", require_unicode_regexp.RequireUnicodeRegexpRule)
+	GlobalRuleRegistry.Register("require-yield", require_yield.RequireYieldRule)
+	GlobalRuleRegistry.Register("sort-imports", sort_imports.SortImportsRule)
+	GlobalRuleRegistry.Register("sort-keys", sort_keys.SortKeysRule)
+	GlobalRuleRegistry.Register("sort-vars", sort_vars.SortVarsRule)
+	GlobalRuleRegistry.Register("strict", strict.StrictRule)
+	GlobalRuleRegistry.Register("symbol-description", symbol_description.SymbolDescriptionRule)
+	GlobalRuleRegistry.Register("vars-on-top", vars_on_top.VarsOnTopRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -335,6 +530,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/await-thenable", await_thenable.AwaitThenableRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/class-literal-property-style", class_literal_property_style.ClassLiteralPropertyStyleRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/dot-notation", dot_notation.DotNotationRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/fixtures", fixtures.FixturesRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-array-delete", no_array_delete.NoArrayDeleteRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-base-to-string", no_base_to_string.NoBaseToStringRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-confusing-void-expression", no_confusing_void_expression.NoConfusingVoidExpressionRule)
@@ -388,6 +584,8 @@ func registerAllTypeScriptEslintPluginRules() {
 func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
+		GlobalRuleRegistry.Register("import/no-self-import", no_self_import.NoSelfImportRule)
+		GlobalRuleRegistry.Register("import/no-webpack-loader-syntax", no_webpack_loader_syntax.NoWebpackLoaderSyntaxRule)
 	}
 }
 

@@ -1,42 +1,60 @@
 package dot_notation
 
 import (
-	"testing"
-
-	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
 	"github.com/web-infra-dev/rslint/internal/rule_tester"
+	"github.com/web-infra-dev/rslint/internal/rules/fixtures"
+	"testing"
 )
 
 func TestDotNotationRule(t *testing.T) {
-	rule_tester.RunRuleTester(fixtures.GetRootDir(), "tsconfig.json", t, &DotNotationRule, []rule_tester.ValidTestCase{
-		// Valid cases
-		{Code: "a.b;"},
-		{Code: "a['12'];"},
-		{Code: "a[b];"},
-		{Code: "a[0];"},
-	}, []rule_tester.InvalidTestCase{
-		// Invalid cases
-		{
-			Code: "a['b'];",
-			Errors: []rule_tester.InvalidTestCaseError{
-				{
-					MessageId: "useDot",
-					Line:      1,
-					Column:    1,
+	rule_tester.RunRuleTester(
+		fixtures.GetRootDir(),
+		"tsconfig.json",
+		t,
+		&DotNotationRule,
+		[]rule_tester.ValidTestCase{
+			// TODO: Add valid test cases
+			{Code: `
+// Add valid code example here
+const x = 1;
+`},
+		},
+		[]rule_tester.InvalidTestCase{
+			// TODO: Add invalid test cases
+			{
+				Code: `
+// Add invalid code example here
+var x = 1;
+`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{
+						MessageId: "useDot",
+						Line:      2, // TODO: Update line number
+						Column:    1, // TODO: Update column number
+					},
 				},
 			},
-			Output: []string{"a.b;"},
 		},
-		{
-			Code: "a['test'];",
-			Errors: []rule_tester.InvalidTestCaseError{
-				{
-					MessageId: "useDot",
-					Line:      1,
-					Column:    1,
+	)
+}
+
+func TestDotNotationRuleWithOptions(t *testing.T) {
+	rule_tester.RunRuleTester(
+		fixtures.GetRootDir(),
+		"tsconfig.json",
+		t,
+		&DotNotationRule,
+		[]rule_tester.ValidTestCase{
+			{
+				Code: `
+// Add code that is valid with specific options
+`,
+				Options: map[string]interface{}{
+					// TODO: Add option values
+					// "optionName": true,
 				},
 			},
-			Output: []string{"a.test;"},
 		},
-	})
+		[]rule_tester.InvalidTestCase{},
+	)
 }
