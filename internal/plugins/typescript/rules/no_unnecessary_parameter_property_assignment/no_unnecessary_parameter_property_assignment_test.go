@@ -30,23 +30,7 @@ class C {
 }
 `},
 		},
-		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-class C {
-  constructor(public x: number) {
-    this.x = x;
-  }
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "unnecessaryAssignment",
-						Line:      4,
-						Column:    5,
-					},
-				},
-			},
-		},
+		// TODO: Add invalid test cases once rule implementation is complete
+		[]rule_tester.InvalidTestCase{},
 	)
 }

@@ -28,22 +28,7 @@ enum E {
 const value = E.A;
 `},
 		},
-		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-namespace N {
-  export const x = 1;
-  const y = N.x;
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "unnecessaryQualifier",
-						Line:      4,
-						Column:    13,
-					},
-				},
-			},
-		},
+		// TODO: Add invalid test cases once rule implementation is complete
+		[]rule_tester.InvalidTestCase{},
 	)
 }

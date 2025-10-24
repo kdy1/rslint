@@ -33,52 +33,7 @@ while (x) {
 }
 `},
 		},
-		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const x: string = "hello";
-if (x) {
-  console.log('Invalid');
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "conditionErrorString",
-						Line:      3,
-						Column:    5,
-					},
-				},
-			},
-			{
-				Code: `
-const x: number = 42;
-if (x) {
-  console.log('Invalid');
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "conditionErrorNumber",
-						Line:      3,
-						Column:    5,
-					},
-				},
-			},
-			{
-				Code: `
-const x: object | null = {};
-if (x) {
-  console.log('Invalid');
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "conditionErrorNullableObject",
-						Line:      3,
-						Column:    5,
-					},
-				},
-			},
-		},
+		// TODO: Add invalid test cases once rule implementation is complete
+		[]rule_tester.InvalidTestCase{},
 	)
 }

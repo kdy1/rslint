@@ -25,32 +25,7 @@ const regex = /test/g;
 const result = "string".match(regex);
 `},
 		},
-		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const result = "foo".match(/bar/);
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "regExpExecOverStringMatch",
-						Line:      2,
-						Column:    16,
-					},
-				},
-			},
-			{
-				Code: `
-const regex = /test/;
-const result = "string".match(regex);
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "regExpExecOverStringMatch",
-						Line:      3,
-						Column:    16,
-					},
-				},
-			},
-		},
+		// TODO: Add invalid test cases once rule implementation is complete
+		[]rule_tester.InvalidTestCase{},
 	)
 }

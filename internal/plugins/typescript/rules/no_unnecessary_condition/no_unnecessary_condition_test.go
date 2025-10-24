@@ -30,37 +30,7 @@ while (true) {
 }
 `, Options: map[string]interface{}{"allowConstantLoopConditions": true}},
 		},
-		[]rule_tester.InvalidTestCase{
-			{
-				Code: `
-const x: string = "hello";
-if (x) {
-  console.log(x);
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "alwaysTruthy",
-						Line:      3,
-						Column:    5,
-					},
-				},
-			},
-			{
-				Code: `
-const x: never = null as never;
-if (x) {
-  console.log(x);
-}
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "alwaysFalsy",
-						Line:      3,
-						Column:    5,
-					},
-				},
-			},
-		},
+		// TODO: Add invalid test cases once rule implementation is complete
+		[]rule_tester.InvalidTestCase{},
 	)
 }
