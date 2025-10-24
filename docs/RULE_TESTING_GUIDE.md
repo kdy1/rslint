@@ -278,13 +278,13 @@ Create a JSON file with test cases:
 ```json
 {
   "valid": [
-    {"code": "const x = 1;"},
-    {"code": "let y = 2;", "options": {"allowLet": true}}
+    { "code": "const x = 1;" },
+    { "code": "let y = 2;", "options": { "allowLet": true } }
   ],
   "invalid": [
     {
       "code": "var x = 1;",
-      "errors": [{"messageId": "useConst", "line": 1, "column": 1}],
+      "errors": [{ "messageId": "useConst", "line": 1, "column": 1 }],
       "output": ["const x = 1;"]
     }
   ]

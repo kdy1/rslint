@@ -25,6 +25,7 @@ go run tools/eslint_test_converter.go \
 ```
 
 **Flags:**
+
 - `-input`: Input ESLint test file (JSON) - **required**
 - `-output`: Output RSLint test file (JSON) - optional, auto-generated if not specified
 - `-verbose`: Enable verbose output
@@ -32,16 +33,17 @@ go run tools/eslint_test_converter.go \
 **Example:**
 
 Input ESLint format (`eslint_tests.json`):
+
 ```json
 {
   "valid": [
-    {"code": "const x = 1;"},
-    {"code": "let y = 2;", "options": [{"allowLet": true}]}
+    { "code": "const x = 1;" },
+    { "code": "let y = 2;", "options": [{ "allowLet": true }] }
   ],
   "invalid": [
     {
       "code": "var x = 1;",
-      "errors": [{"messageId": "useConst", "line": 1, "column": 1}],
+      "errors": [{ "messageId": "useConst", "line": 1, "column": 1 }],
       "output": "const x = 1;"
     }
   ]
@@ -49,16 +51,17 @@ Input ESLint format (`eslint_tests.json`):
 ```
 
 Output RSLint format (`rslint_tests.json`):
+
 ```json
 {
   "valid": [
-    {"Code": "const x = 1;"},
-    {"Code": "let y = 2;", "Options": {"allowLet": true}}
+    { "Code": "const x = 1;" },
+    { "Code": "let y = 2;", "Options": { "allowLet": true } }
   ],
   "invalid": [
     {
       "Code": "var x = 1;",
-      "Errors": [{"MessageId": "useConst", "Line": 1, "Column": 1}],
+      "Errors": [{ "MessageId": "useConst", "Line": 1, "Column": 1 }],
       "Output": ["const x = 1;"]
     }
   ]
@@ -88,6 +91,7 @@ go run tools/typescript_eslint_test_converter.go \
 ```
 
 **Flags:**
+
 - `-input`: Input TypeScript-ESLint test file (JSON) - **required**
 - `-output`: Output file (JSON or Go) - optional, auto-generated if not specified
 - `-go`: Generate Go test file instead of JSON
@@ -153,10 +157,12 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
 ### From ESLint
 
 1. **Extract tests from ESLint repository**
+
    - Locate the rule in the ESLint repository
    - Export the test cases to JSON format
 
 2. **Convert tests**
+
    ```bash
    go run tools/eslint_test_converter.go \
      -input eslint_tests.json \
@@ -180,10 +186,12 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
 ### From TypeScript-ESLint
 
 1. **Extract tests from TypeScript-ESLint repository**
+
    - Locate the rule in the TypeScript-ESLint repository
    - Export the test cases to JSON format
 
 2. **Generate Go test file directly**
+
    ```bash
    go run tools/typescript_eslint_test_converter.go \
      -input ts_eslint_tests.json \
@@ -207,7 +215,7 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
     {
       "code": "const x = 1;",
       "filename": "test.ts",
-      "options": [{"strict": true}],
+      "options": [{ "strict": true }],
       "parser": "@typescript-eslint/parser"
     }
   ],
@@ -215,7 +223,7 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
     {
       "code": "var x = 1;",
       "filename": "test.ts",
-      "options": [{"strict": true}],
+      "options": [{ "strict": true }],
       "errors": [
         {
           "messageId": "useConst",
@@ -245,14 +253,14 @@ go build -o bin/ts-eslint-test-converter tools/typescript_eslint_test_converter.
     {
       "Code": "const x = 1;",
       "FileName": "test.ts",
-      "Options": {"strict": true}
+      "Options": { "strict": true }
     }
   ],
   "Invalid": [
     {
       "Code": "var x = 1;",
       "FileName": "test.ts",
-      "Options": {"strict": true},
+      "Options": { "strict": true },
       "Errors": [
         {
           "MessageId": "useConst",
@@ -293,6 +301,7 @@ done
 ### 2. Validation
 
 After conversion, always verify:
+
 - Test cases are complete
 - Options are correctly converted
 - File paths are correct
@@ -301,6 +310,7 @@ After conversion, always verify:
 ### 3. Manual Adjustments
 
 Some test cases may require manual adjustment after conversion:
+
 - Complex option structures
 - Custom parsers or plugins
 - Environment-specific configurations
@@ -309,6 +319,7 @@ Some test cases may require manual adjustment after conversion:
 ### 4. Incremental Migration
 
 When porting a large rule:
+
 1. Convert a small subset of tests first
 2. Implement the rule to pass those tests
 3. Convert and add more tests incrementally
@@ -317,6 +328,7 @@ When porting a large rule:
 ## Contributing
 
 When adding new conversion tools:
+
 1. Follow the existing pattern in `eslint_test_converter.go`
 2. Add comprehensive error handling
 3. Include `-verbose` flag for debugging
@@ -328,6 +340,7 @@ When adding new conversion tools:
 ### Issue: Conversion fails with JSON parse error
 
 **Solution:** Ensure the input JSON is valid. Use a JSON validator or:
+
 ```bash
 cat input.json | jq .
 ```
@@ -335,6 +348,7 @@ cat input.json | jq .
 ### Issue: Generated Go code doesn't compile
 
 **Solution:**
+
 - Check that the rule name is correct
 - Verify the import paths are correct
 - Ensure the rule variable name follows Go naming conventions
