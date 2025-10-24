@@ -32,9 +32,9 @@ jobs:
       matrix:
         runner:
           [
-            rspack-ubuntu-22.04-large,
-            rspack-windows-2022-large,
-            rspack-darwin-14-medium,
+            ubuntu-latest,
+            windows-latest,
+            darwin-latest,
           ]
         go-version: ['1.25.0']
     steps:
