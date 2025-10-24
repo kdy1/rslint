@@ -2,6 +2,7 @@ package consistent_generic_constructors
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
@@ -149,10 +150,11 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 							typeArgsNodes := typeRef.TypeArguments.Nodes
 							if len(typeArgsNodes) > 0 {
 								// Get the full text including the angle brackets
-								// TypeArguments.Pos() should be the position of '<'
-								// TypeArguments.End() should be the position after '>'
-								typeArgsStartPos := typeRef.TypeArguments.Pos()
-								typeArgsEndPos := typeRef.TypeArguments.End()
+								// Position of '<' is one character before TypeArguments.Pos()
+								// Position after '>' is from the end of the '>' token
+								typeArgsStartPos := typeRef.TypeArguments.Pos() - 1
+								closingBracketRange := scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, typeRef.TypeArguments.End())
+								typeArgsEndPos := closingBracketRange.End()
 								typeArgsText := ctx.SourceFile.Text()[typeArgsStartPos:typeArgsEndPos]
 
 								// Create fix: move type args to constructor
@@ -161,7 +163,7 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 									buildPreferConstructorMessage(),
 									// Remove type args from annotation
 									rule.RuleFixReplaceRange(
-										scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
+										core.NewTextRange(typeArgsStartPos, typeArgsEndPos),
 										"",
 									),
 									// Add type args to constructor
@@ -178,8 +180,9 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 							typeArgsNodes := newExpr.TypeArguments.Nodes
 							if len(typeArgsNodes) > 0 {
 								// Get the full text including the angle brackets
-								typeArgsStartPos := newExpr.TypeArguments.Pos()
-								typeArgsEndPos := newExpr.TypeArguments.End()
+								typeArgsStartPos := newExpr.TypeArguments.Pos() - 1
+								closingBracketRange := scanner.GetRangeOfTokenAtPosition(ctx.SourceFile, newExpr.TypeArguments.End())
+								typeArgsEndPos := closingBracketRange.End()
 								typeArgsText := ctx.SourceFile.Text()[typeArgsStartPos:typeArgsEndPos]
 
 								// Build the constructor name (what type annotation should be)
@@ -196,7 +199,7 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 											buildPreferTypeAnnotationMessage(),
 											// Remove type args from constructor
 											rule.RuleFixReplaceRange(
-												scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
+												core.NewTextRange(typeArgsStartPos, typeArgsEndPos),
 												"",
 											),
 											// Add type args to annotation
@@ -210,8 +213,8 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 									// No type annotation exists - need to add one
 									// Get variable name
 									varName := ""
-									if varDecl.Name != nil {
-										nameRange := utils.TrimNodeTextRange(ctx.SourceFile, varDecl.Name)
+									if varDecl.Name() != nil {
+										nameRange := utils.TrimNodeTextRange(ctx.SourceFile, varDecl.Name())
 										varName = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 									}
 
@@ -223,10 +226,10 @@ var ConsistentGenericConstructorsRule = rule.CreateRule(rule.Rule{
 											node,
 											buildPreferTypeAnnotationMessage(),
 											// Add type annotation after variable name
-											rule.RuleFixInsertAfter(varDecl.Name, fullTypeAnnotation),
+											rule.RuleFixInsertAfter(varDecl.Name(), fullTypeAnnotation),
 											// Remove type args from constructor
 											rule.RuleFixReplaceRange(
-												scanner.CreateTextRange(typeArgsStartPos, typeArgsEndPos),
+												core.NewTextRange(typeArgsStartPos, typeArgsEndPos),
 												"",
 											),
 										)
