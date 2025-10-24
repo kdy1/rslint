@@ -11,6 +11,8 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
+		t,
+		&ConsistentTypeDefinitionsRule,
 		[]rule_tester.ValidTestCase{
 			// Default: prefer interface
 			{Code: `interface T { x: number }`},
@@ -35,7 +37,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 			// Default (interface): type used for object
 			{
 				Code: `type T = { x: number }`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "interfaceOverType"},
 				},
 			},
@@ -43,7 +45,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 			// Default (interface): multiple properties
 			{
 				Code: `type T = { x: number; y: string }`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "interfaceOverType"},
 				},
 			},
@@ -52,7 +54,7 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 			{
 				Code:    `interface T { x: number }`,
 				Options: "type",
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "typeOverInterface"},
 				},
 			},
@@ -61,12 +63,10 @@ func TestConsistentTypeDefinitions(t *testing.T) {
 			{
 				Code:    `interface T { x: number; y: string }`,
 				Options: "type",
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "typeOverInterface"},
 				},
 			},
 		},
-		t,
-		&ConsistentTypeDefinitionsRule,
 	)
 }

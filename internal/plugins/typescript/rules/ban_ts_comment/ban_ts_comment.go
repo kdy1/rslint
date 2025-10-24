@@ -6,8 +6,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // BanTsCommentOptions defines configuration for the ban-ts-comment rule
@@ -195,21 +195,11 @@ var BanTsCommentRule = rule.CreateRule(rule.Rule{
 				sourceFile := ctx.SourceFile
 				text := sourceFile.Text()
 
-				// Scan all comments in the file
-				// Use the scanner to find comment ranges
-				s := scanner.GetScannerForSourceFile(ctx.SourceFile, 0)
-				for {
-					token := s.Scan()
-					if token == ast.KindEndOfFileToken {
-						break
-					}
-
-					// Check for comments before this token
-					for commentRange := range scanner.GetLeadingCommentRanges(text, s.TokenStart()) {
-						commentText := text[commentRange.Pos():commentRange.End()]
-						checkComment(commentText, commentRange.Pos(), commentRange.End())
-					}
-				}
+				// Use ForEachComment to iterate over all comments in the file
+				utils.ForEachComment(node, func(comment *ast.CommentRange) {
+					commentText := text[comment.Pos():comment.End()]
+					checkComment(commentText, comment.Pos(), comment.End())
+				}, sourceFile)
 			},
 		}
 	},

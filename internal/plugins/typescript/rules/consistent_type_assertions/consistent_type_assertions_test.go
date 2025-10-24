@@ -11,6 +11,8 @@ func TestConsistentTypeAssertions(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
+		t,
+		&ConsistentTypeAssertionsRule,
 		[]rule_tester.ValidTestCase{
 			// Default: prefer 'as' style
 			{Code: `const x = value as string;`},
@@ -49,7 +51,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 			// Prefer 'as' (default): angle-bracket used
 			{
 				Code: `const x = <string>value;`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "as"},
 				},
 			},
@@ -60,7 +62,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Options: map[string]interface{}{
 					"assertionStyle": "angle-bracket",
 				},
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "angle-bracket"},
 				},
 			},
@@ -71,7 +73,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Options: map[string]interface{}{
 					"assertionStyle": "never",
 				},
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "never"},
 				},
 			},
@@ -82,7 +84,7 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Options: map[string]interface{}{
 					"objectLiteralTypeAssertions": "never",
 				},
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "unexpectedObjectTypeAssertion"},
 				},
 			},
@@ -93,12 +95,10 @@ func TestConsistentTypeAssertions(t *testing.T) {
 				Options: map[string]interface{}{
 					"arrayLiteralTypeAssertions": "never",
 				},
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "unexpectedArrayTypeAssertion"},
 				},
 			},
 		},
-		t,
-		&ConsistentTypeAssertionsRule,
 	)
 }

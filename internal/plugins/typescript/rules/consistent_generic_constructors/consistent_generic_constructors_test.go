@@ -11,6 +11,8 @@ func TestConsistentGenericConstructors(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
+		t,
+		&ConsistentGenericConstructorsRule,
 		[]rule_tester.ValidTestCase{
 			// Default: prefer constructor style
 			{Code: `const map = new Map<string, number>();`},
@@ -37,7 +39,7 @@ func TestConsistentGenericConstructors(t *testing.T) {
 			// Default (constructor): type args on annotation only
 			{
 				Code: `const map: Map<string, number> = new Map();`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferConstructor"},
 				},
 			},
@@ -45,7 +47,7 @@ func TestConsistentGenericConstructors(t *testing.T) {
 			// Constructor preference: with Set
 			{
 				Code: `const set: Set<string> = new Set();`,
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferConstructor"},
 				},
 			},
@@ -54,7 +56,7 @@ func TestConsistentGenericConstructors(t *testing.T) {
 			{
 				Code:    `const map = new Map<string, number>();`,
 				Options: "type-annotation",
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferTypeAnnotation"},
 				},
 			},
@@ -63,12 +65,10 @@ func TestConsistentGenericConstructors(t *testing.T) {
 			{
 				Code:    `const set = new Set<string>();`,
 				Options: "type-annotation",
-				Errors: []rule_tester.ExpectedError{
+				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "preferTypeAnnotation"},
 				},
 			},
 		},
-		t,
-		&ConsistentGenericConstructorsRule,
 	)
 }

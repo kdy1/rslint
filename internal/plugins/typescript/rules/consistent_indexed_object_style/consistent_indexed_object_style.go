@@ -52,11 +52,15 @@ func buildPreferIndexSignatureMessage() rule.RuleMessage {
 
 // Check if a type is a Record utility type
 func isRecordType(typeNode *ast.Node) bool {
-	if typeNode == nil || typeNode.Kind != ast.KindTypeReference {
+	if typeNode == nil {
 		return false
 	}
 
-	typeRef := typeNode.AsTypeReference()
+	if !ast.IsTypeReferenceNode(typeNode) {
+		return false
+	}
+
+	typeRef := typeNode.AsTypeReferenceNode()
 	if typeRef == nil || typeRef.TypeName == nil {
 		return false
 	}
@@ -112,7 +116,7 @@ func convertIndexSignatureToRecord(ctx rule.RuleContext, indexSig *ast.IndexSign
 }
 
 // Convert Record type to index signature
-func convertRecordToIndexSignature(ctx rule.RuleContext, typeRef *ast.TypeReference) string {
+func convertRecordToIndexSignature(ctx rule.RuleContext, typeRef *ast.TypeReferenceNode) string {
 	typeArgs := typeRef.TypeArguments
 	if typeRef == nil || typeArgs == nil || len(typeArgs.Nodes) < 2 {
 		return "{ [key: string]: unknown }"
@@ -149,7 +153,7 @@ var ConsistentIndexedObjectStyleRule = rule.CreateRule(rule.Rule{
 
 				// Check if it's a Record type (prefer index-signature style)
 				if opts.Style == "index-signature" && isRecordType(typeAlias.Type) {
-					typeRef := typeAlias.Type.AsTypeReference()
+					typeRef := typeAlias.Type.AsTypeReferenceNode()
 					recordText := convertRecordToIndexSignature(ctx, typeRef)
 
 					ctx.ReportNodeWithFixes(
