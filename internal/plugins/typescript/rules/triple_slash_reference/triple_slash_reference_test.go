@@ -1,4 +1,4 @@
-package switch_exhaustiveness_check
+package triple_slash_reference
 
 import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
@@ -6,12 +6,12 @@ import (
 	"testing"
 )
 
-func TestSwitchExhaustivenessCheckRule(t *testing.T) {
+func TestTripleSlashReferenceRule(t *testing.T) {
 	rule_tester.RunRuleTester(
 		fixtures.GetRootDir(),
 		"tsconfig.json",
 		t,
-		&SwitchExhaustivenessCheckRule,
+		&TripleSlashReferenceRule,
 		[]rule_tester.ValidTestCase{
 			// TODO: Add valid test cases
 			{Code: `
