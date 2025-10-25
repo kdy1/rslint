@@ -96,7 +96,8 @@ var NoInnerDeclarationsRule = rule.CreateRule(rule.Rule{
 		if opts.Mode == "both" {
 			listeners[ast.KindVariableStatement] = func(node *ast.Node) {
 				// Check if this is a var declaration
-				if varDecl, ok := node.AsVariableStatement(); ok {
+				varDecl := node.AsVariableStatement()
+				if varDecl != nil {
 					if (varDecl.DeclarationList.Flags & uint32(ast.NodeFlagsLet|ast.NodeFlagsConst)) == 0 {
 						// It's a var declaration (not let/const)
 						// Check if it's inside a nested block
