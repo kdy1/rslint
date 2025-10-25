@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_destructuring"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_rest_params"
+	"github.com/web-infra-dev/rslint/internal/rules/prefer_template"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -324,8 +327,16 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 }
 
 func RegisterAllRules() {
+	registerAllCoreEslintRules()
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+}
+
+// registerAllCoreEslintRules registers core ESLint rules
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("prefer-destructuring", prefer_destructuring.PreferDestructuringRule)
+	GlobalRuleRegistry.Register("prefer-rest-params", prefer_rest_params.PreferRestParamsRule)
+	GlobalRuleRegistry.Register("prefer-template", prefer_template.PreferTemplateRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
