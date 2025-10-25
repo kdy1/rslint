@@ -131,7 +131,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 	case ast.KindBlock:
 		block := node.AsBlock()
 		if block != nil && block.Statements != nil {
-			for _, stmt := range block.Statements {
+			for _, stmt := range block.Statements.Nodes {
 				traverseForUnsafeStatements(ctx, &stmt, nestedFunctionDepth)
 			}
 		}
@@ -139,7 +139,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 	case ast.KindIfStatement:
 		ifStmt := node.AsIfStatement()
 		if ifStmt != nil {
-			traverseForUnsafeStatements(ctx, &ifStmt.ThenStatement, nestedFunctionDepth)
+			traverseForUnsafeStatements(ctx, ifStmt.ThenStatement, nestedFunctionDepth)
 			if ifStmt.ElseStatement != nil {
 				traverseForUnsafeStatements(ctx, ifStmt.ElseStatement, nestedFunctionDepth)
 			}
@@ -148,12 +148,12 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 	case ast.KindSwitchStatement:
 		switchStmt := node.AsSwitchStatement()
 		if switchStmt != nil && switchStmt.CaseBlock != nil {
-			caseBlock := switchStmt.CaseBlock.CaseBlock()
+			caseBlock := switchStmt.CaseBlock.AsCaseBlock()
 			if caseBlock != nil && caseBlock.Clauses != nil {
-				for _, clause := range *caseBlock.Clauses {
-					clauseNode := clause.CaseOrDefaultClause()
+				for _, clause := range caseBlock.Clauses.Nodes {
+					clauseNode := clause.AsCaseOrDefaultClause()
 					if clauseNode != nil && clauseNode.Statements != nil {
-						for _, stmt := range *clauseNode.Statements {
+						for _, stmt := range clauseNode.Statements.Nodes {
 							traverseForUnsafeStatements(ctx, &stmt, nestedFunctionDepth)
 						}
 					}
@@ -164,31 +164,25 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 	case ast.KindWhileStatement:
 		whileStmt := node.AsWhileStatement()
 		if whileStmt != nil {
-			traverseForUnsafeStatements(ctx, &whileStmt.Statement, nestedFunctionDepth)
+			traverseForUnsafeStatements(ctx, whileStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindDoStatement:
 		doStmt := node.AsDoStatement()
 		if doStmt != nil {
-			traverseForUnsafeStatements(ctx, &doStmt.Statement, nestedFunctionDepth)
+			traverseForUnsafeStatements(ctx, doStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindForStatement:
 		forStmt := node.AsForStatement()
 		if forStmt != nil {
-			traverseForUnsafeStatements(ctx, &forStmt.Statement, nestedFunctionDepth)
+			traverseForUnsafeStatements(ctx, forStmt.Statement, nestedFunctionDepth)
 		}
 
-	case ast.KindForInStatement:
-		forInStmt := node.AsForInStatement()
-		if forInStmt != nil {
-			traverseForUnsafeStatements(ctx, &forInStmt.Statement, nestedFunctionDepth)
-		}
-
-	case ast.KindForOfStatement:
-		forOfStmt := node.AsForOfStatement()
-		if forOfStmt != nil {
-			traverseForUnsafeStatements(ctx, &forOfStmt.Statement, nestedFunctionDepth)
+	case ast.KindForInStatement, ast.KindForOfStatement:
+		forInOfStmt := node.AsForInOrOfStatement()
+		if forInOfStmt != nil {
+			traverseForUnsafeStatements(ctx, forInOfStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindTryStatement:

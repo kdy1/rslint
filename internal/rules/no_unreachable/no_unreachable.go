@@ -20,7 +20,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 
-			statements := block.Statements
+			statements := block.Statements.Nodes
 			for i := 0; i < len(statements)-1; i++ {
 				stmt := &statements[i]
 
@@ -52,13 +52,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			// Check each case/default clause for unreachable code
-			for _, clause := range *caseBlock.Clauses {
+			for _, clause := range caseBlock.Clauses.Nodes {
 				clauseNode := clause.AsCaseOrDefaultClause()
 				if clauseNode == nil || clauseNode.Statements == nil {
 					continue
 				}
 
-				statements := *clauseNode.Statements
+				statements := clauseNode.Statements.Nodes
 				for i := 0; i < len(statements)-1; i++ {
 					stmt := &statements[i]
 
@@ -94,7 +94,7 @@ func isControlFlowExit(stmt *ast.Node) bool {
 		}
 
 		// Check if both then and else branches exist and both exit
-		thenExits := ifStmt.ThenStatement != nil && statementExits(&ifStmt.ThenStatement)
+		thenExits := ifStmt.ThenStatement != nil && statementExits(ifStmt.ThenStatement)
 		elseExits := ifStmt.ElseStatement != nil && statementExits(ifStmt.ElseStatement)
 
 		return thenExits && elseExits
@@ -106,7 +106,7 @@ func isControlFlowExit(stmt *ast.Node) bool {
 			return false
 		}
 
-		for _, s := range block.Statements {
+		for _, s := range block.Statements.Nodes {
 			if isControlFlowExit(&s) {
 				return true
 			}

@@ -72,27 +72,22 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		case ast.KindWhileStatement:
 			whileStmt := node.AsWhileStatement()
 			if whileStmt != nil {
-				body = &whileStmt.Statement
+				body = whileStmt.Statement
 			}
 		case ast.KindDoStatement:
 			doStmt := node.AsDoStatement()
 			if doStmt != nil {
-				body = &doStmt.Statement
+				body = doStmt.Statement
 			}
 		case ast.KindForStatement:
 			forStmt := node.AsForStatement()
 			if forStmt != nil {
-				body = &forStmt.Statement
+				body = forStmt.Statement
 			}
-		case ast.KindForInStatement:
-			forInStmt := node.AsForInStatement()
-			if forInStmt != nil {
-				body = &forInStmt.Statement
-			}
-		case ast.KindForOfStatement:
-			forOfStmt := node.AsForOfStatement()
-			if forOfStmt != nil {
-				body = &forOfStmt.Statement
+		case ast.KindForInStatement, ast.KindForOfStatement:
+			forInOfStmt := node.AsForInOrOfStatement()
+			if forInOfStmt != nil {
+				body = forInOfStmt.Statement
 			}
 		}
 
@@ -172,7 +167,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 			return false
 		}
 
-		for _, s := range block.Statements {
+		for _, s := range block.Statements.Nodes {
 			if allPathsExitLoop(&s, loopNode) {
 				return true
 			}
@@ -186,7 +181,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 			return false
 		}
 
-		thenExits := allPathsExitLoop(&ifStmt.ThenStatement, loopNode)
+		thenExits := allPathsExitLoop(ifStmt.ThenStatement, loopNode)
 		elseExits := ifStmt.ElseStatement != nil && allPathsExitLoop(ifStmt.ElseStatement, loopNode)
 
 		return thenExits && elseExits
@@ -198,7 +193,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 			return false
 		}
 
-		caseBlock := switchStmt.CaseBlock.CaseBlock()
+		caseBlock := switchStmt.CaseBlock.AsCaseBlock()
 		if caseBlock == nil || caseBlock.Clauses == nil {
 			return false
 		}
@@ -206,18 +201,18 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 		hasDefault := false
 		allCasesExit := true
 
-		for _, clause := range *caseBlock.Clauses {
-			clauseNode := clause.CaseOrDefaultClause()
+		for _, clause := range caseBlock.Clauses.Nodes {
+			clauseNode := clause.AsCaseOrDefaultClause()
 			if clauseNode == nil {
 				continue
 			}
 
-			if clauseNode.Kind() == ast.KindDefaultClause {
+			if clauseNode.Kind == ast.KindDefaultClause {
 				hasDefault = true
 			}
 
 			if clauseNode.Statements != nil {
-				statements := *clauseNode.Statements
+				statements := clauseNode.Statements.Nodes
 				clauseExits := false
 				for _, s := range statements {
 					if allPathsExitLoop(&s, loopNode) {
