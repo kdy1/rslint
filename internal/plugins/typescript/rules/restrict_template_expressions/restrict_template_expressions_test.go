@@ -13,14 +13,24 @@ func TestRestrictTemplateExpressionsRule(t *testing.T) {
 		t,
 		&RestrictTemplateExpressionsRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
+			// String literal in template
+			{Code: "const msg = `arg = ${'foo'}`;"},
+			// String variable in template
 			{Code: `
-// Add valid code example here
-const x = 1;
+const arg = 'foo';
+const msg = ` + "`arg = ${arg}`" + `;
 `},
+			// Number with allowNumber option
+			{
+				Code: "const msg = `arg = ${123}`;",
+				Options: map[string]interface{}{
+					"allowNumber": true,
+				},
+			},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases with actual template expression violations
+			// TODO: Add invalid test cases once type checking is implemented
+			// The rule implementation has a TODO for type checking (see line 102)
 		},
 	)
 }
