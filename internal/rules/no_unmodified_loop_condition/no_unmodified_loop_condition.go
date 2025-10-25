@@ -4,7 +4,6 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // NoUnmodifiedLoopConditionRule implements the no-unmodified-loop-condition rule
@@ -49,7 +48,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 }
 
 // checkLoopCondition checks if variables in the loop condition are modified in the loop body
-func checkLoopCondition(ctx rule.RuleContext, typeChecker *checker.TypeChecker, condition *ast.Node, body *ast.Node) {
+func checkLoopCondition(ctx rule.RuleContext, typeChecker *checker.Checker, condition *ast.Node, body *ast.Node) {
 	if condition == nil || body == nil {
 		return
 	}
@@ -64,7 +63,7 @@ func checkLoopCondition(ctx rule.RuleContext, typeChecker *checker.TypeChecker, 
 	modifiedVars := collectModifiedIdentifiers(body)
 
 	// Find symbols for condition variables
-	conditionSymbols := make(map[*checker.Symbol]string)
+	conditionSymbols := make(map[*ast.Symbol]string)
 	for _, varNode := range conditionVars {
 		if varNode == nil {
 			continue
@@ -82,23 +81,23 @@ func checkLoopCondition(ctx rule.RuleContext, typeChecker *checker.TypeChecker, 
 			continue
 		}
 
-		symbol := utils.GetSymbolAtLocation(typeChecker, varNode)
+		symbol := typeChecker.GetSymbolAtLocation(varNode)
 		if symbol != nil {
 			identifier := varNode.AsIdentifier()
 			if identifier != nil {
-				conditionSymbols[symbol] = identifier.EscapedText
+				conditionSymbols[symbol] = identifier.Text
 			}
 		}
 	}
 
 	// Find symbols for modified variables
-	modifiedSymbols := make(map[*checker.Symbol]bool)
+	modifiedSymbols := make(map[*ast.Symbol]bool)
 	for _, modNode := range modifiedVars {
 		if modNode == nil {
 			continue
 		}
 
-		symbol := utils.GetSymbolAtLocation(typeChecker, modNode)
+		symbol := typeChecker.GetSymbolAtLocation(modNode)
 		if symbol != nil {
 			modifiedSymbols[symbol] = true
 		}
@@ -135,9 +134,10 @@ func collectIdentifiers(node *ast.Node) []*ast.Node {
 		}
 
 		// Visit children
-		for _, child := range ast.GetChildren(n) {
+		n.ForEachChild(func(child *ast.Node) bool {
 			visit(child)
-		}
+			return false
+		})
 	}
 
 	visit(node)
@@ -169,7 +169,7 @@ func collectModifiedIdentifiers(node *ast.Node) []*ast.Node {
 
 		case ast.KindPrefixUnaryExpression:
 			prefixExpr := n.AsPrefixUnaryExpression()
-			if prefixExpr != nil && isUpdateOperator(prefixExpr.Operator) {
+			if prefixExpr != nil && (prefixExpr.Operator == ast.KindPlusPlusToken || prefixExpr.Operator == ast.KindMinusMinusToken) {
 				// ++ or -- operators modify the operand
 				opIds := collectIdentifiers(prefixExpr.Operand)
 				modified = append(modified, opIds...)
@@ -177,7 +177,7 @@ func collectModifiedIdentifiers(node *ast.Node) []*ast.Node {
 
 		case ast.KindPostfixUnaryExpression:
 			postfixExpr := n.AsPostfixUnaryExpression()
-			if postfixExpr != nil && isUpdateOperator(postfixExpr.Operator) {
+			if postfixExpr != nil && (postfixExpr.Operator == ast.KindPlusPlusToken || postfixExpr.Operator == ast.KindMinusMinusToken) {
 				// ++ or -- operators modify the operand
 				opIds := collectIdentifiers(postfixExpr.Operand)
 				modified = append(modified, opIds...)
@@ -185,9 +185,10 @@ func collectModifiedIdentifiers(node *ast.Node) []*ast.Node {
 		}
 
 		// Visit children
-		for _, child := range ast.GetChildren(n) {
+		n.ForEachChild(func(child *ast.Node) bool {
 			visit(child)
-		}
+			return false
+		})
 	}
 
 	visit(node)
@@ -222,11 +223,6 @@ func isAssignmentOperator(token *ast.Node) bool {
 	return false
 }
 
-// isUpdateOperator checks if a syntax kind is an update operator (++ or --)
-func isUpdateOperator(kind ast.SyntaxKind) bool {
-	return kind == ast.KindPlusPlusToken || kind == ast.KindMinusMinusToken
-}
-
 // isPartOfPropertyAccess checks if an identifier is part of a property access expression
 func isPartOfPropertyAccess(node *ast.Node) bool {
 	if node == nil || node.Parent == nil {
@@ -238,7 +234,7 @@ func isPartOfPropertyAccess(node *ast.Node) bool {
 	// Check if this is the property name in a property access (e.g., obj.prop -> "prop")
 	if parent.Kind == ast.KindPropertyAccessExpression {
 		propAccess := parent.AsPropertyAccessExpression()
-		if propAccess != nil && propAccess.Name == node {
+		if propAccess != nil && propAccess.Name() == node {
 			return true
 		}
 	}

@@ -2,6 +2,7 @@ package no_unexpected_multiline
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
@@ -99,20 +100,20 @@ func isOnNewLine(sourceFile *ast.SourceFile, node1 *ast.Node, node2 interface{})
 	}
 
 	// Get end position of node1
-	end1 := node1.End
+	end1 := node1.End()
 
 	// Get start position of node2
-	var start2 int32
+	var start2 int
 	switch v := node2.(type) {
 	case *ast.Node:
-		start2 = v.Pos
+		start2 = v.Pos()
 	default:
 		return false
 	}
 
 	// Get line and character for both positions
-	line1 := sourceFile.GetLineAndCharacterOfPosition(end1).Line
-	line2 := sourceFile.GetLineAndCharacterOfPosition(start2).Line
+	line1, _ := scanner.GetLineAndCharacterOfPosition(sourceFile, end1)
+	line2, _ := scanner.GetLineAndCharacterOfPosition(sourceFile, start2)
 
 	return line2 > line1
 }

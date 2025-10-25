@@ -2,9 +2,7 @@ package no_undef
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // NoUndefOptions defines the configuration options for this rule
@@ -81,24 +79,24 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			// Try to resolve the symbol for this identifier
-			symbol := utils.GetSymbolAtLocation(typeChecker, node)
+			symbol := typeChecker.GetSymbolAtLocation(node)
 
 			// If no symbol found, this might be an undeclared variable
 			if symbol == nil {
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "undef",
-					Description: "'" + identifier.EscapedText + "' is not defined.",
+					Description: "'" + identifier.Text + "' is not defined.",
 				})
 				return
 			}
 
 			// Check if the symbol has any declarations
 			// Symbols from ambient declarations (like global browser APIs) will have declarations
-			if symbol.Declarations == nil || len(symbol.Declarations.Nodes) == 0 {
+			if symbol.Declarations == nil || len(symbol.Declarations) == 0 {
 				// No declarations means it's not properly declared
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "undef",
-					Description: "'" + identifier.EscapedText + "' is not defined.",
+					Description: "'" + identifier.Text + "' is not defined.",
 				})
 			}
 		},
@@ -152,31 +150,31 @@ func isPartOfDeclaration(node *ast.Node) bool {
 	switch parent.Kind {
 	case ast.KindVariableDeclaration:
 		varDecl := parent.AsVariableDeclaration()
-		return varDecl != nil && varDecl.Name == node
+		return varDecl != nil && varDecl.Name() == node
 
 	case ast.KindFunctionDeclaration:
 		funcDecl := parent.AsFunctionDeclaration()
-		return funcDecl != nil && funcDecl.Name == node
+		return funcDecl != nil && funcDecl.Name() == node
 
 	case ast.KindParameter:
 		param := parent.AsParameterDeclaration()
-		return param != nil && param.Name == node
+		return param != nil && param.Name() == node
 
 	case ast.KindClassDeclaration:
 		classDecl := parent.AsClassDeclaration()
-		return classDecl != nil && classDecl.Name == node
+		return classDecl != nil && classDecl.Name() == node
 
 	case ast.KindInterfaceDeclaration:
 		ifaceDecl := parent.AsInterfaceDeclaration()
-		return ifaceDecl != nil && ifaceDecl.Name == node
+		return ifaceDecl != nil && ifaceDecl.Name() == node
 
 	case ast.KindTypeAliasDeclaration:
 		typeAlias := parent.AsTypeAliasDeclaration()
-		return typeAlias != nil && typeAlias.Name == node
+		return typeAlias != nil && typeAlias.Name() == node
 
 	case ast.KindEnumDeclaration:
 		enumDecl := parent.AsEnumDeclaration()
-		return enumDecl != nil && enumDecl.Name == node
+		return enumDecl != nil && enumDecl.Name() == node
 
 	case ast.KindImportSpecifier:
 		return true
@@ -189,13 +187,13 @@ func isPartOfDeclaration(node *ast.Node) bool {
 
 	case ast.KindBindingElement:
 		bindingElem := parent.AsBindingElement()
-		return bindingElem != nil && bindingElem.Name == node
+		return bindingElem != nil && bindingElem.Name() == node
 
 	case ast.KindCatchClause:
 		catchClause := parent.AsCatchClause()
 		if catchClause != nil && catchClause.VariableDeclaration != nil {
 			varDecl := catchClause.VariableDeclaration.AsVariableDeclaration()
-			return varDecl != nil && varDecl.Name == node
+			return varDecl != nil && varDecl.Name() == node
 		}
 	}
 
@@ -212,11 +210,11 @@ func isPropertyName(node *ast.Node) bool {
 	switch parent.Kind {
 	case ast.KindPropertyAccessExpression:
 		propAccess := parent.AsPropertyAccessExpression()
-		return propAccess != nil && propAccess.Name == node
+		return propAccess != nil && propAccess.Name() == node
 
 	case ast.KindPropertyAssignment:
 		propAssign := parent.AsPropertyAssignment()
-		return propAssign != nil && propAssign.Name == node
+		return propAssign != nil && propAssign.Name() == node
 
 	case ast.KindShorthandPropertyAssignment:
 		// Shorthand properties are both declaration and usage, so don't skip them
@@ -224,11 +222,11 @@ func isPropertyName(node *ast.Node) bool {
 
 	case ast.KindMethodDeclaration:
 		methodDecl := parent.AsMethodDeclaration()
-		return methodDecl != nil && methodDecl.Name == node
+		return methodDecl != nil && methodDecl.Name() == node
 
 	case ast.KindPropertyDeclaration:
 		propDecl := parent.AsPropertyDeclaration()
-		return propDecl != nil && propDecl.Name == node
+		return propDecl != nil && propDecl.Name() == node
 	}
 
 	return false
