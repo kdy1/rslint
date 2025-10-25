@@ -87,7 +87,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					continue
 				}
 
-				if keyName == "" {
+				// Only skip if we truly can't determine the key
+				// Empty string "" is a valid key and should be checked
+				// We return "" from getKeyName only when we can't statically determine the key
+				// (e.g., for computed properties with non-literal expressions)
+				if keyName == "" && keyNode.Kind != ast.KindStringLiteral {
 					continue
 				}
 
@@ -208,6 +212,12 @@ func getKeyName(sourceFile *ast.SourceFile, keyNode *ast.Node) string {
 		text := sourceFile.Text()[textRange.Pos():textRange.End()]
 		return normalizeNumber(text)
 
+	case ast.KindBigIntLiteral:
+		// Normalize BigInt literals (e.g., 1n -> "1")
+		textRange := utils.TrimNodeTextRange(sourceFile, keyNode)
+		text := sourceFile.Text()[textRange.Pos():textRange.End()]
+		return normalizeNumber(text)
+
 	case ast.KindComputedPropertyName:
 		// For computed property names, we can only check literal values
 		computed := keyNode.AsComputedPropertyName()
@@ -216,6 +226,7 @@ func getKeyName(sourceFile *ast.SourceFile, keyNode *ast.Node) string {
 			// Only process literal values in computed properties
 			if expr.Kind == ast.KindStringLiteral ||
 				expr.Kind == ast.KindNumericLiteral ||
+				expr.Kind == ast.KindBigIntLiteral ||
 				expr.Kind == ast.KindNoSubstitutionTemplateLiteral {
 				return getKeyName(sourceFile, expr)
 			}

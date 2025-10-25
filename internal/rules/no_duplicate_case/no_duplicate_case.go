@@ -37,23 +37,17 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					continue
 				}
 
-				var caseExpr *ast.Node
-
-				switch clause.Kind {
-				case ast.KindCaseClause:
-					caseClause := clause.AsCaseClause()
-					if caseClause == nil || caseClause.Expression == nil {
-						continue
-					}
-					caseExpr = caseClause.Expression
-
-				case ast.KindDefaultClause:
-					// Default clauses don't have expressions to compare
-					continue
-
-				default:
+				// Skip default clauses - they don't have expressions to compare
+				if clause.Kind == ast.KindDefaultClause {
 					continue
 				}
+
+				// Get the case expression from CaseClause
+				caseOrDefaultClause := clause.AsCaseOrDefaultClause()
+				if caseOrDefaultClause == nil || caseOrDefaultClause.Expression == nil {
+					continue
+				}
+				caseExpr := caseOrDefaultClause.Expression
 
 				// Normalize the expression text for comparison
 				normalized := normalizeExpression(ctx.SourceFile, caseExpr)

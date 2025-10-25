@@ -77,7 +77,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Check for duplicates in existing imports
 			for _, imp := range imports {
 				if imp.module == module && imp.isImport {
-					ctx.ReportNode(importDecl.ModuleSpecifier, rule.RuleMessage{
+					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "import",
 						Description: fmt.Sprintf("'%s' import is duplicated.", module),
 					})
@@ -85,7 +85,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				}
 				// If includeExports is true, also check against exports
 				if opts.IncludeExports && imp.module == module && !imp.isImport {
-					ctx.ReportNode(importDecl.ModuleSpecifier, rule.RuleMessage{
+					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "importExport",
 						Description: fmt.Sprintf("'%s' import is duplicated as export.", module),
 					})
@@ -119,7 +119,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			for _, imp := range imports {
 				if imp.module == module && !imp.isImport {
 					// Duplicate export
-					ctx.ReportNode(exportDecl.ModuleSpecifier, rule.RuleMessage{
+					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "export",
 						Description: fmt.Sprintf("'%s' export is duplicated.", module),
 					})
@@ -127,8 +127,8 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				}
 				if imp.module == module && imp.isImport {
 					// Export duplicating an import
-					ctx.ReportNode(exportDecl.ModuleSpecifier, rule.RuleMessage{
-						Id:          "exportImport",
+					ctx.ReportNode(node, rule.RuleMessage{
+						Id:          "importExport",
 						Description: fmt.Sprintf("'%s' export is duplicated as import.", module),
 					})
 					return
