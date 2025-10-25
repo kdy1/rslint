@@ -90,6 +90,7 @@ describe('CLI Configuration Tests', () => {
           },
           rules: {
             '@typescript-eslint/no-unsafe-member-access': 'error',
+            '@typescript-eslint/no-magic-numbers': 'off',
           },
           plugins: ['@typescript-eslint'],
         },
@@ -176,6 +177,7 @@ describe('CLI Configuration Tests', () => {
           },
           rules: {
             '@typescript-eslint/no-unsafe-member-access': 'error',
+            '@typescript-eslint/no-magic-numbers': 'off',
           },
           plugins: ['@typescript-eslint'],
         },
@@ -226,6 +228,7 @@ describe('CLI Configuration Tests', () => {
           rules: {
             '@typescript-eslint/no-explicit-any': 'warn',
             '@typescript-eslint/no-unsafe-member-access': 'error',
+            '@typescript-eslint/no-magic-numbers': 'off',
           },
           plugins: ['@typescript-eslint'],
         },
@@ -279,6 +282,7 @@ describe('CLI Configuration Tests', () => {
           rules: {
             '@typescript-eslint/no-unsafe-member-access': 'error',
             '@typescript-eslint/return-await': 'warn',
+            '@typescript-eslint/no-magic-numbers': 'off',
           },
           plugins: ['@typescript-eslint'],
         },
@@ -403,6 +407,7 @@ describe('CLI Configuration Tests', () => {
           },
           rules: {
             'no-unsafe-member-access': 'error',
+            '@typescript-eslint/no-magic-numbers': 'off',
           },
           plugins: ['@typescript-eslint'],
         },
