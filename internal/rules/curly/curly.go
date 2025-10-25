@@ -63,9 +63,14 @@ func isSingleLine(sourceFile *ast.SourceFile, stmt *ast.Node) bool {
 		return false
 	}
 	rng := utils.TrimNodeTextRange(sourceFile, stmt)
-	// For now, just assume single line if the range is small
-	// A proper implementation would need to count newlines
-	return (rng.End() - rng.Pos()) < 80
+	text := sourceFile.Text()[rng.Pos():rng.End()]
+	// Check if the text contains any newlines
+	for _, ch := range text {
+		if ch == '\n' || ch == '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // Check if statement contains nested control structures

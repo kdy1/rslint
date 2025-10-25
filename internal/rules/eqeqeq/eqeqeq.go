@@ -186,7 +186,12 @@ var EqeqeqRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Handle smart mode
-			if opts.Mode == "smart" && !isNull {
+			if opts.Mode == "smart" {
+				// In smart mode, null comparisons are allowed
+				if isNull {
+					return
+				}
+				// Other smart mode checks
 				if isSmartAllowed(left, right) {
 					return
 				}

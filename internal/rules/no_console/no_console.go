@@ -139,6 +139,19 @@ var NoConsoleRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
+			// Check if 'console' is a local variable (shadowing the global)
+			// If the identifier has a symbol with declarations, it's locally defined
+			if ctx.TypeChecker != nil {
+				symbol := ctx.TypeChecker.GetSymbolAtLocation(expr)
+				if symbol != nil {
+					declarations := symbol.Declarations()
+					if len(declarations) > 0 {
+						// console is locally defined, skip this reference
+						return
+					}
+				}
+			}
+
 			// Check if method is allowed
 			if len(opts.Allow) > 0 && methodName != "" && isAllowed(methodName, opts.Allow) {
 				return
@@ -173,6 +186,19 @@ var NoConsoleRule = rule.CreateRule(rule.Rule{
 			objName := id.Text
 			if objName != "console" {
 				return
+			}
+
+			// Check if 'console' is a local variable (shadowing the global)
+			// If the identifier has a symbol with declarations, it's locally defined
+			if ctx.TypeChecker != nil {
+				symbol := ctx.TypeChecker.GetSymbolAtLocation(expr)
+				if symbol != nil {
+					declarations := symbol.Declarations()
+					if len(declarations) > 0 {
+						// console is locally defined, skip this reference
+						return
+					}
+				}
 			}
 
 			// Try to get the method name
