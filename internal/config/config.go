@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unreachable"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unreachable_loop"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unsafe_finally"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,13 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerAllCoreEslintRules()
+}
+
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("no-unreachable", no_unreachable.NoUnreachableRule)
+	GlobalRuleRegistry.Register("no-unreachable-loop", no_unreachable_loop.NoUnreachableLoopRule)
+	GlobalRuleRegistry.Register("no-unsafe-finally", no_unsafe_finally.NoUnsafeFinallyRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
