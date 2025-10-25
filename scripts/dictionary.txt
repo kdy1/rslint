@@ -53,6 +53,7 @@ instane
 jsonline
 lintedfile
 lsproto
+myconsole
 myfunc
 nolint
 noregabi
