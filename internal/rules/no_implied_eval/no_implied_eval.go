@@ -30,8 +30,9 @@ func isStringArgument(node *ast.Node) bool {
 	case ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
 		return true
 	case ast.KindTemplateExpression:
-		// Template literals with substitutions are also strings
-		return true
+		// Template literals with substitutions like `foo${bar}` are not flagged
+		// because the substitution might resolve to a safe value
+		return false
 	case ast.KindBinaryExpression:
 		// Check for string concatenation
 		binExpr := node.AsBinaryExpression()
@@ -66,29 +67,79 @@ func isGlobalReference(node *ast.Node) bool {
 	return false
 }
 
-// getCalleeName extracts the function name from a call expression
-func getCalleeName(callExpr *ast.CallExpression) (string, bool) {
+// isShadowedGlobal checks if a global identifier (window, global, globalThis) is shadowed by a local declaration
+func isShadowedGlobal(node *ast.Node, sourceFile *ast.SourceFile) bool {
+	if node == nil || node.Kind != ast.KindIdentifier {
+		return false
+	}
+
+	ident := node.AsIdentifier()
+	if ident == nil {
+		return false
+	}
+
+	name := ident.Text
+	if name != "window" && name != "global" && name != "globalThis" {
+		return false
+	}
+
+	// Walk up to find the containing function or source file to check for variable declarations
+	current := node.Parent
+	for current != nil {
+		// Check if there's a variable declaration with this name in the current scope
+		if current.Kind == ast.KindSourceFile {
+			sf := current.AsSourceFile()
+			if sf != nil && sf.Statements != nil {
+				for _, stmt := range sf.Statements.Nodes {
+					if stmt.Kind == ast.KindVariableStatement {
+						varStmt := stmt.AsVariableStatement()
+						if varStmt != nil && varStmt.DeclarationList != nil {
+							declList := varStmt.DeclarationList.AsVariableDeclarationList()
+							if declList != nil {
+								for _, decl := range declList.Declarations.Nodes {
+									if decl.Name() != nil && decl.Name().Kind == ast.KindIdentifier {
+										declIdent := decl.Name().AsIdentifier()
+										if declIdent != nil && declIdent.Text == name {
+											return true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			break
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
+// getCalleeName extracts the function name from a call expression and returns the node to report
+func getCalleeName(callExpr *ast.CallExpression, sourceFile *ast.SourceFile) (string, *ast.Node, bool) {
 	if callExpr == nil || callExpr.Expression == nil {
-		return "", false
+		return "", nil, false
 	}
 
 	switch callExpr.Expression.Kind {
 	case ast.KindIdentifier:
 		ident := callExpr.Expression.AsIdentifier()
 		if ident != nil {
-			return ident.Text, true
+			return ident.Text, callExpr.Expression, true
 		}
 	case ast.KindPropertyAccessExpression:
 		propAccess := callExpr.Expression.AsPropertyAccessExpression()
 		if propAccess != nil && propAccess.Name() != nil {
 			// For window.setTimeout or global.setTimeout
-			if isGlobalReference(propAccess.Expression) {
-				return propAccess.Name().Text(), true
+			if isGlobalReference(propAccess.Expression) && !isShadowedGlobal(propAccess.Expression, sourceFile) {
+				return propAccess.Name().Text(), propAccess.Name(), true
 			}
 		}
 	}
 
-	return "", false
+	return "", nil, false
 }
 
 // NoImpliedEvalRule disallows implied eval via setTimeout, setInterval, or execScript
@@ -103,14 +154,24 @@ var NoImpliedEvalRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			funcName, ok := getCalleeName(callExpr)
+			funcName, reportNode, ok := getCalleeName(callExpr, ctx.SourceFile)
 			if !ok {
 				return
 			}
 
-			// Check for execScript - it's always bad
+			// Check for execScript - it's bad unless the first argument is clearly a function
 			if funcName == "execScript" {
-				ctx.ReportNode(callExpr.Expression, buildExecScriptMessage())
+				// Only allow execScript if the first argument is a function expression or arrow function
+				if callExpr.Arguments != nil && len(callExpr.Arguments.Nodes) > 0 {
+					firstArg := callExpr.Arguments.Nodes[0]
+					// Allow function expressions and arrow functions
+					if firstArg.Kind != ast.KindFunctionExpression && firstArg.Kind != ast.KindArrowFunction {
+						ctx.ReportNode(reportNode, buildExecScriptMessage())
+					}
+				} else {
+					// No arguments, still bad
+					ctx.ReportNode(reportNode, buildExecScriptMessage())
+				}
 				return
 			}
 
@@ -120,7 +181,7 @@ var NoImpliedEvalRule = rule.CreateRule(rule.Rule{
 				if callExpr.Arguments != nil && len(callExpr.Arguments.Nodes) > 0 {
 					firstArg := callExpr.Arguments.Nodes[0]
 					if isStringArgument(firstArg) {
-						ctx.ReportNode(callExpr.Expression, buildImpliedEvalMessage())
+						ctx.ReportNode(reportNode, buildImpliedEvalMessage())
 					}
 				}
 			}

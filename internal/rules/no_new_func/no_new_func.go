@@ -27,6 +27,107 @@ func isFunctionIdentifier(node *ast.Node) bool {
 	return ident.Text == "Function"
 }
 
+// isNodeInsideNode checks if nodeToCheck is a descendant of possibleAncestor
+func isNodeInsideNode(nodeToCheck *ast.Node, possibleAncestor *ast.Node) bool {
+	if nodeToCheck == nil || possibleAncestor == nil {
+		return false
+	}
+
+	current := nodeToCheck
+	for current != nil {
+		if current == possibleAncestor {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+// isShadowedFunction checks if the Function identifier is shadowed by a local declaration
+func isShadowedFunction(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Walk up to find any scope that declares Function
+	current := node.Parent
+	for current != nil {
+		// Check for function expression with name Function - named function expressions
+		// create a binding only within their own body
+		if current.Kind == ast.KindFunctionExpression {
+			fnExpr := current.AsFunctionExpression()
+			if fnExpr != nil && fnExpr.Name() != nil && fnExpr.Name().Kind == ast.KindIdentifier {
+				nameIdent := fnExpr.Name().AsIdentifier()
+				if nameIdent != nil && nameIdent.Text == "Function" {
+					// The name is only accessible within the function body
+					return true
+				}
+			}
+		}
+
+		// Check in block scopes for declarations - simplified to only check source file scope
+		if current.Kind == ast.KindSourceFile {
+			sf := current.AsSourceFile()
+			if sf != nil && sf.Statements != nil {
+				for _, child := range sf.Statements.Nodes {
+					// Check for function declarations
+					if child.Kind == ast.KindFunctionDeclaration {
+						fnDecl := child.AsFunctionDeclaration()
+						if fnDecl != nil && fnDecl.Name() != nil && fnDecl.Name().Kind == ast.KindIdentifier {
+							nameIdent := fnDecl.Name().AsIdentifier()
+							if nameIdent != nil && nameIdent.Text == "Function" {
+								return true
+							}
+						}
+					}
+
+					// Check for class declarations
+					if child.Kind == ast.KindClassDeclaration {
+						classDecl := child.AsClassDeclaration()
+						if classDecl != nil && classDecl.Name() != nil && classDecl.Name().Kind == ast.KindIdentifier {
+							nameIdent := classDecl.Name().AsIdentifier()
+							if nameIdent != nil && nameIdent.Text == "Function" {
+								return true
+							}
+						}
+					}
+				}
+			}
+		} else if current.Kind == ast.KindBlock {
+			block := current.AsBlock()
+			if block != nil && block.Statements != nil {
+				for _, child := range block.Statements.Nodes {
+					// Check for function declarations
+					if child.Kind == ast.KindFunctionDeclaration {
+						fnDecl := child.AsFunctionDeclaration()
+						if fnDecl != nil && fnDecl.Name() != nil && fnDecl.Name().Kind == ast.KindIdentifier {
+							nameIdent := fnDecl.Name().AsIdentifier()
+							if nameIdent != nil && nameIdent.Text == "Function" {
+								return true
+							}
+						}
+					}
+
+					// Check for class declarations
+					if child.Kind == ast.KindClassDeclaration {
+						classDecl := child.AsClassDeclaration()
+						if classDecl != nil && classDecl.Name() != nil && classDecl.Name().Kind == ast.KindIdentifier {
+							nameIdent := classDecl.Name().AsIdentifier()
+							if nameIdent != nil && nameIdent.Text == "Function" {
+								return true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		current = current.Parent
+	}
+
+	return false
+}
+
 // NoNewFuncRule disallows new Function(...)
 var NoNewFuncRule = rule.CreateRule(rule.Rule{
 	Name: "no-new-func",
@@ -40,7 +141,7 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			if isFunctionIdentifier(newExpr.Expression) {
+			if isFunctionIdentifier(newExpr.Expression) && !isShadowedFunction(newExpr.Expression) {
 				ctx.ReportNode(newExpr.Expression, buildNoFunctionConstructorMessage())
 			}
 		}
@@ -52,7 +153,7 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Direct Function() call
-			if isFunctionIdentifier(callExpr.Expression) {
+			if isFunctionIdentifier(callExpr.Expression) && !isShadowedFunction(callExpr.Expression) {
 				ctx.ReportNode(callExpr.Expression, buildNoFunctionConstructorMessage())
 				return
 			}
@@ -61,7 +162,7 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 			if callExpr.Expression.Kind == ast.KindPropertyAccessExpression {
 				propAccess := callExpr.Expression.AsPropertyAccessExpression()
 				if propAccess != nil && propAccess.Expression != nil && propAccess.Name() != nil {
-					if isFunctionIdentifier(propAccess.Expression) {
+					if isFunctionIdentifier(propAccess.Expression) && !isShadowedFunction(propAccess.Expression) {
 						methodName := propAccess.Name().Text()
 						if methodName == "call" || methodName == "apply" || methodName == "bind" {
 							ctx.ReportNode(propAccess.Expression, buildNoFunctionConstructorMessage())
@@ -74,7 +175,7 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 			if callExpr.Expression.Kind == ast.KindPropertyAccessExpression {
 				propAccess := callExpr.Expression.AsPropertyAccessExpression()
 				if propAccess != nil && propAccess.QuestionDotToken != nil && propAccess.Expression != nil {
-					if isFunctionIdentifier(propAccess.Expression) {
+					if isFunctionIdentifier(propAccess.Expression) && !isShadowedFunction(propAccess.Expression) {
 						ctx.ReportNode(propAccess.Expression, buildNoFunctionConstructorMessage())
 					}
 				}
@@ -87,7 +188,7 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 					if parenExpr.Expression.Kind == ast.KindPropertyAccessExpression {
 						propAccess := parenExpr.Expression.AsPropertyAccessExpression()
 						if propAccess != nil && propAccess.Expression != nil {
-							if isFunctionIdentifier(propAccess.Expression) {
+							if isFunctionIdentifier(propAccess.Expression) && !isShadowedFunction(propAccess.Expression) {
 								methodName := ""
 								if propAccess.Name() != nil {
 									methodName = propAccess.Name().Text()
@@ -111,6 +212,11 @@ var NoNewFuncRule = rule.CreateRule(rule.Rule{
 
 			// Check if object is Function identifier
 			if !isFunctionIdentifier(elemAccess.Expression) {
+				return
+			}
+
+			// Check if it's shadowed
+			if isShadowedFunction(elemAccess.Expression) {
 				return
 			}
 

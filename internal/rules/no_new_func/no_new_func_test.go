@@ -78,13 +78,13 @@ func TestNoNewFuncRule(t *testing.T) {
 			{
 				Code: "const fn = () => { class Function {} }; new Function('', '');",
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "noFunctionConstructor", Line: 1, Column: 46},
+					{MessageId: "noFunctionConstructor", Line: 1, Column: 45},
 				},
 			},
 			{
 				Code: "var fn = function () { function Function() {} }; Function('', '');",
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "noFunctionConstructor", Line: 1, Column: 51},
+					{MessageId: "noFunctionConstructor", Line: 1, Column: 50},
 				},
 			},
 		},

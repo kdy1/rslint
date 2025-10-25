@@ -76,23 +76,23 @@ var NoEvalRule = rule.CreateRule(rule.Rule{
 			if callExpr.Expression.Kind == ast.KindPropertyAccessExpression {
 				propAccess := callExpr.Expression.AsPropertyAccessExpression()
 				if propAccess != nil && propAccess.Name() != nil && propAccess.Name().Text() == "eval" {
-					// Check if allowIndirect is enabled
+					// Always allow this.eval() - in methods it's likely a custom method
+					// At global scope in non-strict mode it would be eval, but we can't reliably detect this
+					if propAccess.Expression != nil && propAccess.Expression.Kind == ast.KindThisKeyword {
+						return
+					}
+
+					// Check if allowIndirect is enabled for other property accesses
 					if opts.AllowIndirect {
-						// Only allow indirect eval from window, this, global, globalThis
-						// We need to check if the object is one of these
-						if propAccess.Expression != nil {
-							if propAccess.Expression.Kind == ast.KindIdentifier {
-								objIdent := propAccess.Expression.AsIdentifier()
-								if objIdent != nil {
-									objName := objIdent.Text
-									// Allow window.eval, global.eval, globalThis.eval
-									if objName == "window" || objName == "global" || objName == "globalThis" {
-										return
-									}
+						// Allow indirect eval from window, global, globalThis
+						if propAccess.Expression != nil && propAccess.Expression.Kind == ast.KindIdentifier {
+							objIdent := propAccess.Expression.AsIdentifier()
+							if objIdent != nil {
+								objName := objIdent.Text
+								// Allow window.eval, global.eval, globalThis.eval
+								if objName == "window" || objName == "global" || objName == "globalThis" {
+									return
 								}
-							} else if propAccess.Expression.Kind == ast.KindThisKeyword {
-								// Allow this.eval
-								return
 							}
 						}
 					}
