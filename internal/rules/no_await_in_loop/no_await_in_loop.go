@@ -38,7 +38,7 @@ func isForAwaitOfNode(node *ast.Node) bool {
 	return stmt.AwaitModifier != nil
 }
 
-// isInLoop checks if we're currently inside a loop (excluding for-await-of)
+// isInLoop checks if we're currently inside a loop (excluding for-await-of and loop initializers)
 func isInLoop(node *ast.Node) bool {
 	current := node.Parent
 	for current != nil {
@@ -47,8 +47,11 @@ func isInLoop(node *ast.Node) bool {
 			return false
 		}
 
-		// If we hit a regular loop, we're in a problematic context
+		// Check if we're in a loop initializer position (which is allowed)
 		if isLoopNode(current) {
+			if isInLoopInitializer(node, current) {
+				return false
+			}
 			return true
 		}
 
@@ -67,6 +70,72 @@ func isInLoop(node *ast.Node) bool {
 		current = current.Parent
 	}
 	return false
+}
+
+// isInLoopInitializer checks if a node is in a loop initializer position
+func isInLoopInitializer(node *ast.Node, loop *ast.Node) bool {
+	if loop == nil || node == nil {
+		return false
+	}
+
+	switch loop.Kind {
+	case ast.KindForInStatement, ast.KindForOfStatement:
+		// For for-in/for-of, the initializer is the expression being iterated over
+		stmt := loop.AsForInOrOfStatement()
+		if stmt == nil {
+			return false
+		}
+		// Check if the node is in the iterable expression
+		expr := stmt.Expression
+		return isNodeInSubtree(node, expr)
+
+	case ast.KindForStatement:
+		// For regular for loops, the initializer is the first part
+		stmt := loop.AsForStatement()
+		if stmt == nil {
+			return false
+		}
+		// Check if the node is in the initializer
+		init := stmt.Initializer
+		return isNodeInSubtree(node, init)
+
+	default:
+		return false
+	}
+}
+
+// isNodeInSubtree checks if a node is within a subtree rooted at root
+func isNodeInSubtree(node *ast.Node, root *ast.Node) bool {
+	if root == nil || node == nil {
+		return false
+	}
+	current := node
+	for current != nil {
+		if current == root {
+			return true
+		}
+		// Stop at certain boundaries
+		if isLoopNode(current) || isFunctionNode(current) {
+			return false
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+// isFunctionNode checks if a node is a function
+func isFunctionNode(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+	kind := node.Kind
+	return kind == ast.KindFunctionDeclaration ||
+		kind == ast.KindFunctionExpression ||
+		kind == ast.KindArrowFunction ||
+		kind == ast.KindMethodDeclaration ||
+		kind == ast.KindConstructor ||
+		kind == ast.KindGetAccessor ||
+		kind == ast.KindSetAccessor
 }
 
 // NoAwaitInLoopRule disallows await inside of loops

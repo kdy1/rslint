@@ -69,33 +69,116 @@ func checkGetterReturn(ctx rule.RuleContext, node *ast.Node, opts Options) {
 		return
 	}
 
-	// Simple check: look for any return statement in the body
-	// For a full implementation, we'd need to traverse the AST more deeply
-	// For now, we'll report if there's no body or if the body is empty
+	// Perform control flow analysis
+	result := analyzeReturnPaths(body)
 
+	// Report on the getter node itself
+	if result.hasNoReturns {
+		// No return statements at all, or only empty returns
+		ctx.ReportNode(node, buildExpectedMessage())
+	} else if !result.allPathsReturn {
+		// Some paths return a value, but not all paths do
+		ctx.ReportNode(node, buildExpectedAlwaysMessage())
+	}
+}
+
+// returnAnalysisResult holds the result of control flow analysis
+type returnAnalysisResult struct {
+	hasNoReturns    bool // true if there are no return statements with values
+	allPathsReturn  bool // true if all code paths return a value
+}
+
+// analyzeReturnPaths performs control flow analysis on a function body
+func analyzeReturnPaths(body *ast.Node) returnAnalysisResult {
+	if body == nil {
+		return returnAnalysisResult{hasNoReturns: true, allPathsReturn: false}
+	}
+
+	hasReturnWithValue := false
+	hasReturnWithoutValue := false
+
+	// Use ForEachReturnStatement to find all return statements
+	ast.ForEachReturnStatement(body, func(stmt *ast.Node) bool {
+		expr := stmt.Expression()
+		if expr != nil {
+			hasReturnWithValue = true
+		} else {
+			hasReturnWithoutValue = true
+		}
+		return false // Continue iterating
+	})
+
+	// Determine if this is a simple case or complex case
+	// Simple case: body is a block with a single return statement
+	isSingleReturn := false
 	if body.Kind == ast.KindBlock {
 		statements := body.Statements()
-		if statements == nil || len(statements) == 0 {
-			ctx.ReportNode(node, buildExpectedMessage())
-			return
-		}
-
-		// Check if there's at least one return with a value
-		hasReturnWithValue := false
-		for _, stmt := range statements {
-			if stmt != nil && stmt.Kind == ast.KindReturnStatement {
-				expr := stmt.Expression()
-				if expr != nil {
-					hasReturnWithValue = true
-					break
-				}
-			}
-		}
-
-		if !hasReturnWithValue {
-			ctx.ReportNode(node, buildExpectedMessage())
+		if len(statements) == 1 && statements[0].Kind == ast.KindReturnStatement {
+			isSingleReturn = true
 		}
 	}
+
+	// If we have no return with value at all, report "expected"
+	if !hasReturnWithValue {
+		return returnAnalysisResult{
+			hasNoReturns:   true,
+			allPathsReturn: false,
+		}
+	}
+
+	// Heuristic for determining if all paths return:
+	// 1. If it's a single return statement, yes
+	// 2. If we have both return with value and return without value, no (inconsistent)
+	// 3. If we have only returns with values and no control flow, yes
+	// 4. If we have only returns with values and control flow, we need more analysis
+	//    For now, we'll be conservative: assume all paths return if there are multiple returns with values
+	//    and no empty returns (this handles if-else cases)
+
+	countReturnsWithValue := 0
+	ast.ForEachReturnStatement(body, func(stmt *ast.Node) bool {
+		if stmt.Expression() != nil {
+			countReturnsWithValue++
+		}
+		return false
+	})
+
+	allPathsReturn := isSingleReturn ||
+		(!hasReturnWithoutValue && (isSimpleBody(body) || countReturnsWithValue >= 2))
+
+	return returnAnalysisResult{
+		hasNoReturns:   false,
+		allPathsReturn: allPathsReturn,
+	}
+}
+
+// isSimpleBody checks if a function body is simple enough that we can assume all paths return
+// if there's at least one return with value
+func isSimpleBody(body *ast.Node) bool {
+	if body == nil || body.Kind != ast.KindBlock {
+		return true
+	}
+
+	statements := body.Statements()
+	if len(statements) == 0 {
+		return true
+	}
+
+	// Check for control flow statements (if, switch, loops, etc.)
+	for _, stmt := range statements {
+		if stmt == nil {
+			continue
+		}
+		switch stmt.Kind {
+		case ast.KindIfStatement, ast.KindSwitchStatement,
+			ast.KindForStatement, ast.KindForInStatement, ast.KindForOfStatement,
+			ast.KindWhileStatement, ast.KindDoStatement,
+			ast.KindTryStatement:
+			// Has control flow - not simple
+			return false
+		}
+	}
+
+	return true
 }
 
 // GetterReturnRule enforces return statements in getters
@@ -118,13 +201,22 @@ var GetterReturnRule = rule.CreateRule(rule.Rule{
 
 				var objectName, methodName string
 
+				// Handle optional chaining: Object?.defineProperty or (Object?.defineProperty)
+				actualExpr := expr
+
+				// Unwrap ParenthesizedExpression
+				for actualExpr != nil && actualExpr.Kind == ast.KindParenthesizedExpression {
+					actualExpr = actualExpr.Expression()
+				}
+
 				// Check for Object.defineProperty, Reflect.defineProperty
-				if expr.Kind == ast.KindPropertyAccessExpression {
-					obj := expr.Expression()
+				// This handles both regular PropertyAccessExpression and optional chaining (checked via flags)
+				if actualExpr != nil && actualExpr.Kind == ast.KindPropertyAccessExpression {
+					obj := actualExpr.Expression()
 					if obj != nil && obj.Kind == ast.KindIdentifier {
 						objectName = obj.Text()
 					}
-					name := expr.Name()
+					name := actualExpr.Name()
 					if name != nil && name.Kind == ast.KindIdentifier {
 						methodName = name.Text()
 					}
@@ -206,11 +298,13 @@ func checkDescriptorForGetter(ctx rule.RuleContext, descriptor *ast.Node, opts O
 		// Look for 'get' property
 		if prop.Kind == ast.KindPropertyAssignment || prop.Kind == ast.KindMethodDeclaration {
 			var propName string
+			var propNameNode *ast.Node
 			if prop.Name() != nil {
-				if prop.Name().Kind == ast.KindIdentifier {
-					propName = prop.Name().Text()
-				} else if prop.Name().Kind == ast.KindStringLiteral {
-					propName = prop.Name().Text()
+				propNameNode = prop.Name()
+				if propNameNode.Kind == ast.KindIdentifier {
+					propName = propNameNode.Text()
+				} else if propNameNode.Kind == ast.KindStringLiteral {
+					propName = propNameNode.Text()
 					// Remove quotes
 					if len(propName) >= 2 {
 						propName = propName[1 : len(propName)-1]
@@ -231,10 +325,43 @@ func checkDescriptorForGetter(ctx rule.RuleContext, descriptor *ast.Node, opts O
 					if getterFunc.Kind == ast.KindFunctionExpression ||
 						getterFunc.Kind == ast.KindArrowFunction ||
 						getterFunc.Kind == ast.KindMethodDeclaration {
-						checkGetterReturn(ctx, getterFunc, opts)
+						// Report on the 'get' property name, not the function
+						checkGetterReturnInDescriptor(ctx, getterFunc, propNameNode, opts)
 					}
 				}
 			}
 		}
+	}
+}
+
+// checkGetterReturnInDescriptor is like checkGetterReturn but reports on a specific node
+func checkGetterReturnInDescriptor(ctx rule.RuleContext, funcNode *ast.Node, reportNode *ast.Node, opts Options) {
+	if funcNode == nil {
+		return
+	}
+
+	body := funcNode.Body()
+	if body == nil {
+		return
+	}
+
+	// If allowImplicit is true, we don't check for return values
+	if opts.AllowImplicit {
+		return
+	}
+
+	// Perform control flow analysis
+	result := analyzeReturnPaths(body)
+
+	// Use the reportNode for error reporting (e.g., the 'get' property name)
+	// Fall back to function node if reportNode is nil
+	if reportNode == nil {
+		reportNode = funcNode
+	}
+
+	if result.hasNoReturns {
+		ctx.ReportNode(reportNode, buildExpectedMessage())
+	} else if !result.allPathsReturn {
+		ctx.ReportNode(reportNode, buildExpectedAlwaysMessage())
 	}
 }

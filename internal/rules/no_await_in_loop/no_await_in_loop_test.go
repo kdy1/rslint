@@ -57,7 +57,7 @@ func TestNoAwaitInLoopRule(t *testing.T) {
 			{
 				Code: `async function foo() { while (baz) { for await (x of xs); } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "unexpectedAwait", Line: 1, Column: 43},
+					{MessageId: "unexpectedAwait", Line: 1, Column: 42},
 				},
 			},
 
@@ -99,13 +99,13 @@ func TestNoAwaitInLoopRule(t *testing.T) {
 			{
 				Code: `async function foo() { for (var i = 0; i < n; i = await bar) { } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "unexpectedAwait", Line: 1, Column: 52},
+					{MessageId: "unexpectedAwait", Line: 1, Column: 51},
 				},
 			},
 			{
 				Code: `async function foo() { for (var i = 0; i < n; i++) { await bar; } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "unexpectedAwait", Line: 1, Column: 55},
+					{MessageId: "unexpectedAwait", Line: 1, Column: 54},
 				},
 			},
 
