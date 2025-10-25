@@ -63,7 +63,10 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/unbound_method"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/rules/curly"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/eqeqeq"
+	"github.com/web-infra-dev/rslint/internal/rules/no_console"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,7 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerCoreEslintRules()
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -389,6 +393,12 @@ func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
 	}
+}
+
+func registerCoreEslintRules() {
+	GlobalRuleRegistry.Register("eqeqeq", eqeqeq.EqeqeqRule)
+	GlobalRuleRegistry.Register("curly", curly.CurlyRule)
+	GlobalRuleRegistry.Register("no-console", no_console.NoConsoleRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
