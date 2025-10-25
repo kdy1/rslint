@@ -7,8 +7,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // DirectiveConfig defines the configuration for a ts-directive
@@ -144,10 +144,13 @@ func checkDirective(ctx rule.RuleContext, opts BanTsCommentOptions, commentText 
 		// For ts-ignore, suggest replacing with ts-expect-error
 		if directive == "ts-ignore" {
 			replacement := strings.Replace(commentText, "@ts-ignore", "@ts-expect-error", 1)
-			ctx.ReportWithFixes(commentRange, buildBannedMessage(directive),
-				rule.RuleFixReplaceRange(ctx.SourceFile, commentRange, replacement))
+			ctx.ReportRangeWithSuggestions(commentRange, buildBannedMessage(directive),
+				rule.RuleSuggestion{
+					Message:  buildReplaceWithExpectErrorMessage(),
+					FixesArr: []rule.RuleFix{rule.RuleFixReplaceRange(commentRange, replacement)},
+				})
 		} else {
-			ctx.ReportWithFixes(commentRange, buildBannedMessage(directive))
+			ctx.ReportRange(commentRange, buildBannedMessage(directive))
 		}
 		return
 	}
@@ -155,14 +158,14 @@ func checkDirective(ctx rule.RuleContext, opts BanTsCommentOptions, commentText 
 	// Check if description is required
 	if config == DirectiveAllowWithDescription || config == "allow-with-description" {
 		if description == "" {
-			ctx.Report(commentRange, buildDescriptionRequiredMessage(directive))
+			ctx.ReportRange(commentRange, buildDescriptionRequiredMessage(directive))
 			return
 		}
 
 		// Check minimum length
 		descLength := countCharacters(description)
 		if descLength < opts.MinimumDescriptionLength {
-			ctx.Report(commentRange, buildDescriptionTooShortMessage(directive, opts.MinimumDescriptionLength))
+			ctx.ReportRange(commentRange, buildDescriptionTooShortMessage(directive, opts.MinimumDescriptionLength))
 			return
 		}
 
@@ -170,7 +173,7 @@ func checkDirective(ctx rule.RuleContext, opts BanTsCommentOptions, commentText 
 		if opts.DescriptionFormat != "" {
 			matched, err := regexp.MatchString(opts.DescriptionFormat, description)
 			if err == nil && !matched {
-				ctx.Report(commentRange, buildDescriptionFormatMessage(directive))
+				ctx.ReportRange(commentRange, buildDescriptionFormatMessage(directive))
 				return
 			}
 		}
@@ -194,48 +197,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 
-			text := sourceFile.GetText()
-			nodeFactory := ast.NewNodeFactory(ast.NodeFactoryHooks{})
+			text := ctx.SourceFile.Text()
 
-			// Scan all comments in the source file
-			pos := 0
-			for {
-				// Get leading comments at this position
-				foundAny := false
-				for commentRange := range scanner.GetLeadingCommentRanges(nodeFactory, text, pos) {
-					foundAny = true
-					commentText := text[commentRange.Pos():commentRange.End()]
+			// Scan all comments in the source file using utils.ForEachComment
+			utils.ForEachComment(node, func(commentRange *ast.CommentRange) {
+				commentText := text[commentRange.Pos():commentRange.End()]
+				textRange := core.NewTextRange(commentRange.Pos(), commentRange.End())
 
-					// Check each directive
-					checkDirective(ctx, opts, commentText, commentRange, "ts-expect-error", opts.TsExpectError)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-ignore", opts.TsIgnore)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-nocheck", opts.TsNocheck)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-check", opts.TsCheck)
-
-					pos = commentRange.End()
-				}
-
-				// Get trailing comments at this position
-				for commentRange := range scanner.GetTrailingCommentRanges(nodeFactory, text, pos) {
-					foundAny = true
-					commentText := text[commentRange.Pos():commentRange.End()]
-
-					// Check each directive
-					checkDirective(ctx, opts, commentText, commentRange, "ts-expect-error", opts.TsExpectError)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-ignore", opts.TsIgnore)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-nocheck", opts.TsNocheck)
-					checkDirective(ctx, opts, commentText, commentRange, "ts-check", opts.TsCheck)
-
-					pos = commentRange.End()
-				}
-
-				if !foundAny {
-					pos++
-					if pos >= len(text) {
-						break
-					}
-				}
-			}
+				// Check each directive
+				checkDirective(ctx, opts, commentText, textRange, "ts-expect-error", opts.TsExpectError)
+				checkDirective(ctx, opts, commentText, textRange, "ts-ignore", opts.TsIgnore)
+				checkDirective(ctx, opts, commentText, textRange, "ts-nocheck", opts.TsNocheck)
+				checkDirective(ctx, opts, commentText, textRange, "ts-check", opts.TsCheck)
+			}, ctx.SourceFile)
 		},
 	}
 }

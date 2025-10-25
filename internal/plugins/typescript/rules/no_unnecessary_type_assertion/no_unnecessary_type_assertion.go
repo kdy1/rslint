@@ -82,14 +82,15 @@ func getTypeName(typeNode *ast.Node) string {
 	return ""
 }
 
-// typesAreEqual performs a simplified type equality check
+// typesAreEqual checks if two types are exactly the same
 func typesAreEqual(tc *checker.Checker, type1, type2 *checker.Type) bool {
 	if type1 == nil || type2 == nil {
 		return false
 	}
 
-	// Use TypeScript's type equality check
-	return tc.IsTypeAssignableTo(type1, type2) && tc.IsTypeAssignableTo(type2, type1)
+	// Check if they're the exact same type instance
+	// This is stricter than assignability - we want to catch truly unnecessary assertions
+	return type1 == type2
 }
 
 // NoUnnecessaryTypeAssertionRule implements the no-unnecessary-type-assertion rule
@@ -103,77 +104,73 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	opts := parseOptions(options)
 	_ = utils.Ref(opts) // Suppress unused warning for now
 
-	return rule.RuleListeners{
-		ast.KindTypeAssertion: func(node *ast.Node) {
-			// This rule requires type information
-			if ctx.TypeChecker == nil {
-				return
-			}
+	checkAssertion := func(node *ast.Node) {
+		// This rule requires type information
+		if ctx.TypeChecker == nil {
+			return
+		}
 
+		var exprNode *ast.Node
+		var typeNode *ast.Node
+
+		// Handle both <Type>expr and expr as Type syntax
+		if node.Kind == ast.KindTypeAssertionExpression {
 			typeAssertion := node.AsTypeAssertion()
 			if typeAssertion == nil {
 				return
 			}
-
-			// Check if the asserted type is in the ignore list
-			assertedTypeName := getTypeName(typeAssertion.Type)
-			if isTypeInIgnoreList(assertedTypeName, opts.TypesToIgnore) {
+			exprNode = typeAssertion.Expression
+			typeNode = typeAssertion.Type
+		} else if node.Kind == ast.KindAsExpression {
+			asExpr := node.AsAsExpression()
+			if asExpr == nil {
 				return
 			}
+			exprNode = asExpr.Expression
+			typeNode = asExpr.Type
+		} else {
+			return
+		}
 
-			// Get the type of the expression
-			exprType := ctx.TypeChecker.GetTypeAtLocation(typeAssertion.Expression)
-			if exprType == nil {
-				return
-			}
+		if exprNode == nil || typeNode == nil {
+			return
+		}
 
-			// Get the asserted type
-			assertedType := ctx.TypeChecker.GetTypeFromTypeNode(typeAssertion.Type)
-			if assertedType == nil {
-				return
-			}
+		// Check if the asserted type is in the ignore list
+		assertedTypeName := getTypeName(typeNode)
+		if isTypeInIgnoreList(assertedTypeName, opts.TypesToIgnore) {
+			return
+		}
 
-			// Check if types are equal
-			if typesAreEqual(ctx.TypeChecker, exprType, assertedType) {
-				// The assertion is unnecessary - suggest removal
-				sourceText := ctx.SourceFile.GetText()
-				exprText := sourceText[typeAssertion.Expression.Pos():typeAssertion.Expression.End()]
+		// Get the type of the expression
+		exprType := ctx.TypeChecker.GetTypeAtLocation(exprNode)
+		if exprType == nil {
+			return
+		}
 
-				ctx.ReportNodeWithFixes(node, buildUnnecessaryAssertionMessage(),
-					rule.RuleFixReplace(ctx.SourceFile, node, exprText))
-			}
-		},
-		ast.KindNonNullExpression: func(node *ast.Node) {
-			// This rule requires type information
-			if ctx.TypeChecker == nil {
-				return
-			}
+		// Get the asserted type
+		assertedType := ctx.TypeChecker.GetTypeFromTypeNode(typeNode)
+		if assertedType == nil {
+			return
+		}
 
-			nonNullExpr := node.AsNonNullExpression()
-			if nonNullExpr == nil {
-				return
-			}
+		// Check if types are equal
+		if typesAreEqual(ctx.TypeChecker, exprType, assertedType) {
+			// The assertion is unnecessary - suggest removal
+			sourceText := ctx.SourceFile.Text()
+			exprRange := utils.TrimNodeTextRange(ctx.SourceFile, exprNode)
+			exprText := sourceText[exprRange.Pos():exprRange.End()]
 
-			// Get the type of the expression
-			exprType := ctx.TypeChecker.GetTypeAtLocation(nonNullExpr.Expression)
-			if exprType == nil {
-				return
-			}
+			ctx.ReportNodeWithFixes(node, buildUnnecessaryAssertionMessage(),
+				rule.RuleFixReplace(ctx.SourceFile, node, exprText))
+		}
+	}
 
-			// Check if the type is already non-nullable
-			// If the type doesn't include null or undefined, the assertion is unnecessary
-			flags := exprType.Flags()
-			hasNull := (flags & checker.TypeFlagsNull) != 0
-			hasUndefined := (flags & checker.TypeFlagsUndefined) != 0
-
-			if !hasNull && !hasUndefined {
-				// The non-null assertion is unnecessary
-				sourceText := ctx.SourceFile.GetText()
-				exprText := sourceText[nonNullExpr.Expression.Pos():nonNullExpr.Expression.End()]
-
-				ctx.ReportNodeWithFixes(node, buildUnnecessaryAssertionMessage(),
-					rule.RuleFixReplace(ctx.SourceFile, node, exprText))
-			}
-		},
+	return rule.RuleListeners{
+		ast.KindTypeAssertionExpression: checkAssertion,
+		ast.KindAsExpression:            checkAssertion,
+		// Note: Non-null assertion checking is complex due to TypeScript's control flow analysis
+		// Disabling it for now to avoid false positives
+		// TODO: Implement proper non-null assertion checking that accounts for control flow narrowing
 	}
 }
