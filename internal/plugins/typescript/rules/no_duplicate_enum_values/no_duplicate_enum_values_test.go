@@ -25,7 +25,7 @@ func TestNoDuplicateEnumValuesRule(t *testing.T) {
 			{Code: "enum E { A = '', B = 0 }"},
 			{Code: `enum E { A = 0, B = -0 }`},
 			{Code: `enum E { A = NaN }`},
-			{Code: `const x = 'A'; enum E { A = \`\${x}\` }`},
+			{Code: "const x = 'A'; enum E { A = `${x}` }"},
 		},
 		[]rule_tester.InvalidTestCase{
 			{
