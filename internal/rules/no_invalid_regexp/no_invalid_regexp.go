@@ -115,6 +115,26 @@ func validateRegExpFlags(flags string, allowConstructorFlags []string) string {
 	return ""
 }
 
+func hasAdvancedRegExpFeatures(pattern string) bool {
+	// Check for features not supported by Go's regexp but valid in JavaScript:
+	// - Lookbehind: (?<=...) and (?<!...)
+	// - Named backreferences: \k<name>
+	// - Unicode property escapes: \p{...} (Go supports these, but differently)
+	// - Some other advanced features
+
+	// Check for lookbehinds
+	if strings.Contains(pattern, "(?<=") || strings.Contains(pattern, "(?<!") {
+		return true
+	}
+
+	// Check for named backreferences (\k<name>)
+	if strings.Contains(pattern, "\\k<") {
+		return true
+	}
+
+	return false
+}
+
 func validateRegExpPattern(pattern string) string {
 	// Basic validation for common errors
 	if strings.HasSuffix(pattern, "\\") && !strings.HasSuffix(pattern, "\\\\") {
@@ -160,6 +180,12 @@ func validateRegExpPattern(pattern string) string {
 	}
 	if parenDepth > 0 {
 		return "Invalid regular expression: Unterminated group"
+	}
+
+	// Skip Go regexp validation for patterns with advanced JS features
+	// that Go doesn't support (but are valid in JavaScript)
+	if hasAdvancedRegExpFeatures(pattern) {
+		return ""
 	}
 
 	// Try to compile with Go's regexp package (limited validation)

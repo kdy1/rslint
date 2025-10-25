@@ -11,9 +11,9 @@ func TestNoIrregularWhitespaceRule(t *testing.T) {
 	rule_tester.RunRuleTester(fixtures.GetRootDir(), "tsconfig.json", t, &NoIrregularWhitespaceRule, []rule_tester.ValidTestCase{
 		// Valid: regular whitespace
 		{Code: "var foo = 'bar';"},
-		{Code: "var foo = 'bar\t';"},
-		{Code: "var foo = 'bar\n';"},
-		{Code: "var foo = 'bar\r\n';"},
+		{Code: "var foo = 'bar\\t';"},
+		{Code: "var foo = 'bar\\n';"},
+		{Code: "var foo = 'bar\\r\\n';"},
 
 		// Valid: escaped unicode sequences
 		{Code: "var foo = '\\u000B';"},
