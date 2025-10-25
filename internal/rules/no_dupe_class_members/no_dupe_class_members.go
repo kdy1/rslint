@@ -28,6 +28,7 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 
 	var memberText string
 	var isStatic bool
+	var memberType string
 
 	switch member.Kind {
 	case ast.KindMethodDeclaration:
@@ -38,6 +39,7 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 		// Use the name's range to extract text
 		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, method.Name())
 		memberText = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
+		memberType = "method"
 		if method.Modifiers() != nil {
 			for _, mod := range method.Modifiers().Nodes {
 				if mod != nil && mod.Kind == ast.KindStaticKeyword {
@@ -54,6 +56,7 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 		}
 		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, prop.Name())
 		memberText = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
+		memberType = "property"
 		if prop.Modifiers() != nil {
 			for _, mod := range prop.Modifiers().Nodes {
 				if mod != nil && mod.Kind == ast.KindStaticKeyword {
@@ -70,6 +73,7 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 		}
 		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, accessor.Name())
 		memberText = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
+		memberType = "get"
 		if accessor.Modifiers() != nil {
 			for _, mod := range accessor.Modifiers().Nodes {
 				if mod != nil && mod.Kind == ast.KindStaticKeyword {
@@ -86,6 +90,7 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 		}
 		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, accessor.Name())
 		memberText = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
+		memberType = "set"
 		if accessor.Modifiers() != nil {
 			for _, mod := range accessor.Modifiers().Nodes {
 				if mod != nil && mod.Kind == ast.KindStaticKeyword {
@@ -106,12 +111,13 @@ func getMemberKey(ctx rule.RuleContext, member *ast.Node) (string, string) {
 		return "", ""
 	}
 
-	// Include static modifier in the key to distinguish static from instance members
+	// Include static modifier and member type in the key
+	// Getter and setter with the same name are allowed, so we distinguish them
 	key := memberText
 	if isStatic {
-		key = "static:" + memberText
+		key = "static:" + memberType + ":" + memberText
 	} else {
-		key = "instance:" + memberText
+		key = "instance:" + memberType + ":" + memberText
 	}
 
 	return key, memberText
@@ -123,7 +129,9 @@ func checkDuplicateClassMembers(ctx rule.RuleContext, members []*ast.Node) {
 		return
 	}
 
-	seen := make(map[string]*ast.Node)
+	// Track member info for each name: memberType -> node
+	// Format: "static:name" or "instance:name" -> map of types to nodes
+	seen := make(map[string]map[string]*ast.Node)
 
 	for _, member := range members {
 		if member == nil {
@@ -136,11 +144,72 @@ func checkDuplicateClassMembers(ctx rule.RuleContext, members []*ast.Node) {
 			continue
 		}
 
-		if _, exists := seen[key]; exists {
+		// Extract the memberType from the key
+		// Key format: "static:type:name" or "instance:type:name"
+		var baseKey, memberType string
+
+		if len(key) > 7 && key[:7] == "static:" {
+			rest := key[7:]
+			// Find the next colon
+			colonIdx := -1
+			for i, c := range rest {
+				if c == ':' {
+					colonIdx = i
+					break
+				}
+			}
+			if colonIdx != -1 {
+				memberType = rest[:colonIdx]
+				name := rest[colonIdx+1:]
+				baseKey = "static:" + name
+			}
+		} else if len(key) > 9 && key[:9] == "instance:" {
+			rest := key[9:]
+			// Find the next colon
+			colonIdx := -1
+			for i, c := range rest {
+				if c == ':' {
+					colonIdx = i
+					break
+				}
+			}
+			if colonIdx != -1 {
+				memberType = rest[:colonIdx]
+				name := rest[colonIdx+1:]
+				baseKey = "instance:" + name
+			}
+		}
+
+		if baseKey == "" {
+			continue
+		}
+
+		// Initialize the type map if it doesn't exist
+		if seen[baseKey] == nil {
+			seen[baseKey] = make(map[string]*ast.Node)
+		}
+
+		// Check for duplicates
+		// Getter and setter with the same name are allowed
+		// All other combinations are duplicates
+		isDuplicate := false
+
+		for existingType := range seen[baseKey] {
+			// Allow getter + setter combination
+			if (memberType == "get" && existingType == "set") ||
+				(memberType == "set" && existingType == "get") {
+				continue
+			}
+			// All other combinations are duplicates
+			isDuplicate = true
+			break
+		}
+
+		if isDuplicate {
 			// Report error on the duplicate member
 			ctx.ReportNode(member, buildDuplicateMessage(memberName))
 		} else {
-			seen[key] = member
+			seen[baseKey][memberType] = member
 		}
 	}
 }

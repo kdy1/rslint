@@ -83,24 +83,37 @@ func checkDuplicateConditions(ctx rule.RuleContext, ifStmt *ast.Node) {
 	}
 }
 
-// isPartOfElseIfChain checks if this if statement is part of an else-if chain
-// (i.e., if it's an else branch of another if statement)
-func isPartOfElseIfChain(ctx rule.RuleContext, node *ast.Node) bool {
-	// This is a simplified check - in a real implementation, you might want to
-	// track parent nodes to determine if this if statement is in an else branch
-	// For now, we'll check all if statements and let the chain traversal logic handle it
-	return false
-}
-
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
+	// Track which if statements have already been processed as part of a chain
+	// to avoid duplicate checking
+	processedNodes := make(map[*ast.Node]bool)
+
 	return rule.RuleListeners{
 		ast.KindIfStatement: func(node *ast.Node) {
-			// Only check if this is the start of an if-else-if chain
-			// (not itself an else-if)
-			if isPartOfElseIfChain(ctx, node) {
+			// Skip if this node was already processed as part of another chain
+			if processedNodes[node] {
 				return
 			}
 
+			// Mark this node and all nodes in its chain as processed
+			currentIf := node
+			for currentIf != nil && currentIf.Kind == ast.KindIfStatement {
+				processedNodes[currentIf] = true
+
+				stmt := currentIf.AsIfStatement()
+				if stmt == nil || stmt.ElseStatement == nil {
+					break
+				}
+
+				// Move to next else-if
+				if stmt.ElseStatement.Kind == ast.KindIfStatement {
+					currentIf = stmt.ElseStatement
+				} else {
+					break
+				}
+			}
+
+			// Now check for duplicates in the chain starting from this node
 			checkDuplicateConditions(ctx, node)
 		},
 	}
