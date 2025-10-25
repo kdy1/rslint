@@ -56,10 +56,12 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node) string {
 	}
 
 	sourceText := ctx.SourceFile.Text()
+	originalText := sourceText[node.Pos():node.End()]
 
 	// Get the name
 	name := ""
-	if nameNode := typeAlias.Name(); nameNode != nil {
+	nameNode := typeAlias.Name()
+	if nameNode != nil {
 		name = sourceText[nameNode.Pos():nameNode.End()]
 	}
 
@@ -69,7 +71,7 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node) string {
 		typeParams = sourceText[typeAlias.TypeParameters.Pos():typeAlias.TypeParameters.End()]
 	}
 
-	// Get the type body (the object literal)
+	// Get the type body (the object literal) preserving exact whitespace
 	typeBody := ""
 	if typeAlias.Type != nil {
 		typeBody = sourceText[typeAlias.Type.Pos():typeAlias.Type.End()]
@@ -77,15 +79,57 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node) string {
 
 	// Get export and declare modifiers if any
 	prefix := ""
-	if modifiers := typeAlias.Modifiers(); modifiers != nil {
-		for _, mod := range modifiers.Nodes {
-			if mod.Kind == ast.KindExportKeyword || mod.Kind == ast.KindDeclareKeyword {
-				prefix += sourceText[mod.Pos():mod.End()] + " "
+	modStart := node.Pos()
+	if modifiers := typeAlias.Modifiers(); modifiers != nil && len(modifiers.Nodes) > 0 {
+		lastMod := modifiers.Nodes[len(modifiers.Nodes)-1]
+		prefix = sourceText[node.Pos():lastMod.End()]
+		// Include space after modifiers
+		modStart = lastMod.End()
+	}
+
+	// Extract whitespace between parts from original text
+	// Find "type" keyword position in original
+	typeKeywordStart := strings.Index(originalText[modStart-node.Pos():], "type")
+	if typeKeywordStart == -1 {
+		return prefix + "interface " + name + typeParams + " " + typeBody
+	}
+
+	// Get whitespace between "type" and name
+	afterTypeKeyword := modStart - node.Pos() + typeKeywordStart + 4 // 4 = len("type")
+	whitespaceAfterType := sourceText[node.Pos()+afterTypeKeyword : nameNode.Pos()]
+
+	// Get whitespace after name/type params (before the {)
+	// We want to preserve this whitespace
+	whitespaceBeforeBody := " " // default single space
+	if nameNode != nil {
+		afterNamePos := nameNode.End()
+		if typeAlias.TypeParameters != nil {
+			afterNamePos = typeAlias.TypeParameters.End()
+		}
+		// Find the "{" in the type body
+		// The whitespace we want is after name/params but before "="
+		// Then after "=", we want the whitespace before "{"
+		textBetween := sourceText[afterNamePos:typeAlias.Type.Pos()]
+		equalPos := strings.Index(textBetween, "=")
+		if equalPos != -1 {
+			// Get whitespace after "=" and before the type body
+			afterEqual := textBetween[equalPos+1:]
+			whitespaceBeforeBody = strings.TrimLeft(afterEqual, " \t")
+			// If there's whitespace, we'll use a single space
+			if len(whitespaceBeforeBody) < len(afterEqual) {
+				whitespaceBeforeBody = " "
 			}
 		}
 	}
 
-	return prefix + "interface " + name + typeParams + " " + typeBody
+	// Construct the result
+	result := prefix
+	if prefix != "" {
+		result += " "
+	}
+	result += "interface" + whitespaceAfterType + name + typeParams + whitespaceBeforeBody + typeBody
+
+	return result
 }
 
 // convertInterfaceToType converts an interface declaration to a type alias
@@ -96,10 +140,12 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node) string {
 	}
 
 	sourceText := ctx.SourceFile.Text()
+	originalText := sourceText[node.Pos():node.End()]
 
 	// Get the name
 	name := ""
-	if nameNode := interfaceDecl.Name(); nameNode != nil {
+	nameNode := interfaceDecl.Name()
+	if nameNode != nil {
 		name = sourceText[nameNode.Pos():nameNode.End()]
 	}
 
@@ -109,12 +155,34 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node) string {
 		typeParams = sourceText[interfaceDecl.TypeParameters.Pos():interfaceDecl.TypeParameters.End()]
 	}
 
-	// Get the body
-	body := ""
+	// Get the body - extract from opening brace to closing brace
+	bodyText := ""
 	if len(interfaceDecl.Members.Nodes) > 0 {
+		// Get from opening brace to closing brace
 		firstMember := interfaceDecl.Members.Nodes[0]
 		lastMember := interfaceDecl.Members.Nodes[len(interfaceDecl.Members.Nodes)-1]
-		body = sourceText[firstMember.Pos():lastMember.End()]
+		// Find the { before first member and } after last member
+		// Look backwards from first member to find {
+		textBeforeFirst := sourceText[node.Pos():firstMember.Pos()]
+		openBracePos := strings.LastIndex(textBeforeFirst, "{")
+		if openBracePos != -1 {
+			openBraceAbsPos := node.Pos() + openBracePos
+			// Find } after last member
+			textAfterLast := sourceText[lastMember.End():node.End()]
+			closeBracePos := strings.Index(textAfterLast, "}")
+			if closeBracePos != -1 {
+				closeBraceAbsPos := lastMember.End() + closeBracePos
+				bodyText = sourceText[openBraceAbsPos : closeBraceAbsPos+1]
+			}
+		}
+	} else {
+		// Empty interface - find the {}
+		nodeText := sourceText[node.Pos():node.End()]
+		openBrace := strings.Index(nodeText, "{")
+		closeBrace := strings.LastIndex(nodeText, "}")
+		if openBrace != -1 && closeBrace != -1 {
+			bodyText = nodeText[openBrace : closeBrace+1]
+		}
 	}
 
 	// Get heritage clause (extends)
@@ -132,26 +200,59 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node) string {
 				}
 			}
 		}
-		if body != "" {
-			heritage += " & { " + body + " }"
+		if bodyText != "" {
+			heritage += " & " + bodyText
 		} else {
 			heritage = "{ " + heritage + " }"
 		}
 	} else {
-		heritage = "{ " + body + " }"
+		heritage = bodyText
 	}
 
 	// Get export and declare modifiers if any
 	prefix := ""
-	if modifiers := interfaceDecl.Modifiers(); modifiers != nil {
-		for _, mod := range modifiers.Nodes {
-			if mod.Kind == ast.KindExportKeyword || mod.Kind == ast.KindDeclareKeyword {
-				prefix += sourceText[mod.Pos():mod.End()] + " "
-			}
+	modStart := node.Pos()
+	if modifiers := interfaceDecl.Modifiers(); modifiers != nil && len(modifiers.Nodes) > 0 {
+		lastMod := modifiers.Nodes[len(modifiers.Nodes)-1]
+		prefix = sourceText[node.Pos():lastMod.End()]
+		modStart = lastMod.End()
+	}
+
+	// Extract whitespace between parts from original text
+	// Find "interface" keyword position
+	interfaceKeywordStart := strings.Index(originalText[modStart-node.Pos():], "interface")
+	if interfaceKeywordStart == -1 {
+		return prefix + " type " + name + typeParams + " = " + heritage
+	}
+
+	// Get whitespace between "interface" and name
+	afterInterfaceKeyword := modStart - node.Pos() + interfaceKeywordStart + 9 // 9 = len("interface")
+	whitespaceAfterInterface := sourceText[node.Pos()+afterInterfaceKeyword : nameNode.Pos()]
+
+	// Get whitespace after name (or type parameters)
+	whitespaceAfterName := ""
+	if nameNode != nil {
+		afterNamePos := nameNode.End()
+		if interfaceDecl.TypeParameters != nil {
+			afterNamePos = interfaceDecl.TypeParameters.End()
+		}
+		// Find the opening brace
+		nodeText := sourceText[node.Pos():node.End()]
+		openBracePos := strings.Index(nodeText, "{")
+		if openBracePos != -1 {
+			openBraceAbsPos := node.Pos() + openBracePos
+			whitespaceAfterName = strings.TrimRight(sourceText[afterNamePos:openBraceAbsPos], " \t")
 		}
 	}
 
-	return prefix + "type " + name + typeParams + " = " + heritage
+	// Construct the result
+	result := prefix
+	if prefix != "" {
+		result += " "
+	}
+	result += "type" + whitespaceAfterInterface + name + typeParams + whitespaceAfterName + " = " + heritage
+
+	return result
 }
 
 // ConsistentTypeDefinitionsRule implements the consistent-type-definitions rule

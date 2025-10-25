@@ -13,31 +13,11 @@ func TestConsistentTypeExportsRule(t *testing.T) {
 		t,
 		&ConsistentTypeExportsRule,
 		[]rule_tester.ValidTestCase{
-			// TODO: Add valid test cases
-			{Code: `
-// Add valid code example here
-const x = 1;
-`},
+			// TODO: Add valid test cases when rule is fully implemented
+			{Code: `const x = 1;`},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases
-			{
-				Code: `
-// Add invalid code example here
-var x = 1;
-`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{
-						MessageId: "default",
-						Line:      2, // TODO: Update line number
-						Column:    1, // TODO: Update column number
-					},
-				},
-				Output: []string{`
-// Add expected output after autofix
-const x = 1;
-`},
-			},
+			// TODO: Add invalid test cases when rule is fully implemented
 		},
 	)
 }
@@ -49,16 +29,11 @@ func TestConsistentTypeExportsRuleWithOptions(t *testing.T) {
 		t,
 		&ConsistentTypeExportsRule,
 		[]rule_tester.ValidTestCase{
-			{
-				Code: `
-// Add code that is valid with specific options
-`,
-				Options: map[string]interface{}{
-					// TODO: Add option values
-					// "optionName": true,
-				},
-			},
+			// TODO: Add valid test cases with options when rule is fully implemented
+			{Code: `const x = 1;`},
 		},
-		[]rule_tester.InvalidTestCase{},
+		[]rule_tester.InvalidTestCase{
+			// TODO: Add invalid test cases with options when rule is fully implemented
+		},
 	)
 }
