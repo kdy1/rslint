@@ -1,3 +1,6 @@
+//go:build lsp
+// +build lsp
+
 package lsp
 
 import (

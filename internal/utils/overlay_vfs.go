@@ -153,6 +153,13 @@ func (vfs *OverlayVFS) Remove(path string) error {
 	return vfs.fs.Remove(path)
 }
 
+func (vfs *OverlayVFS) Chtimes(path string, atime time.Time, mtime time.Time) error {
+	if _, ok := vfs.VirtualFiles[path]; ok {
+		panic("not implemented: cannot change times for overlay file system")
+	}
+	return vfs.fs.Chtimes(path, atime, mtime)
+}
+
 func NewOverlayVFS(baseFS vfs.FS, virtualFiles map[string]string) vfs.FS {
 	return &OverlayVFS{
 		baseFS,
