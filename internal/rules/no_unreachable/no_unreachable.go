@@ -25,12 +25,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				stmt := statements[i]
 
 				// Check if this statement causes control flow to exit
-				if isControlFlowExit(stmt) {
+				if isControlFlowExit(*stmt) {
 					// Check if there are statements after this one
 					nextStmt := statements[i+1]
 
 					// Report unreachable code on the next statement
-					ctx.ReportNode(nextStmt, rule.RuleMessage{
+					ctx.ReportNode(*nextStmt, rule.RuleMessage{
 						Id:          "unreachableCode",
 						Description: "Unreachable code.",
 					})
@@ -62,9 +62,9 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				for i := 0; i < len(statements)-1; i++ {
 					stmt := statements[i]
 
-					if isControlFlowExit(stmt) {
+					if isControlFlowExit(*stmt) {
 						nextStmt := statements[i+1]
-						ctx.ReportNode(nextStmt, rule.RuleMessage{
+						ctx.ReportNode(*nextStmt, rule.RuleMessage{
 							Id:          "unreachableCode",
 							Description: "Unreachable code.",
 						})
@@ -107,7 +107,7 @@ func isControlFlowExit(stmt *ast.Node) bool {
 		}
 
 		for _, s := range block.Statements.Nodes {
-			if isControlFlowExit(s) {
+			if isControlFlowExit(*s) {
 				return true
 			}
 		}
