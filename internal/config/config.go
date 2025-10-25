@@ -21,6 +21,8 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_empty_function"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_empty_interface"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_explicit_any"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_magic_numbers"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_restricted_imports"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_floating_promises"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_for_in_array"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_implied_eval"
@@ -43,6 +45,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unsafe_return"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unsafe_type_assertion"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unsafe_unary_minus"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/parameter_properties"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unused_vars"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_useless_empty_export"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_var_requires"
@@ -340,6 +343,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/no-confusing-void-expression", no_confusing_void_expression.NoConfusingVoidExpressionRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-duplicate-type-constituents", no_duplicate_type_constituents.NoDuplicateTypeConstituentsRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-explicit-any", no_explicit_any.NoExplicitAnyRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/no-magic-numbers", no_magic_numbers.NoMagicNumbersRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-empty-function", no_empty_function.NoEmptyFunctionRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-empty-interface", no_empty_interface.NoEmptyInterfaceRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-floating-promises", no_floating_promises.NoFloatingPromisesRule)
@@ -352,6 +356,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/no-namespace", no_namespace.NoNamespaceRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-redundant-type-constituents", no_redundant_type_constituents.NoRedundantTypeConstituentsRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-require-imports", no_require_imports.NoRequireImportsRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/no-restricted-imports", no_restricted_imports.NoRestrictedImportsRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-unnecessary-boolean-literal-compare", no_unnecessary_boolean_literal_compare.NoUnnecessaryBooleanLiteralCompareRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-unnecessary-template-expression", no_unnecessary_template_expression.NoUnnecessaryTemplateExpressionRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-unnecessary-type-arguments", no_unnecessary_type_arguments.NoUnnecessaryTypeArgumentsRule)
@@ -368,6 +373,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/no-useless-empty-export", no_useless_empty_export.NoUselessEmptyExportRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-var-requires", no_var_requires.NoVarRequiresRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/non-nullable-type-assertion-style", non_nullable_type_assertion_style.NonNullableTypeAssertionStyleRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/parameter-properties", parameter_properties.ParameterPropertiesRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/only-throw-error", only_throw_error.OnlyThrowErrorRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-as-const", prefer_as_const.PreferAsConstRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-promise-reject-errors", prefer_promise_reject_errors.PreferPromiseRejectErrorsRule)
