@@ -148,6 +148,7 @@ func checkForAssignments(ctx rule.RuleContext, node *ast.Node, paramNames []stri
 			if binExpr != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken && binExpr.Left == node {
 				// This is a destructuring assignment
 				checkObjectLiteralForParamNames(ctx, objLit, paramNames)
+				return // Don't recursively check children as we've already processed this
 			}
 		}
 	}

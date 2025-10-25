@@ -42,54 +42,86 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 }
 
 // hasEmptyCharacterClass checks if a regex pattern contains an empty character class
-// Returns true if [] is found (but not [^])
+// Returns true if [] is found (but not [^] which is allowed in most contexts)
 func hasEmptyCharacterClass(pattern string) bool {
-	// Remove the leading and trailing slashes and flags if present
 	if len(pattern) < 2 {
 		return false
 	}
 
-	// Track if we're inside a character class
-	inClass := false
-	escaped := false
 	i := 0
-
 	for i < len(pattern) {
 		ch := pattern[i]
 
-		if escaped {
-			escaped = false
-			i++
-			continue
-		}
-
+		// Handle escape sequences
 		if ch == '\\' {
-			escaped = true
-			i++
+			// Skip the escaped character
+			i += 2
 			continue
 		}
 
-		if ch == '[' && !inClass {
-			// Start of character class
-			inClass = true
-			// Check if next character is ]
-			if i+1 < len(pattern) && pattern[i+1] == ']' {
-				// Check if it's [^] (negated empty class - allowed)
-				// We need to check before the [ for ^
-				// Actually [^] means negated empty, which is checked as: [ followed by ^ followed by ]
-				// Let me re-check: [^] is actually bracket, caret, bracket
-				// So we check if the next char after [ is ]
-				return true
+		// Check for start of character class
+		if ch == '[' {
+			i++ // Move past '['
+
+			// Check for negation
+			isNegated := false
+			if i < len(pattern) && pattern[i] == '^' {
+				isNegated = true
+				i++
 			}
-			// Check for [^] which is allowed
-			if i+2 < len(pattern) && pattern[i+1] == '^' && pattern[i+2] == ']' {
-				// Skip past this
-				i += 3
-				inClass = false
+
+			// Check if immediately followed by ]
+			if i < len(pattern) && pattern[i] == ']' {
+				// [^] is allowed in standard regex (matches any character except newline)
+				// [] is empty and should be reported
+				if !isNegated {
+					return true
+				}
+				i++ // Skip the ]
 				continue
 			}
-		} else if ch == ']' && inClass {
-			inClass = false
+
+			// For v-flag (ES2024), check for nested character classes
+			// which can also be empty like [[]] or [a&&[]]
+			// This is a simplified check - we look for [[ or && patterns
+			if i < len(pattern) {
+				// Scan through the character class
+				classDepth := 1
+				for i < len(pattern) && classDepth > 0 {
+					if pattern[i] == '\\' {
+						i += 2
+						continue
+					}
+					if pattern[i] == '[' {
+						// Nested character class (v-flag feature)
+						// Check if it's immediately empty [[]]
+						if i+1 < len(pattern) && pattern[i+1] == ']' {
+							return true
+						}
+						classDepth++
+					} else if pattern[i] == ']' {
+						classDepth--
+						if classDepth == 0 {
+							break
+						}
+						// Check if previous characters form an empty nested class
+						// This is complex, so for now we do a simple check
+					}
+					// Check for && or -- operators with empty classes (v-flag)
+					if i+1 < len(pattern) && (pattern[i] == '&' && pattern[i+1] == '&' ||
+						pattern[i] == '-' && pattern[i+1] == '-') {
+						// Check if followed by []
+						j := i + 2
+						for j < len(pattern) && pattern[j] == ' ' {
+							j++
+						}
+						if j+1 < len(pattern) && pattern[j] == '[' && pattern[j+1] == ']' {
+							return true
+						}
+					}
+					i++
+				}
+			}
 		}
 
 		i++
