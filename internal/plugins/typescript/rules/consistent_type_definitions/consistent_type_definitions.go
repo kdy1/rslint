@@ -5,7 +5,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // ConsistentTypeDefinitionsOptions defines the configuration options for this rule
@@ -60,8 +59,8 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node) string {
 
 	// Get the name
 	name := ""
-	if typeAlias.Name != nil {
-		name = sourceText[typeAlias.Name.Pos():typeAlias.Name.End()]
+	if nameNode := typeAlias.Name(); nameNode != nil {
+		name = sourceText[nameNode.Pos():nameNode.End()]
 	}
 
 	// Get type parameters if any
@@ -100,8 +99,8 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node) string {
 
 	// Get the name
 	name := ""
-	if interfaceDecl.Name != nil {
-		name = sourceText[interfaceDecl.Name.Pos():interfaceDecl.Name.End()]
+	if nameNode := interfaceDecl.Name(); nameNode != nil {
+		name = sourceText[nameNode.Pos():nameNode.End()]
 	}
 
 	// Get type parameters if any
@@ -175,17 +174,17 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				}
 
 				// Skip interfaces in declare global blocks (they can't be converted)
-				parent := utils.GetParent(node)
+				parent := node.Parent
 				if parent != nil && parent.Kind == ast.KindModuleBlock {
-					grandparent := utils.GetParent(parent)
+					grandparent := parent.Parent
 					if grandparent != nil && grandparent.Kind == ast.KindModuleDeclaration {
 						moduleDecl := grandparent.AsModuleDeclaration()
 						if moduleDecl != nil {
 							// Check if it's a global augmentation
-							if moduleDecl.Name != nil && moduleDecl.Name.Kind == ast.KindIdentifier {
+							if moduleName := moduleDecl.Name(); moduleName != nil && moduleName.Kind == ast.KindIdentifier {
 								sourceText := ctx.SourceFile.Text()
-								moduleName := sourceText[moduleDecl.Name.Pos():moduleDecl.Name.End()]
-								if strings.Contains(moduleName, "global") {
+								moduleNameText := sourceText[moduleName.Pos():moduleName.End()]
+								if strings.Contains(moduleNameText, "global") {
 									return // Skip global augmentations
 								}
 							}

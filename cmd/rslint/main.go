@@ -19,8 +19,9 @@ func runMain() int {
 	if len(args) > 0 {
 		switch args[0] {
 		case "--lsp":
-			// run in LSP mode for Language Server
-			return runLSP(args[1:])
+			// LSP mode is temporarily disabled due to typescript-go API changes
+			log.Fatal("LSP mode is currently disabled")
+			return 1
 		case "--api":
 			// run in API mode for JS API
 			return runAPI()

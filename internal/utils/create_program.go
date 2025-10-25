@@ -14,10 +14,24 @@ import (
 	"github.com/microsoft/typescript-go/shim/vfs"
 )
 
+// extendedConfigCacheWrapper wraps a SyncMap to implement the ExtendedConfigCache interface
+type extendedConfigCacheWrapper struct {
+	cache collections.SyncMap[tspath.Path, *tsoptions.ExtendedConfigCacheEntry]
+}
+
+func (w *extendedConfigCacheWrapper) GetExtendedConfig(fileName string, path tspath.Path, parse func() *tsoptions.ExtendedConfigCacheEntry) *tsoptions.ExtendedConfigCacheEntry {
+	if entry, ok := w.cache.Load(path); ok {
+		return entry
+	}
+	entry := parse()
+	w.cache.Store(path, entry)
+	return entry
+}
+
 func CreateCompilerHost(cwd string, fs vfs.FS) compiler.CompilerHost {
 	defaultLibraryPath := bundled.LibPath()
-	var extendedConfigCache collections.SyncMap[tspath.Path, *tsoptions.ExtendedConfigCacheEntry]
-	return compiler.NewCompilerHost(cwd, fs, defaultLibraryPath, &extendedConfigCache,nil)
+	wrapper := &extendedConfigCacheWrapper{}
+	return compiler.NewCompilerHost(cwd, fs, defaultLibraryPath, wrapper, nil)
 }
 
 func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath string, host compiler.CompilerHost) (*compiler.Program, error) {
