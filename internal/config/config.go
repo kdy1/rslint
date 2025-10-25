@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_undef"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unexpected_multiline"
+	"github.com/web-infra-dev/rslint/internal/rules/no_unmodified_loop_condition"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -383,6 +386,11 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/switch-exhaustiveness-check", switch_exhaustiveness_check.SwitchExhaustivenessCheckRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/unbound-method", unbound_method.UnboundMethodRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/use-unknown-in-catch-callback-variable", use_unknown_in_catch_callback_variable.UseUnknownInCatchCallbackVariableRule)
+
+	// Core ESLint rules
+	GlobalRuleRegistry.Register("no-undef", no_undef.NoUndefRule)
+	GlobalRuleRegistry.Register("no-unexpected-multiline", no_unexpected_multiline.NoUnexpectedMultilineRule)
+	GlobalRuleRegistry.Register("no-unmodified-loop-condition", no_unmodified_loop_condition.NoUnmodifiedLoopConditionRule)
 }
 
 func registerAllEslintImportPluginRules() {
