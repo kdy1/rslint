@@ -173,6 +173,18 @@ func checkAssignmentExpression(ctx rule.RuleContext, node *ast.Node, opts Option
 		return
 	}
 
+	// Check for array destructuring patterns
+	if left.Kind == ast.KindArrayLiteralExpression && right.Kind == ast.KindArrayLiteralExpression {
+		checkArrayPattern(ctx, left, right, opts)
+		return
+	}
+
+	// Check for object destructuring patterns
+	if left.Kind == ast.KindObjectLiteralExpression && right.Kind == ast.KindObjectLiteralExpression {
+		checkObjectPattern(ctx, left, right, opts)
+		return
+	}
+
 	// Simple identifier check (without props option)
 	if left.Kind == ast.KindIdentifier && right.Kind == ast.KindIdentifier {
 		if nodesAreEqual(ctx.SourceFile, left, right) {
@@ -223,6 +235,14 @@ func checkArrayPattern(ctx rule.RuleContext, left *ast.Node, right *ast.Node, op
 			continue
 		}
 
+		// Skip if element has a default value (BinaryExpression with '=')
+		if leftElem.Kind == ast.KindBinaryExpression {
+			binExpr := leftElem.AsBinaryExpression()
+			if binExpr != nil && binExpr.OperatorToken != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken {
+				continue
+			}
+		}
+
 		// Check if elements are equal
 		if nodesAreEqual(ctx.SourceFile, leftElem, rightElem) {
 			ctx.ReportNode(leftElem, buildSelfAssignmentMessage(getDisplayName(ctx.SourceFile, leftElem)))
@@ -253,31 +273,84 @@ func checkObjectPattern(ctx rule.RuleContext, left *ast.Node, right *ast.Node, o
 	// Build a map of right-side properties by name
 	rightPropMap := make(map[string]*ast.Node)
 	for _, rightProp := range rightProps {
-		if rightProp == nil || rightProp.Kind != ast.KindPropertyAssignment {
+		if rightProp == nil {
 			continue
 		}
-		propAssign := rightProp.AsPropertyAssignment()
-		if propAssign == nil || propAssign.Name() == nil {
+
+		var name string
+		var value *ast.Node
+
+		// Handle both regular and shorthand property assignments
+		if rightProp.Kind == ast.KindPropertyAssignment {
+			propAssign := rightProp.AsPropertyAssignment()
+			if propAssign == nil || propAssign.Name() == nil {
+				continue
+			}
+			name = propAssign.Name().Text()
+			value = propAssign.Initializer
+		} else if rightProp.Kind == ast.KindShorthandPropertyAssignment {
+			shorthand := rightProp.AsShorthandPropertyAssignment()
+			if shorthand == nil || shorthand.Name() == nil {
+				continue
+			}
+			name = shorthand.Name().Text()
+			value = shorthand.Name().AsNode()
+		} else {
 			continue
 		}
-		name := propAssign.Name().Text()
-		rightPropMap[name] = propAssign.Initializer
+
+		rightPropMap[name] = value
 	}
 
 	// Check left-side properties
 	for _, leftProp := range leftProps {
-		if leftProp == nil || leftProp.Kind != ast.KindPropertyAssignment {
+		if leftProp == nil {
 			continue
 		}
-		propAssign := leftProp.AsPropertyAssignment()
-		if propAssign == nil || propAssign.Name() == nil {
+
+		var name string
+		var leftValue *ast.Node
+		var hasDefault bool
+
+		// Handle both regular and shorthand property assignments
+		if leftProp.Kind == ast.KindPropertyAssignment {
+			propAssign := leftProp.AsPropertyAssignment()
+			if propAssign == nil || propAssign.Name() == nil {
+				continue
+			}
+			name = propAssign.Name().Text()
+			leftValue = propAssign.Initializer
+
+			// Check if the initializer is a binary expression with '=' (default value)
+			if leftValue != nil && leftValue.Kind == ast.KindBinaryExpression {
+				binExpr := leftValue.AsBinaryExpression()
+				if binExpr != nil && binExpr.OperatorToken != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken {
+					hasDefault = true
+				}
+			}
+		} else if leftProp.Kind == ast.KindShorthandPropertyAssignment {
+			shorthand := leftProp.AsShorthandPropertyAssignment()
+			if shorthand == nil || shorthand.Name() == nil {
+				continue
+			}
+			name = shorthand.Name().Text()
+			leftValue = shorthand.Name().AsNode()
+
+			// Check if shorthand has an initializer (default value)
+			if shorthand.ObjectAssignmentInitializer != nil {
+				hasDefault = true
+			}
+		} else {
 			continue
 		}
-		name := propAssign.Name().Text()
+
+		// Skip if property has a default value
+		if hasDefault {
+			continue
+		}
 
 		// Find matching right property
 		if rightValue, ok := rightPropMap[name]; ok {
-			leftValue := propAssign.Initializer
 			if leftValue != nil && nodesAreEqual(ctx.SourceFile, leftValue, rightValue) {
 				ctx.ReportNode(leftValue, buildSelfAssignmentMessage(getDisplayName(ctx.SourceFile, leftValue)))
 			}

@@ -69,6 +69,7 @@ func findSetterInObjectLiteral(objLit *ast.ObjectLiteralExpression) []*ast.Node 
 			continue
 		}
 
+		// Check for property assignment like { set: function(val) { } } or { set: val => val }
 		if prop.Kind == ast.KindPropertyAssignment {
 			propAssign := prop.AsPropertyAssignment()
 			if propAssign == nil || propAssign.Name() == nil {
@@ -81,6 +82,19 @@ func findSetterInObjectLiteral(objLit *ast.ObjectLiteralExpression) []*ast.Node 
 				if init.Kind == ast.KindFunctionExpression || init.Kind == ast.KindArrowFunction {
 					setters = append(setters, init)
 				}
+			}
+		}
+
+		// Check for method shorthand like { set(val) { } }
+		if prop.Kind == ast.KindMethodDeclaration {
+			method := prop.AsMethodDeclaration()
+			if method == nil || method.Name() == nil {
+				continue
+			}
+
+			// Check if method name is "set"
+			if method.Name().Text() == "set" {
+				setters = append(setters, prop)
 			}
 		}
 	}
@@ -155,6 +169,11 @@ var NoSetterReturnRule = rule.CreateRule(rule.Rule{
 							if arrow != nil && arrow.Body != nil {
 								checkReturnStatements(ctx, arrow.Body)
 							}
+						} else if setter.Kind == ast.KindMethodDeclaration {
+							method := setter.AsMethodDeclaration()
+							if method != nil && method.Body != nil {
+								checkReturnStatements(ctx, method.Body)
+							}
 						}
 					}
 				}
@@ -199,6 +218,11 @@ var NoSetterReturnRule = rule.CreateRule(rule.Rule{
 									arrow := setter.AsArrowFunction()
 									if arrow != nil && arrow.Body != nil {
 										checkReturnStatements(ctx, arrow.Body)
+									}
+								} else if setter.Kind == ast.KindMethodDeclaration {
+									method := setter.AsMethodDeclaration()
+									if method != nil && method.Body != nil {
+										checkReturnStatements(ctx, method.Body)
 									}
 								}
 							}
