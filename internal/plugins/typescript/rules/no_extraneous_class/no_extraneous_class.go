@@ -58,6 +58,12 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
+				// Get the node to report on (prefer name, fallback to class node)
+				reportNode := classDecl.Name()
+				if reportNode == nil {
+					reportNode = node
+				}
+
 				// Check for decorators
 				hasDecorators := false
 				if classDecl.Modifiers() != nil {
@@ -87,12 +93,35 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 						if member.Kind == ast.KindConstructor {
 							hasConstructor = true
 							isEmpty = false
+
+							// Check if constructor has parameter properties (public, private, protected params)
+							// These act as class members
+							constructor := member.AsConstructorDeclaration()
+							if constructor != nil && constructor.Parameters != nil {
+								for _, param := range constructor.Parameters.Nodes {
+									if param.Kind == ast.KindParameter {
+										paramDecl := param.AsParameterDeclaration()
+										if paramDecl != nil && paramDecl.Modifiers() != nil {
+											for _, mod := range paramDecl.Modifiers().Nodes {
+												if mod.Kind == ast.KindPublicKeyword ||
+													mod.Kind == ast.KindPrivateKeyword ||
+													mod.Kind == ast.KindProtectedKeyword ||
+													mod.Kind == ast.KindReadonlyKeyword {
+													// This is a parameter property, counts as a non-static member
+													hasNonStaticMember = true
+													break
+												}
+											}
+										}
+									}
+								}
+							}
 							continue
 						}
 
 						// Check for static members
 						isStatic := false
-						if member.AsPropertyDeclaration() != nil {
+						if member.Kind == ast.KindPropertyDeclaration {
 							prop := member.AsPropertyDeclaration()
 							if prop.Modifiers() != nil {
 								for _, mod := range prop.Modifiers().Nodes {
@@ -102,7 +131,7 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 									}
 								}
 							}
-						} else if member.AsMethodDeclaration() != nil {
+						} else if member.Kind == ast.KindMethodDeclaration {
 							method := member.AsMethodDeclaration()
 							if method.Modifiers() != nil {
 								for _, mod := range method.Modifiers().Nodes {
@@ -151,7 +180,7 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 				// Report empty class
 				if isEmpty {
 					if !opts.AllowEmpty {
-						ctx.ReportNode(classDecl.Name(), rule.RuleMessage{
+						ctx.ReportNode(reportNode, rule.RuleMessage{
 							Id:          "empty",
 							Description: "Unexpected empty class.",
 						})
@@ -162,7 +191,7 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 				// Report constructor-only class
 				if hasConstructor && !hasNonStaticMember && !hasStaticMember {
 					if !opts.AllowConstructorOnly {
-						ctx.ReportNode(classDecl.Name(), rule.RuleMessage{
+						ctx.ReportNode(reportNode, rule.RuleMessage{
 							Id:          "onlyConstructor",
 							Description: "Unexpected class with only a constructor.",
 						})
@@ -173,7 +202,7 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 				// Report static-only class
 				if hasStaticMember && !hasNonStaticMember && !hasConstructor {
 					if !opts.AllowStaticOnly {
-						ctx.ReportNode(classDecl.Name(), rule.RuleMessage{
+						ctx.ReportNode(reportNode, rule.RuleMessage{
 							Id:          "onlyStatic",
 							Description: "Unexpected class with only static properties.",
 						})

@@ -80,6 +80,17 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 					}
 					return
 				case ast.KindIdentifier:
+					// Check if the identifier name is in allowedNames
+					id := nameNode.AsIdentifier()
+					if id != nil {
+						idName := id.Text
+						for _, allowedName := range opts.AllowedNames {
+							if idName == allowedName {
+								// Name is allowed, don't report
+								return
+							}
+						}
+					}
 					// Regular identifier assignment - report it
 					ctx.ReportNode(nameNode, rule.RuleMessage{
 						Id:          "thisAssignment",
@@ -117,6 +128,17 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 						}
 						return
 					case ast.KindIdentifier:
+						// Check if the identifier name is in allowedNames
+						id := binExpr.Left.AsIdentifier()
+						if id != nil {
+							idName := id.Text
+							for _, allowedName := range opts.AllowedNames {
+								if idName == allowedName {
+									// Name is allowed, don't report
+									return
+								}
+							}
+						}
 						// Regular identifier assignment
 						ctx.ReportNode(binExpr.Left, rule.RuleMessage{
 							Id:          "thisAssignment",

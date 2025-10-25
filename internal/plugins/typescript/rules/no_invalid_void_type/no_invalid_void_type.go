@@ -58,30 +58,92 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 			return true
 		}
 
-		// Helper to check if node is in valid context
-		isValidVoidContext := func(node *ast.Node) bool {
-			parent := node.Parent
-			if parent == nil {
+		// Helper to check if union contains only void and never
+		isVoidNeverUnion := func(node *ast.Node) bool {
+			if node.Kind != ast.KindUnionType {
+				return false
+			}
+			union := node.AsUnionTypeNode()
+			if union == nil || union.Types == nil {
 				return false
 			}
 
-			// Allow in return types
-			if parent.Kind == ast.KindFunctionDeclaration ||
-				parent.Kind == ast.KindMethodDeclaration ||
-				parent.Kind == ast.KindArrowFunction ||
-				parent.Kind == ast.KindFunctionExpression {
-				return true
+			hasVoid := false
+			hasNever := false
+
+			for _, typeNode := range union.Types.Nodes {
+				if typeNode.Kind == ast.KindVoidKeyword {
+					hasVoid = true
+				} else if typeNode.Kind == ast.KindNeverKeyword {
+					hasNever = true
+				} else {
+					// Has other types, not a void | never union
+					return false
+				}
 			}
 
-			// Allow in union with never
-			if parent.Kind == ast.KindUnionType {
-				// Simplified check - allow void in union types for now
-				return true
-			}
+			return hasVoid && hasNever
+		}
 
-			// Allow in generic type arguments (Promise<void>, etc.)
-			if parent.Kind == ast.KindTypeReference {
-				return isAllowedInGeneric()
+		// Helper to check if node is in valid context
+		isValidVoidContext := func(node *ast.Node) bool {
+			current := node.Parent
+
+			// Walk up the tree to understand context
+			for current != nil {
+				switch current.Kind {
+				// Allow in function return types and function type nodes
+				case ast.KindFunctionType, ast.KindConstructorType:
+					// For function types, we're valid if we're the return type
+					// The void is valid in function type signatures
+					return true
+
+				case ast.KindFunctionDeclaration, ast.KindMethodDeclaration,
+					ast.KindArrowFunction, ast.KindFunctionExpression, ast.KindMethodSignature:
+					// For actual function/method declarations, void is valid as return type
+					return true
+
+				// Allow in this parameter if option is enabled
+				case ast.KindParameter:
+					if opts.AllowAsThisParameter {
+						param := current.AsParameterDeclaration()
+						if param != nil && param.Name() != nil {
+							if id := param.Name().AsIdentifier(); id != nil && id.Text == "this" {
+								return true
+							}
+						}
+					}
+					// If not a 'this' parameter or option not enabled, continue checking
+					return false
+
+				// Allow in generic type arguments (Promise<void>, etc.)
+				case ast.KindTypeReference, ast.KindNewExpression, ast.KindCallExpression:
+					if isAllowedInGeneric() {
+						return true
+					}
+					// If not allowed in generic, continue checking parent context
+					current = current.Parent
+					continue
+
+				// Allow in union types if it's void | never
+				case ast.KindUnionType:
+					if isVoidNeverUnion(current) {
+						// void | never is allowed
+						return true
+					}
+					// Continue checking parent to see if this union is in a valid context
+					current = current.Parent
+					continue
+
+				// For type aliases, continue checking
+				case ast.KindTypeAliasDeclaration:
+					// Continue to check what kind of type alias this is
+					current = current.Parent
+					continue
+				}
+
+				// Move up the tree
+				current = current.Parent
 			}
 
 			return false
