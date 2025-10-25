@@ -32,7 +32,7 @@ func isInFunctionScope(node *ast.Node) bool {
 		if kind == ast.KindFunctionDeclaration ||
 			kind == ast.KindFunctionExpression ||
 			kind == ast.KindMethodDeclaration ||
-			kind == ast.KindConstructorDeclaration ||
+			kind == ast.KindConstructor ||
 			kind == ast.KindGetAccessor ||
 			kind == ast.KindSetAccessor {
 			return true
@@ -51,8 +51,8 @@ func isShadowedArguments(node *ast.Node) bool {
 
 		// Check if it's a parameter named 'arguments'
 		if kind == ast.KindParameter {
-			if param := current.AsParameter(); param != nil && param.Name != nil {
-				if ident := param.Name.AsIdentifier(); ident != nil && ident.Text() == "arguments" {
+			if param := current.AsParameterDeclaration(); param != nil && param.Name() != nil {
+				if ident := param.Name().AsIdentifier(); ident != nil && ident.Text == "arguments" {
 					return true
 				}
 			}
@@ -60,8 +60,8 @@ func isShadowedArguments(node *ast.Node) bool {
 
 		// Check if it's a variable declaration named 'arguments'
 		if kind == ast.KindVariableDeclaration {
-			if varDecl := current.AsVariableDeclaration(); varDecl != nil && varDecl.Name != nil {
-				if ident := varDecl.Name.AsIdentifier(); ident != nil && ident.Text() == "arguments" {
+			if varDecl := current.AsVariableDeclaration(); varDecl != nil && varDecl.Name() != nil {
+				if ident := varDecl.Name().AsIdentifier(); ident != nil && ident.Text == "arguments" {
 					return true
 				}
 			}
@@ -72,7 +72,7 @@ func isShadowedArguments(node *ast.Node) bool {
 			kind == ast.KindFunctionExpression ||
 			kind == ast.KindArrowFunction ||
 			kind == ast.KindMethodDeclaration ||
-			kind == ast.KindConstructorDeclaration {
+			kind == ast.KindConstructor {
 			break
 		}
 
@@ -106,7 +106,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	return rule.RuleListeners{
 		ast.KindIdentifier: func(node *ast.Node) {
 			ident := node.AsIdentifier()
-			if ident == nil || ident.Text() != "arguments" {
+			if ident == nil || ident.Text != "arguments" {
 				return
 			}
 

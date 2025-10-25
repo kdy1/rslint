@@ -89,6 +89,7 @@ func convertToTemplatePart(srcFile *ast.SourceFile, node *ast.Node) string {
 }
 
 // canConcat checks if this binary expression is part of string concatenation
+// that should use template literals instead
 func canConcat(ctx rule.RuleContext, node *ast.Node) bool {
 	binExpr := node.AsBinaryExpression()
 	if binExpr == nil {
@@ -108,7 +109,17 @@ func canConcat(ctx rule.RuleContext, node *ast.Node) bool {
 	}
 
 	// At least one side must be a string
-	return isStringType(left) || isStringType(right)
+	hasString := isStringType(left) || isStringType(right)
+	if !hasString {
+		return false
+	}
+
+	// Don't flag if both sides are string literals (pure string concatenation is allowed)
+	if isStringLiteral(left) && isStringLiteral(right) {
+		return false
+	}
+
+	return true
 }
 
 // buildTemplateLiteral recursively builds template literal from concatenation

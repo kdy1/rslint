@@ -112,12 +112,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	checkVariableDeclarator := func(node *ast.Node) {
 		varDecl := node.AsVariableDeclaration()
-		if varDecl == nil || varDecl.Initializer == nil || varDecl.Name == nil {
+		if varDecl == nil || varDecl.Initializer == nil || varDecl.Name() == nil {
 			return
 		}
 
 		// Only check simple identifiers as the target
-		if varDecl.Name.Kind != ast.KindIdentifier {
+		if varDecl.Name().Kind != ast.KindIdentifier {
 			return
 		}
 
@@ -145,7 +145,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		if opts.ObjectDestructuring && init.Kind == ast.KindPropertyAccessExpression {
 			propAccess := init.AsPropertyAccessExpression()
 			if propAccess != nil && propAccess.Name() != nil {
-				varName := varDecl.Name.AsIdentifier().Text()
+				varName := varDecl.Name().AsIdentifier().Text
 				propName := propAccess.Name().Text()
 
 				// If property name matches variable name, suggest destructuring
@@ -155,10 +155,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					// Only auto-fix if names match (simple case)
 					if varName == propName && !utils.HasCommentsInRange(ctx.SourceFile, utils.TrimNodeTextRange(ctx.SourceFile, node)) {
 						replacement := "{" + varName + "} = " + objText
-						ctx.ReportNodeWithFixes(varDecl.Name, buildObjectMessage(),
-							rule.RuleFixReplace(ctx.SourceFile, varDecl.Name.Parent, replacement))
+						ctx.ReportNodeWithFixes(varDecl.Name(), buildObjectMessage(),
+							rule.RuleFixReplace(ctx.SourceFile, varDecl.Name().Parent, replacement))
 					} else {
-						ctx.ReportNode(varDecl.Name, buildObjectMessage())
+						ctx.ReportNode(varDecl.Name(), buildObjectMessage())
 					}
 					return
 				}
@@ -183,9 +183,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		ast.KindVariableDeclaration: func(node *ast.Node) {
 			checkVariableDeclarator(node)
 		},
-		ast.KindAssignmentExpression: func(node *ast.Node) {
-			assignExpr := node.AsAssignmentExpression()
-			if assignExpr == nil || assignExpr.Right == nil || assignExpr.Left == nil {
+		ast.KindBinaryExpression: func(node *ast.Node) {
+			assignExpr := node.AsBinaryExpression()
+			if assignExpr == nil || assignExpr.OperatorToken.Kind != ast.KindEqualsToken {
+				return
+			}
+			if assignExpr.Right == nil || assignExpr.Left == nil {
 				return
 			}
 
@@ -218,7 +221,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				if propAccess != nil && propAccess.Name() != nil {
 					leftIdent := assignExpr.Left.AsIdentifier()
 					if leftIdent != nil {
-						varName := leftIdent.Text()
+						varName := leftIdent.Text
 						propName := propAccess.Name().Text()
 
 						if varName == propName || opts.EnforceForRenamedProperties {
