@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_class_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_compare_neg_zero"
+	"github.com/web-infra-dev/rslint/internal/rules/no_cond_assign"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -324,8 +327,16 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 }
 
 func RegisterAllRules() {
+	registerAllCoreEslintRules()
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+}
+
+// registerAllCoreEslintRules registers core ESLint rules
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("no-class-assign", no_class_assign.NoClassAssignRule)
+	GlobalRuleRegistry.Register("no-compare-neg-zero", no_compare_neg_zero.NoCompareNegZeroRule)
+	GlobalRuleRegistry.Register("no-cond-assign", no_cond_assign.NoCondAssignRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
