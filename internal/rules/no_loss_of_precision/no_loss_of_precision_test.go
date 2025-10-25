@@ -1,9 +1,10 @@
 package no_loss_of_precision
 
 import (
-	"github.com/web-infra-dev/rslint/internal/rule_tester"
-	"github.com/web-infra-dev/rslint/internal/rules/fixtures"
 	"testing"
+
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
+	"github.com/web-infra-dev/rslint/internal/rule_tester"
 )
 
 func TestNoLossOfPrecisionRule(t *testing.T) {

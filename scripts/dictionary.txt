@@ -55,6 +55,7 @@ lintedfile
 lsproto
 myfunc
 nolint
+nonconstructor
 noregabi
 notcool
 objectbindingpattern
