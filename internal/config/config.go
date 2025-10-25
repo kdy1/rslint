@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_keys"
+	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_case"
+	"github.com/web-infra-dev/rslint/internal/rules/no_duplicate_imports"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,7 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerAllCoreEslintRules()
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -389,6 +393,14 @@ func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
 	}
+}
+
+// registerAllCoreEslintRules registers all core ESLint rules
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("dot-notation", dot_notation.DotNotationRule)
+	GlobalRuleRegistry.Register("no-dupe-keys", no_dupe_keys.NoDupeKeysRule)
+	GlobalRuleRegistry.Register("no-duplicate-case", no_duplicate_case.NoDuplicateCaseRule)
+	GlobalRuleRegistry.Register("no-duplicate-imports", no_duplicate_imports.NoDuplicateImportsRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
