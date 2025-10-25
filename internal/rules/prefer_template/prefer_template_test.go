@@ -1,9 +1,10 @@
 package prefer_template
 
 import (
-	"github.com/web-infra-dev/rslint/internal/rule_tester"
-	"github.com/web-infra-dev/rslint/internal/rules/fixtures"
 	"testing"
+
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
+	"github.com/web-infra-dev/rslint/internal/rule_tester"
 )
 
 func TestPreferTemplateRule(t *testing.T) {
