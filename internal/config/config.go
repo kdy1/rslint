@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_self_assign"
+	"github.com/web-infra-dev/rslint/internal/rules/no_self_compare"
+	"github.com/web-infra-dev/rslint/internal/rules/no_setter_return"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -324,8 +327,16 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 }
 
 func RegisterAllRules() {
+	registerAllCoreEslintRules()
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+}
+
+// registerAllCoreEslintRules registers core ESLint rules
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("no-self-assign", no_self_assign.NoSelfAssignRule)
+	GlobalRuleRegistry.Register("no-self-compare", no_self_compare.NoSelfCompareRule)
+	GlobalRuleRegistry.Register("no-setter-return", no_setter_return.NoSetterReturnRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
