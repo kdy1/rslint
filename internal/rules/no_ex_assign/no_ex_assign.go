@@ -26,7 +26,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			variableDecl := catchClause.VariableDeclaration.AsVariableDeclaration()
-			if variableDecl == nil || variableDecl.Name == nil {
+			if variableDecl == nil || variableDecl.Name() == nil {
 				return
 			}
 
