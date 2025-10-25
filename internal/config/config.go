@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_obj_calls"
+	"github.com/web-infra-dev/rslint/internal/rules/no_promise_executor_return"
+	"github.com/web-infra-dev/rslint/internal/rules/no_prototype_builtins"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,7 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerAllEslintCoreRules()
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -389,6 +393,13 @@ func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
 	}
+}
+
+// registerAllEslintCoreRules registers all ESLint core rules
+func registerAllEslintCoreRules() {
+	GlobalRuleRegistry.Register("no-obj-calls", no_obj_calls.NoObjCallsRule)
+	GlobalRuleRegistry.Register("no-promise-executor-return", no_promise_executor_return.NoPromiseExecutorReturnRule)
+	GlobalRuleRegistry.Register("no-prototype-builtins", no_prototype_builtins.NoPrototypeBuiltinsRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
