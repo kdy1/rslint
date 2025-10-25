@@ -98,7 +98,7 @@ var NoInnerDeclarationsRule = rule.CreateRule(rule.Rule{
 				// Check if this is a var declaration
 				varDecl := node.AsVariableStatement()
 				if varDecl != nil {
-					if (varDecl.DeclarationList.Flags & uint32(ast.NodeFlagsLet|ast.NodeFlagsConst)) == 0 {
+					if (varDecl.DeclarationList.Flags & (ast.NodeFlagsLet | ast.NodeFlagsConst)) == 0 {
 						// It's a var declaration (not let/const)
 						// Check if it's inside a nested block
 						parent := node.Parent
