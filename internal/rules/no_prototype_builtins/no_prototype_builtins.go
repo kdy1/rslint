@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -153,11 +154,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if callExpr.Arguments != nil && len(callExpr.Arguments.Nodes) > 0 {
 				firstArg := callExpr.Arguments.Nodes[0]
 				lastArg := callExpr.Arguments.Nodes[len(callExpr.Arguments.Nodes)-1]
-				argsRange := utils.TextRange{
-					Pos: utils.TrimNodeTextRange(ctx.SourceFile, firstArg).Pos(),
-					End: utils.TrimNodeTextRange(ctx.SourceFile, lastArg).End(),
-				}
-				argsText = text[argsRange.Pos:argsRange.End]
+				argsRange := core.NewTextRange(
+					utils.TrimNodeTextRange(ctx.SourceFile, firstArg).Pos(),
+					utils.TrimNodeTextRange(ctx.SourceFile, lastArg).End(),
+				)
+				argsText = text[argsRange.Pos():argsRange.End()]
 			}
 
 			// Build the replacement
@@ -176,7 +177,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			afterCall := ""
 			if node.Parent != nil && node.Parent.Kind == ast.KindPropertyAccessExpression {
 				parentRange := utils.TrimNodeTextRange(ctx.SourceFile, node.Parent)
-				afterCall = text[nodeRange.End:parentRange.End]
+				afterCall = text[nodeRange.End():parentRange.End()]
 			}
 
 			if afterCall != "" {
@@ -212,7 +213,7 @@ func getStringValue(node *ast.Node, sourceText string) string {
 	}
 
 	rng := utils.TrimNodeTextRange(nil, node)
-	text := sourceText[rng.Pos:rng.End]
+	text := sourceText[rng.Pos():rng.End()]
 
 	// Remove quotes or backticks
 	if len(text) >= 2 {

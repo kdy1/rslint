@@ -27,20 +27,53 @@ type ExtraShim struct {
 
 // check whether signature can be exported
 func canBeExported(t types.Signature) bool {
+	var checkType func(ty types.Type, depth int) bool
+	checkType = func(ty types.Type, depth int) bool {
+		// Handle pointers
+		if ptrType, ok := ty.(*types.Pointer); ok {
+			return checkType(ptrType.Elem(), depth+1)
+		}
+		// Handle slices
+		if sliceType, ok := ty.(*types.Slice); ok {
+			return checkType(sliceType.Elem(), depth+1)
+		}
+		// Handle arrays
+		if arrayType, ok := ty.(*types.Array); ok {
+			return checkType(arrayType.Elem(), depth+1)
+		}
+		// Handle named types
+		if named, ok := ty.(*types.Named); ok {
+			obj := named.Obj()
+			// Built-in types like 'error' don't have a package, so they're always ok
+			if obj.Pkg() != nil && !obj.Exported() {
+				log.Printf("  Found unexported named type at depth %d: %v (obj: %v)", depth, named, obj)
+				return false
+			}
+		}
+		// Interfaces, basic types, etc are ok
+		return true
+	}
+
+	// Check parameters
 	if params := t.Params(); params != nil {
 		for i := range params.Len() {
-			ty := params.At(i).Type()
-
-			if ptrType, ok := ty.(*types.Pointer); ok {
-				ty = ptrType.Elem()
-			}
-			if named, ok := ty.(*types.Named); ok {
-				if !named.Obj().Exported() {
-					return false
-				}
+			if !checkType(params.At(i).Type(), 0) {
+				log.Printf("  Failed on parameter %d: %v", i, params.At(i).Type())
+				return false
 			}
 		}
 	}
+
+	// Check return values
+	if results := t.Results(); results != nil {
+		for i := range results.Len() {
+			if !checkType(results.At(i).Type(), 0) {
+				log.Printf("  Failed on return value %d: %v", i, results.At(i).Type())
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
@@ -151,7 +184,7 @@ func main() {
 				return false
 			}
 			if !canBeExported(*fn.Signature()) {
-				log.Printf("Skip unexported %s.%s", fn.Pkg().Name(), fn.Name())
+				log.Printf("Skip unexported %s.%s (signature: %v)", fn.Pkg().Name(), fn.Name(), fn.Signature())
 				return false
 			}
 			name := cases.Title(language.English, cases.NoLower).String(fn.Name())

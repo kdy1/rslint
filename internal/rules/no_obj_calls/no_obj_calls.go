@@ -30,13 +30,13 @@ func getIdentifierName(node *ast.Node) string {
 	switch node.Kind {
 	case ast.KindIdentifier:
 		if ident := node.AsIdentifier(); ident != nil {
-			return ident.Text()
+			return ident.Text
 		}
 	case ast.KindPropertyAccessExpression:
 		// For globalThis.Math, etc.
 		if pae := node.AsPropertyAccessExpression(); pae != nil {
 			if expr := pae.Expression; expr != nil && expr.Kind == ast.KindIdentifier {
-				if ident := expr.AsIdentifier(); ident != nil && ident.Text() == "globalThis" {
+				if ident := expr.AsIdentifier(); ident != nil && ident.Text == "globalThis" {
 					if name := pae.Name(); name != nil {
 						return name.Text()
 					}

@@ -29,10 +29,6 @@ const AccessFlagsPersistent = checker.AccessFlagsPersistent
 const AccessFlagsReportDeprecated = checker.AccessFlagsReportDeprecated
 const AccessFlagsSuppressNoImplicitAnyError = checker.AccessFlagsSuppressNoImplicitAnyError
 const AccessFlagsWriting = checker.AccessFlagsWriting
-type AccessKind = checker.AccessKind
-const AccessKindRead = checker.AccessKindRead
-const AccessKindReadWrite = checker.AccessKindReadWrite
-const AccessKindWrite = checker.AccessKindWrite
 type AliasSymbolLinks = checker.AliasSymbolLinks
 type ArrayLiteralLinks = checker.ArrayLiteralLinks
 type ArrayToSingleTypeMapper = checker.ArrayToSingleTypeMapper
@@ -193,7 +189,6 @@ type extra_Checker struct {
   argumentsSymbol *ast.Symbol
   requireSymbol *ast.Symbol
   unknownSymbol *ast.Symbol
-  resolvingSymbol *ast.Symbol
   unresolvedSymbols map[string]*ast.Symbol
   errorTypes map[string]*checker.Type
   globalThisSymbol *ast.Symbol
@@ -540,8 +535,6 @@ func GetDeclarationModifierFlagsFromSymbol(s *ast.Symbol) ast.ModifierFlags
 func GetResolvedSignatureForSignatureHelp(node *ast.Node, argumentCount int, c *checker.Checker) (*checker.Signature, []*checker.Signature)
 //go:linkname GetSingleVariableOfVariableStatement github.com/microsoft/typescript-go/internal/checker.GetSingleVariableOfVariableStatement
 func GetSingleVariableOfVariableStatement(node *ast.Node) *ast.Node
-//go:linkname HasModifier github.com/microsoft/typescript-go/internal/checker.HasModifier
-func HasModifier(node *ast.Node, flags ast.ModifierFlags) bool
 type Host = checker.Host
 type IndexFlags = checker.IndexFlags
 const IndexFlagsNoIndexSignatures = checker.IndexFlagsNoIndexSignatures
@@ -887,7 +880,6 @@ const SignatureKindConstruct = checker.SignatureKindConstruct
 type SignatureLinks = checker.SignatureLinks
 type SignatureToSignatureDeclarationOptions = checker.SignatureToSignatureDeclarationOptions
 type SimpleTypeMapper = checker.SimpleTypeMapper
-type SingleSignatureType = checker.SingleSignatureType
 //go:linkname SkipAlias github.com/microsoft/typescript-go/internal/checker.SkipAlias
 func SkipAlias(symbol *ast.Symbol, checker *checker.Checker) *ast.Symbol
 //go:linkname SkipTypeChecking github.com/microsoft/typescript-go/internal/checker.SkipTypeChecking
@@ -919,6 +911,8 @@ const TernaryMaybe = checker.TernaryMaybe
 const TernaryTrue = checker.TernaryTrue
 const TernaryUnknown = checker.TernaryUnknown
 type TrackedSymbolArgs = checker.TrackedSymbolArgs
+//go:linkname TryGetModuleSpecifierFromDeclaration github.com/microsoft/typescript-go/internal/checker.TryGetModuleSpecifierFromDeclaration
+func TryGetModuleSpecifierFromDeclaration(node *ast.Node) *ast.Node
 type TupleElementInfo = checker.TupleElementInfo
 type TupleNormalizer = checker.TupleNormalizer
 type TupleType = checker.TupleType
@@ -1159,6 +1153,7 @@ type TypeReference = checker.TypeReference
 type TypeResolution = checker.TypeResolution
 type TypeSystemEntity = checker.TypeSystemEntity
 type TypeSystemPropertyName = checker.TypeSystemPropertyName
+const TypeSystemPropertyNameAliasTarget = checker.TypeSystemPropertyNameAliasTarget
 const TypeSystemPropertyNameDeclaredType = checker.TypeSystemPropertyNameDeclaredType
 const TypeSystemPropertyNameInitializerIsUndefined = checker.TypeSystemPropertyNameInitializerIsUndefined
 const TypeSystemPropertyNameResolvedBaseConstraint = checker.TypeSystemPropertyNameResolvedBaseConstraint

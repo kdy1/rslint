@@ -51,7 +51,7 @@ func isPromiseConstructor(expr *ast.Node) bool {
 	}
 	if expr.Kind == ast.KindIdentifier {
 		if ident := expr.AsIdentifier(); ident != nil {
-			return ident.Text() == "Promise"
+			return ident.Text == "Promise"
 		}
 	}
 	return false
@@ -207,7 +207,7 @@ func walkForReturns(ctx rule.RuleContext, node *ast.Node, executorNode *ast.Node
 	}
 
 	// Walk children
-	for _, child := range node.Children() {
+	for child := range node.IterChildren() {
 		walkForReturns(ctx, child, executorNode, allowVoid)
 	}
 }
