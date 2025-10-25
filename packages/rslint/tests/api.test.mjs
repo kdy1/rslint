@@ -1,7 +1,7 @@
 import { lint, applyFixes } from '@rslint/core';
 import { describe, test, expect } from '@rstest/core';
 import path from 'node:path';
-import { RemoteSourceFile, Node } from '@rslint/api';
+import { RemoteSourceFile } from '@rslint/api';
 
 describe('lint api', async t => {
   let cwd = path.resolve(import.meta.dirname, '../fixtures');
