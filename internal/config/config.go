@@ -64,6 +64,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_eval"
+	core_no_implied_eval "github.com/web-infra-dev/rslint/internal/rules/no_implied_eval"
+	"github.com/web-infra-dev/rslint/internal/rules/no_new_func"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,7 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	registerAllCoreEslintRules()
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -389,6 +393,13 @@ func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
 	}
+}
+
+func registerAllCoreEslintRules() {
+	GlobalRuleRegistry.Register("dot-notation", dot_notation.DotNotationRule)
+	GlobalRuleRegistry.Register("no-eval", no_eval.NoEvalRule)
+	GlobalRuleRegistry.Register("no-implied-eval", core_no_implied_eval.NoImpliedEvalRule)
+	GlobalRuleRegistry.Register("no-new-func", no_new_func.NoNewFuncRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
