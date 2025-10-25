@@ -63,7 +63,10 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/unbound_method"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/rules/array_callback_return"
+	"github.com/web-infra-dev/rslint/internal/rules/constructor_super"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/for_direction"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +329,9 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	GlobalRuleRegistry.Register("array-callback-return", array_callback_return.ArrayCallbackReturnRule)
+	GlobalRuleRegistry.Register("constructor-super", constructor_super.ConstructorSuperRule)
+	GlobalRuleRegistry.Register("for-direction", for_direction.ForDirectionRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
