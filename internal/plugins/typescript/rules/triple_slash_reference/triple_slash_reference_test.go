@@ -20,7 +20,7 @@ const x = 1;
 `},
 		},
 		[]rule_tester.InvalidTestCase{
-			// TODO: Add invalid test cases when the rule implementation is complete
+			// TODO: Add invalid test cases with actual triple-slash reference violations
 		},
 	)
 }
