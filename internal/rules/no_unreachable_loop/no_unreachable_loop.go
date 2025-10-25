@@ -168,7 +168,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 		}
 
 		for _, s := range block.Statements.Nodes {
-			if allPathsExitLoop(&s, loopNode) {
+			if allPathsExitLoop(s, loopNode) {
 				return true
 			}
 		}
@@ -215,7 +215,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 				statements := clauseNode.Statements.Nodes
 				clauseExits := false
 				for _, s := range statements {
-					if allPathsExitLoop(&s, loopNode) {
+					if allPathsExitLoop(s, loopNode) {
 						clauseExits = true
 						break
 					}

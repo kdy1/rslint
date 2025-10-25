@@ -132,7 +132,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 		block := node.AsBlock()
 		if block != nil && block.Statements != nil {
 			for _, stmt := range block.Statements.Nodes {
-				traverseForUnsafeStatements(ctx, &stmt, nestedFunctionDepth)
+				traverseForUnsafeStatements(ctx, stmt, nestedFunctionDepth)
 			}
 		}
 
@@ -154,7 +154,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 					clauseNode := clause.AsCaseOrDefaultClause()
 					if clauseNode != nil && clauseNode.Statements != nil {
 						for _, stmt := range clauseNode.Statements.Nodes {
-							traverseForUnsafeStatements(ctx, &stmt, nestedFunctionDepth)
+							traverseForUnsafeStatements(ctx, stmt, nestedFunctionDepth)
 						}
 					}
 				}
