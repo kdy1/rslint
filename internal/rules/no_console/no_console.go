@@ -144,7 +144,7 @@ var NoConsoleRule = rule.CreateRule(rule.Rule{
 			if ctx.TypeChecker != nil {
 				symbol := ctx.TypeChecker.GetSymbolAtLocation(expr)
 				if symbol != nil {
-					declarations := symbol.Declarations()
+					declarations := symbol.Declarations
 					if len(declarations) > 0 {
 						// console is locally defined, skip this reference
 						return
@@ -193,7 +193,7 @@ var NoConsoleRule = rule.CreateRule(rule.Rule{
 			if ctx.TypeChecker != nil {
 				symbol := ctx.TypeChecker.GetSymbolAtLocation(expr)
 				if symbol != nil {
-					declarations := symbol.Declarations()
+					declarations := symbol.Declarations
 					if len(declarations) > 0 {
 						// console is locally defined, skip this reference
 						return
