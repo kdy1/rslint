@@ -64,9 +64,6 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
-	"github.com/web-infra-dev/rslint/internal/rules/no_var"
-	"github.com/web-infra-dev/rslint/internal/rules/prefer_arrow_callback"
-	"github.com/web-infra-dev/rslint/internal/rules/prefer_const"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -396,9 +393,7 @@ func registerAllEslintImportPluginRules() {
 }
 
 func registerAllCoreEslintRules() {
-	GlobalRuleRegistry.Register("no-var", no_var.NoVarRule)
-	GlobalRuleRegistry.Register("prefer-const", prefer_const.PreferConstRule)
-	GlobalRuleRegistry.Register("prefer-arrow-callback", prefer_arrow_callback.PreferArrowCallbackRule)
+	// Core ESLint rules will be registered here
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
