@@ -10,10 +10,13 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	importPlugin "github.com/web-infra-dev/rslint/internal/plugins/import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_self_import"
+	"github.com/web-infra-dev/rslint/internal/plugins/import/rules/no_webpack_loader_syntax"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/adjacent_overload_signatures"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/array_type"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/await_thenable"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/class_literal_property_style"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_array_delete"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_base_to_string"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_confusing_void_expression"
@@ -64,6 +67,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/use_unknown_in_catch_callback_variable"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/rules/dot_notation"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_args"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_class_members"
+	"github.com/web-infra-dev/rslint/internal/rules/no_dupe_else_if"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -326,6 +332,9 @@ func (config RslintConfig) GetRulesForFile(filePath string) map[string]*RuleConf
 func RegisterAllRules() {
 	registerAllTypeScriptEslintPluginRules()
 	registerAllEslintImportPluginRules()
+	GlobalRuleRegistry.Register("no-dupe-args", no_dupe_args.NoDupeArgsRule)
+	GlobalRuleRegistry.Register("no-dupe-class-members", no_dupe_class_members.NoDupeClassMembersRule)
+	GlobalRuleRegistry.Register("no-dupe-else-if", no_dupe_else_if.NoDupeElseIfRule)
 }
 
 // registerAllTypeScriptEslintPluginRules registers all available rules in the global registry
@@ -335,6 +344,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/await-thenable", await_thenable.AwaitThenableRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/class-literal-property-style", class_literal_property_style.ClassLiteralPropertyStyleRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/dot-notation", dot_notation.DotNotationRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/fixtures", fixtures.FixturesRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-array-delete", no_array_delete.NoArrayDeleteRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-base-to-string", no_base_to_string.NoBaseToStringRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-confusing-void-expression", no_confusing_void_expression.NoConfusingVoidExpressionRule)
@@ -388,6 +398,8 @@ func registerAllTypeScriptEslintPluginRules() {
 func registerAllEslintImportPluginRules() {
 	for _, rule := range importPlugin.GetAllRules() {
 		GlobalRuleRegistry.Register(rule.Name, rule)
+		GlobalRuleRegistry.Register("import/no-self-import", no_self_import.NoSelfImportRule)
+		GlobalRuleRegistry.Register("import/no-webpack-loader-syntax", no_webpack_loader_syntax.NoWebpackLoaderSyntaxRule)
 	}
 }
 
