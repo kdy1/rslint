@@ -31,7 +31,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			// Collect all parameter names (for destructured parameters)
-			paramNames := collectBindingNames(variableDecl.Name)
+			paramNames := collectBindingNames(variableDecl.Name())
 			if len(paramNames) == 0 {
 				return
 			}
@@ -50,26 +50,32 @@ func collectBindingNames(node *ast.Node) []string {
 
 	switch node.Kind {
 	case ast.KindIdentifier:
-		names = append(names, node.AsIdentifier().EscapedText)
+		if ast.IsIdentifier(node) {
+			names = append(names, node.AsIdentifier().Text)
+		}
 
 	case ast.KindObjectBindingPattern:
-		objPattern := node.AsObjectBindingPattern()
-		if objPattern != nil && objPattern.Elements != nil {
-			for _, elem := range objPattern.Elements.Nodes {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					names = append(names, collectBindingNames(bindingElem.Name)...)
+		if ast.IsObjectBindingPattern(node) {
+			bindingPattern := node.AsBindingPattern()
+			if bindingPattern != nil && bindingPattern.Elements != nil {
+				for _, elem := range bindingPattern.Elements.Nodes {
+					bindingElem := elem.AsBindingElement()
+					if bindingElem != nil && bindingElem.Name() != nil {
+						names = append(names, collectBindingNames(bindingElem.Name())...)
+					}
 				}
 			}
 		}
 
 	case ast.KindArrayBindingPattern:
-		arrPattern := node.AsArrayBindingPattern()
-		if arrPattern != nil && arrPattern.Elements != nil {
-			for _, elem := range arrPattern.Elements.Nodes {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					names = append(names, collectBindingNames(bindingElem.Name)...)
+		if ast.IsArrayBindingPattern(node) {
+			bindingPattern := node.AsBindingPattern()
+			if bindingPattern != nil && bindingPattern.Elements != nil {
+				for _, elem := range bindingPattern.Elements.Nodes {
+					bindingElem := elem.AsBindingElement()
+					if bindingElem != nil && bindingElem.Name() != nil {
+						names = append(names, collectBindingNames(bindingElem.Name())...)
+					}
 				}
 			}
 		}
@@ -91,14 +97,16 @@ func checkForAssignments(ctx rule.RuleContext, node *ast.Node, paramNames []stri
 		if binExpr != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken {
 			// Check if left side is one of our parameter names
 			if binExpr.Left != nil && binExpr.Left.Kind == ast.KindIdentifier {
-				leftIdent := binExpr.Left.AsIdentifier()
-				if leftIdent != nil {
-					for _, paramName := range paramNames {
-						if leftIdent.EscapedText == paramName {
-							ctx.ReportNode(binExpr.Left, rule.RuleMessage{
-								Id:          "unexpected",
-								Description: "Do not assign to the exception parameter.",
-							})
+				if ast.IsIdentifier(binExpr.Left) {
+					leftIdent := binExpr.Left.AsIdentifier()
+					if leftIdent != nil {
+						for _, paramName := range paramNames {
+							if leftIdent.Text == paramName {
+								ctx.ReportNode(binExpr.Left, rule.RuleMessage{
+									Id:          "unexpected",
+									Description: "Do not assign to the exception parameter.",
+								})
+							}
 						}
 					}
 				}
@@ -114,11 +122,11 @@ func checkForAssignments(ctx rule.RuleContext, node *ast.Node, paramNames []stri
 				// This is a destructuring assignment
 				if arrLit.Elements != nil {
 					for _, elem := range arrLit.Elements.Nodes {
-						if elem.Kind == ast.KindIdentifier {
+						if elem.Kind == ast.KindIdentifier && ast.IsIdentifier(elem) {
 							elemIdent := elem.AsIdentifier()
 							if elemIdent != nil {
 								for _, paramName := range paramNames {
-									if elemIdent.EscapedText == paramName {
+									if elemIdent.Text == paramName {
 										ctx.ReportNode(elem, rule.RuleMessage{
 											Id:          "unexpected",
 											Description: "Do not assign to the exception parameter.",
@@ -145,9 +153,9 @@ func checkForAssignments(ctx rule.RuleContext, node *ast.Node, paramNames []stri
 	}
 
 	// Recursively check children
-	ast.ForEachChild(node, func(child *ast.Node) interface{} {
+	node.ForEachChild(func(child *ast.Node) bool {
 		checkForAssignments(ctx, child, paramNames)
-		return nil
+		return false
 	})
 }
 
@@ -166,15 +174,17 @@ func checkObjectLiteralForParamNames(ctx rule.RuleContext, objLit *ast.ObjectLit
 			}
 		} else if prop.Kind == ast.KindShorthandPropertyAssignment {
 			shorthand := prop.AsShorthandPropertyAssignment()
-			if shorthand != nil && shorthand.Name != nil && shorthand.Name.Kind == ast.KindIdentifier {
-				nameIdent := shorthand.Name.AsIdentifier()
-				if nameIdent != nil {
-					for _, paramName := range paramNames {
-						if nameIdent.EscapedText == paramName {
-							ctx.ReportNode(shorthand.Name, rule.RuleMessage{
-								Id:          "unexpected",
-								Description: "Do not assign to the exception parameter.",
-							})
+			if shorthand != nil && shorthand.Name() != nil && shorthand.Name().Kind == ast.KindIdentifier {
+				if ast.IsIdentifier(shorthand.Name()) {
+					nameIdent := shorthand.Name().AsIdentifier()
+					if nameIdent != nil {
+						for _, paramName := range paramNames {
+							if nameIdent.Text == paramName {
+								ctx.ReportNode(shorthand.Name(), rule.RuleMessage{
+									Id:          "unexpected",
+									Description: "Do not assign to the exception parameter.",
+								})
+							}
 						}
 					}
 				}
@@ -189,11 +199,11 @@ func checkInitializerForParamNames(ctx rule.RuleContext, node *ast.Node, paramNa
 		return
 	}
 
-	if node.Kind == ast.KindIdentifier {
+	if node.Kind == ast.KindIdentifier && ast.IsIdentifier(node) {
 		ident := node.AsIdentifier()
 		if ident != nil {
 			for _, paramName := range paramNames {
-				if ident.EscapedText == paramName {
+				if ident.Text == paramName {
 					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "unexpected",
 						Description: "Do not assign to the exception parameter.",

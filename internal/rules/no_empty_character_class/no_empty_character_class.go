@@ -20,7 +20,11 @@ var emptyCharClassPattern = regexp.MustCompile(`(?:[^\\]|^)\[\]`)
 
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	return rule.RuleListeners{
-		ast.KindRegExpLiteral: func(node *ast.Node) {
+		ast.KindRegularExpressionLiteral: func(node *ast.Node) {
+			if !ast.IsRegularExpressionLiteral(node) {
+				return
+			}
+
 			regexLiteral := node.AsRegularExpressionLiteral()
 			if regexLiteral == nil {
 				return

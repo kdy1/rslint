@@ -43,13 +43,17 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	return rule.RuleListeners{
 		ast.KindObjectBindingPattern: func(node *ast.Node) {
-			objectPattern := node.AsObjectBindingPattern()
-			if objectPattern == nil {
+			if !ast.IsObjectBindingPattern(node) {
+				return
+			}
+
+			bindingPattern := node.AsBindingPattern()
+			if bindingPattern == nil {
 				return
 			}
 
 			// Check if pattern has elements
-			if objectPattern.Elements != nil && len(objectPattern.Elements.Nodes) > 0 {
+			if bindingPattern.Elements != nil && len(bindingPattern.Elements.Nodes) > 0 {
 				return
 			}
 
@@ -64,13 +68,17 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			})
 		},
 		ast.KindArrayBindingPattern: func(node *ast.Node) {
-			arrayPattern := node.AsArrayBindingPattern()
-			if arrayPattern == nil {
+			if !ast.IsArrayBindingPattern(node) {
+				return
+			}
+
+			bindingPattern := node.AsBindingPattern()
+			if bindingPattern == nil {
 				return
 			}
 
 			// Check if pattern has elements
-			if arrayPattern.Elements != nil && len(arrayPattern.Elements.Nodes) > 0 {
+			if bindingPattern.Elements != nil && len(bindingPattern.Elements.Nodes) > 0 {
 				return
 			}
 
