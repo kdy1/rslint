@@ -11,6 +11,7 @@ This PR implements 3 ESLint core "Possible Problems" rules in RSLint:
 ## Implementation Status
 
 ### ✅ Completed
+
 - [x] Created directory structure for all three rules
 - [x] Implemented complete rule logic for all three rules
 - [x] Ported comprehensive test cases from ESLint test suite
@@ -25,15 +26,19 @@ The implementations have compilation errors due to incorrect TypeScript AST API 
 #### API Corrections Needed:
 
 1. **Use `.Kind` field instead of `.GetKind()` method**
+
    - Change: `node.GetKind()` → `node.Kind`
 
 2. **Remove `ast.FromNode()` calls**
+
    - These are not needed - nodes can be used directly
 
 3. **Token Kind access**
+
    - Use: `binary.OperatorToken.Kind` (not `.GetKind()`)
 
 4. **PrefixUnaryExpression operator access**
+
    - Check node `.Kind == ast.KindPrefixUnaryExpression`
    - Then check `.Operator` field for token type
 
@@ -43,6 +48,7 @@ The implementations have compilation errors due to incorrect TypeScript AST API 
 #### Specific Fixes Needed:
 
 **no_compare_neg_zero.go:**
+
 - Line 28: `node.GetKind()` → `node.Kind`
 - Line 35: Replace `ast.SyntaxKindMinusToken` → `ast.KindMinusToken`
 - Line 40: Remove `ast.FromNode(prefix.Operand)` → use `prefix.Operand` directly
@@ -61,16 +67,19 @@ Similar issues with GetKind() and SyntaxKind constants
 Each rule has comprehensive test coverage based on ESLint's official test suite:
 
 ### no-compare-neg-zero
+
 - 27 valid test cases
 - 12 invalid test cases
 - Tests all comparison operators: `==`, `===`, `<`, `<=`, `>`, `>=`
 
 ### no-class-assign
+
 - 15 valid test cases (shadowing, parameters, etc.)
 - 10 invalid test cases (assignments, compound assignments, ++/--)
 - Tests class declarations and class expressions
 
 ### no-cond-assign
+
 - 17 valid test cases
 - 15 invalid test cases
 - Tests both "except-parens" and "always" modes
@@ -79,6 +88,7 @@ Each rule has comprehensive test coverage based on ESLint's official test suite:
 ## References
 
 - ESLint Rule Docs:
+
   - https://eslint.org/docs/latest/rules/no-class-assign
   - https://eslint.org/docs/latest/rules/no-compare-neg-zero
   - https://eslint.org/docs/latest/rules/no-cond-assign
@@ -100,16 +110,19 @@ Each rule has comprehensive test coverage based on ESLint's official test suite:
 ## Architecture Notes
 
 ### Core Rules Location
+
 - Path: `internal/rules/`
 - Each rule in its own directory: `internal/rules/{rule_name}/`
 - Files: `{rule_name}.go` and `{rule_name}_test.go`
 
 ### Registration
+
 - Core rules registered in `internal/config/config.go`
 - New function: `registerAllCoreEslintRules()`
 - Called from `RegisterAllRules()`
 
 ### Fixtures
+
 - Created `internal/rules/fixtures/` for core rules
 - Mirrors structure of `internal/plugins/typescript/rules/fixtures/`
 - Contains `fixtures.go` and `tsconfig.json`

@@ -28,18 +28,18 @@ var NoClassAssignRule = rule.Rule{
 			}
 
 			// Walk up the tree to see if we're inside a method that shadows the class name
-			parent := ast.FromNode(ctx.SourceFile.GetParent(node.InternalNode))
+			parent := node.Parent
 			for parent != nil {
-				kind := parent.GetKind()
+				kind := parent.Kind
 
 				// Check if we're in a function/method parameter that shadows the class
 				if kind == ast.KindParameter {
-					param := parent.AsParameter()
-					if param != nil && param.Name != nil {
-						paramName := ast.FromNode(param.Name)
-						if paramName.GetKind() == ast.KindIdentifier {
+					param := parent.AsParameterDeclaration()
+					if param != nil {
+						paramName := param.Name()
+						if paramName != nil && paramName.Kind == ast.KindIdentifier {
 							ident := paramName.AsIdentifier()
-							if ident != nil && ident.EscapedText() == className {
+							if ident != nil && ident.Text == className {
 								return true
 							}
 						}
@@ -49,18 +49,18 @@ var NoClassAssignRule = rule.Rule{
 				// Check if we're in a variable declaration that shadows the class
 				if kind == ast.KindVariableDeclaration {
 					varDecl := parent.AsVariableDeclaration()
-					if varDecl != nil && varDecl.Name != nil {
-						varName := ast.FromNode(varDecl.Name)
-						if varName.GetKind() == ast.KindIdentifier {
+					if varDecl != nil {
+						varName := varDecl.Name()
+						if varName != nil && varName.Kind == ast.KindIdentifier {
 							ident := varName.AsIdentifier()
-							if ident != nil && ident.EscapedText() == className {
+							if ident != nil && ident.Text == className {
 								return true
 							}
 						}
 					}
 				}
 
-				parent = ast.FromNode(ctx.SourceFile.GetParent(parent.InternalNode))
+				parent = parent.Parent
 			}
 
 			return false
@@ -69,22 +69,24 @@ var NoClassAssignRule = rule.Rule{
 		// Listen to ClassDeclaration nodes
 		listeners[ast.KindClassDeclaration] = func(node *ast.Node) {
 			classDecl := node.AsClassDeclaration()
-			if classDecl == nil || classDecl.Name == nil {
+			nameNode := classDecl.Name()
+			if classDecl == nil || nameNode == nil {
 				return
 			}
 
-			className := classDecl.Name.EscapedText()
+			className := nameNode.Text()
 			classNames[className] = node
 		}
 
 		// Listen to ClassExpression nodes (named class expressions)
 		listeners[ast.KindClassExpression] = func(node *ast.Node) {
 			classExpr := node.AsClassExpression()
-			if classExpr == nil || classExpr.Name == nil {
+			nameNode := classExpr.Name()
+			if classExpr == nil || nameNode == nil {
 				return
 			}
 
-			className := classExpr.Name.EscapedText()
+			className := nameNode.Text()
 			// Named class expressions create immutable bindings
 			classNames[className] = node
 		}
@@ -97,28 +99,28 @@ var NoClassAssignRule = rule.Rule{
 			}
 
 			// Check for assignment operators
-			op := binary.OperatorToken.GetKind()
-			isAssignment := op == ast.SyntaxKindEqualsToken ||
-				op == ast.SyntaxKindPlusEqualsToken ||
-				op == ast.SyntaxKindMinusEqualsToken ||
-				op == ast.SyntaxKindAsteriskEqualsToken ||
-				op == ast.SyntaxKindSlashEqualsToken ||
-				op == ast.SyntaxKindPercentEqualsToken ||
-				op == ast.SyntaxKindAmpersandEqualsToken ||
-				op == ast.SyntaxKindBarEqualsToken ||
-				op == ast.SyntaxKindCaretEqualsToken ||
-				op == ast.SyntaxKindLessThanLessThanEqualsToken ||
-				op == ast.SyntaxKindGreaterThanGreaterThanEqualsToken ||
-				op == ast.SyntaxKindGreaterThanGreaterThanGreaterThanEqualsToken ||
-				op == ast.SyntaxKindAsteriskAsteriskEqualsToken
+			op := binary.OperatorToken.Kind
+			isAssignment := op == ast.KindEqualsToken ||
+				op == ast.KindPlusEqualsToken ||
+				op == ast.KindMinusEqualsToken ||
+				op == ast.KindAsteriskEqualsToken ||
+				op == ast.KindSlashEqualsToken ||
+				op == ast.KindPercentEqualsToken ||
+				op == ast.KindAmpersandEqualsToken ||
+				op == ast.KindBarEqualsToken ||
+				op == ast.KindCaretEqualsToken ||
+				op == ast.KindLessThanLessThanEqualsToken ||
+				op == ast.KindGreaterThanGreaterThanEqualsToken ||
+				op == ast.KindGreaterThanGreaterThanGreaterThanEqualsToken ||
+				op == ast.KindAsteriskAsteriskEqualsToken
 
 			if !isAssignment {
 				return
 			}
 
 			// Check if left side is an identifier
-			left := ast.FromNode(binary.Left)
-			if left.GetKind() != ast.KindIdentifier {
+			left := binary.Left
+			if left.Kind != ast.KindIdentifier {
 				return
 			}
 
@@ -127,7 +129,7 @@ var NoClassAssignRule = rule.Rule{
 				return
 			}
 
-			identName := ident.EscapedText()
+			identName := ident.Text
 
 			// Check if this identifier is a class name
 			if _, isClass := classNames[identName]; isClass {
@@ -145,8 +147,8 @@ var NoClassAssignRule = rule.Rule{
 				return
 			}
 
-			operand := ast.FromNode(postfix.Operand)
-			if operand.GetKind() != ast.KindIdentifier {
+			operand := postfix.Operand
+			if operand.Kind != ast.KindIdentifier {
 				return
 			}
 
@@ -155,7 +157,7 @@ var NoClassAssignRule = rule.Rule{
 				return
 			}
 
-			identName := ident.EscapedText()
+			identName := ident.Text
 
 			if _, isClass := classNames[identName]; isClass {
 				if !isInClassMethodScope(node, identName) {
@@ -172,13 +174,13 @@ var NoClassAssignRule = rule.Rule{
 			}
 
 			// Only care about ++ and --
-			if prefix.Operator != ast.SyntaxKindPlusPlusToken &&
-			   prefix.Operator != ast.SyntaxKindMinusMinusToken {
+			if prefix.Operator != ast.KindPlusPlusToken &&
+			   prefix.Operator != ast.KindMinusMinusToken {
 				return
 			}
 
-			operand := ast.FromNode(prefix.Operand)
-			if operand.GetKind() != ast.KindIdentifier {
+			operand := prefix.Operand
+			if operand.Kind != ast.KindIdentifier {
 				return
 			}
 
@@ -187,7 +189,7 @@ var NoClassAssignRule = rule.Rule{
 				return
 			}
 
-			identName := ident.EscapedText()
+			identName := ident.Text
 
 			if _, isClass := classNames[identName]; isClass {
 				if !isInClassMethodScope(node, identName) {

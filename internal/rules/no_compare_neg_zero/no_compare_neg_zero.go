@@ -25,22 +25,22 @@ var NoCompareNegZeroRule = rule.Rule{
 			}
 
 			// Check for PrefixUnaryExpression with minus operator and 0 operand
-			if node.GetKind() == ast.KindPrefixUnaryExpression {
+			if node.Kind == ast.KindPrefixUnaryExpression {
 				prefix := node.AsPrefixUnaryExpression()
 				if prefix == nil {
 					return false
 				}
 
 				// Check if operator is minus
-				if prefix.Operator != ast.SyntaxKindMinusToken {
+				if prefix.Operator != ast.KindMinusToken {
 					return false
 				}
 
 				// Check if operand is numeric literal 0
-				operand := ast.FromNode(prefix.Operand)
-				if operand.GetKind() == ast.KindNumericLiteral {
+				operand := prefix.Operand
+				if operand.Kind == ast.KindNumericLiteral {
 					numLit := operand.AsNumericLiteral()
-					if numLit != nil && numLit.Text() == "0" {
+					if numLit != nil && numLit.Text == "0" {
 						return true
 					}
 				}
@@ -57,27 +57,27 @@ var NoCompareNegZeroRule = rule.Rule{
 			}
 
 			// Check for comparison operators
-			op := binary.OperatorToken.GetKind()
+			op := binary.OperatorToken.Kind
 			isComparison := false
 			operatorText := ""
 
 			switch op {
-			case ast.SyntaxKindEqualsEqualsToken:
+			case ast.KindEqualsEqualsToken:
 				isComparison = true
 				operatorText = "=="
-			case ast.SyntaxKindEqualsEqualsEqualsToken:
+			case ast.KindEqualsEqualsEqualsToken:
 				isComparison = true
 				operatorText = "==="
-			case ast.SyntaxKindLessThanToken:
+			case ast.KindLessThanToken:
 				isComparison = true
 				operatorText = "<"
-			case ast.SyntaxKindLessThanEqualsToken:
+			case ast.KindLessThanEqualsToken:
 				isComparison = true
 				operatorText = "<="
-			case ast.SyntaxKindGreaterThanToken:
+			case ast.KindGreaterThanToken:
 				isComparison = true
 				operatorText = ">"
-			case ast.SyntaxKindGreaterThanEqualsToken:
+			case ast.KindGreaterThanEqualsToken:
 				isComparison = true
 				operatorText = ">="
 			}
@@ -87,8 +87,8 @@ var NoCompareNegZeroRule = rule.Rule{
 			}
 
 			// Check if either side is -0
-			left := ast.FromNode(binary.Left)
-			right := ast.FromNode(binary.Right)
+			left := binary.Left
+			right := binary.Right
 
 			if isNegZero(left) || isNegZero(right) {
 				ctx.ReportNode(node, buildUnexpectedMessage(operatorText))

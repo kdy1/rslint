@@ -76,26 +76,26 @@ var NoCondAssignRule = rule.Rule{
 				return false
 			}
 
-			if node.GetKind() == ast.KindBinaryExpression {
+			if node.Kind == ast.KindBinaryExpression {
 				binary := node.AsBinaryExpression()
 				if binary == nil {
 					return false
 				}
 
-				op := binary.OperatorToken.GetKind()
-				return op == ast.SyntaxKindEqualsToken ||
-					op == ast.SyntaxKindPlusEqualsToken ||
-					op == ast.SyntaxKindMinusEqualsToken ||
-					op == ast.SyntaxKindAsteriskEqualsToken ||
-					op == ast.SyntaxKindSlashEqualsToken ||
-					op == ast.SyntaxKindPercentEqualsToken ||
-					op == ast.SyntaxKindAmpersandEqualsToken ||
-					op == ast.SyntaxKindBarEqualsToken ||
-					op == ast.SyntaxKindCaretEqualsToken ||
-					op == ast.SyntaxKindLessThanLessThanEqualsToken ||
-					op == ast.SyntaxKindGreaterThanGreaterThanEqualsToken ||
-					op == ast.SyntaxKindGreaterThanGreaterThanGreaterThanEqualsToken ||
-					op == ast.SyntaxKindAsteriskAsteriskEqualsToken
+				op := binary.OperatorToken.Kind
+				return op == ast.KindEqualsToken ||
+					op == ast.KindPlusEqualsToken ||
+					op == ast.KindMinusEqualsToken ||
+					op == ast.KindAsteriskEqualsToken ||
+					op == ast.KindSlashEqualsToken ||
+					op == ast.KindPercentEqualsToken ||
+					op == ast.KindAmpersandEqualsToken ||
+					op == ast.KindBarEqualsToken ||
+					op == ast.KindCaretEqualsToken ||
+					op == ast.KindLessThanLessThanEqualsToken ||
+					op == ast.KindGreaterThanGreaterThanEqualsToken ||
+					op == ast.KindGreaterThanGreaterThanGreaterThanEqualsToken ||
+					op == ast.KindAsteriskAsteriskEqualsToken
 			}
 
 			return false
@@ -107,16 +107,16 @@ var NoCondAssignRule = rule.Rule{
 				return false
 			}
 
-			parent := ast.FromNode(ctx.SourceFile.GetParent(node.InternalNode))
+			parent := node.Parent
 			if parent == nil {
 				return false
 			}
 
 			// Check if parent is a ParenthesizedExpression
-			if parent.GetKind() == ast.KindParenthesizedExpression {
+			if parent.Kind == ast.KindParenthesizedExpression {
 				// Check if the grandparent is also a ParenthesizedExpression (double parens)
 				// or if we're directly in a conditional
-				grandparent := ast.FromNode(ctx.SourceFile.GetParent(parent.InternalNode))
+				grandparent := parent.Parent
 				if grandparent == nil {
 					return false
 				}
@@ -125,7 +125,7 @@ var NoCondAssignRule = rule.Rule{
 				// Single parens: (a = b) - still an error
 				// The parent being a paren means we have one level
 				// We need to check if grandparent is also a paren
-				if grandparent.GetKind() == ast.KindParenthesizedExpression {
+				if grandparent.Kind == ast.KindParenthesizedExpression {
 					return true
 				}
 			}
@@ -139,7 +139,7 @@ var NoCondAssignRule = rule.Rule{
 				return
 			}
 
-			test := ast.FromNode(testNode)
+			test := testNode
 
 			// Recursively check for assignments
 			var checkNode func(*ast.Node)
@@ -164,7 +164,7 @@ var NoCondAssignRule = rule.Rule{
 				}
 
 				// Don't recurse into nested functions/arrows
-				kind := node.GetKind()
+				kind := node.Kind
 				if kind == ast.KindFunctionExpression ||
 					kind == ast.KindArrowFunction ||
 					kind == ast.KindFunctionDeclaration {
@@ -175,8 +175,8 @@ var NoCondAssignRule = rule.Rule{
 				if kind == ast.KindBinaryExpression {
 					binary := node.AsBinaryExpression()
 					if binary != nil {
-						checkNode(ast.FromNode(binary.Left))
-						checkNode(ast.FromNode(binary.Right))
+						checkNode(binary.Left)
+						checkNode(binary.Right)
 					}
 				}
 
@@ -184,7 +184,7 @@ var NoCondAssignRule = rule.Rule{
 				if kind == ast.KindParenthesizedExpression {
 					paren := node.AsParenthesizedExpression()
 					if paren != nil {
-						checkNode(ast.FromNode(paren.Expression))
+						checkNode(paren.Expression)
 					}
 				}
 
