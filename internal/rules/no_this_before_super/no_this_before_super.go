@@ -16,17 +16,37 @@ var NoThisBeforeSuperRule = rule.Rule{
 func isInDerivedClass(node *ast.Node) bool {
 	current := node
 	for current != nil {
-		if current.Kind == ast.KindClassDeclaration || current.Kind == ast.KindClassExpression {
+		if current.Kind == ast.KindClassDeclaration {
 			classDecl := current.AsClassDeclaration()
 			if classDecl != nil && classDecl.HeritageClauses != nil && len(classDecl.HeritageClauses.Nodes) > 0 {
-				// Simplified: if there are heritage clauses, assume it extends something
-				return true
+				// Check if it extends something other than null
+				for _, heritage := range classDecl.HeritageClauses.Nodes {
+					if heritageClause := heritage.AsHeritageClause(); heritageClause != nil {
+						for _, typeNode := range heritageClause.Types.Nodes {
+							if exprWithType := typeNode.AsExpressionWithTypeArguments(); exprWithType != nil {
+								if exprWithType.Expression.Kind != ast.KindNullKeyword {
+									return true
+								}
+							}
+						}
+					}
+				}
 			}
-			// Check ClassExpression too
+		} else if current.Kind == ast.KindClassExpression {
 			classExpr := current.AsClassExpression()
 			if classExpr != nil && classExpr.HeritageClauses != nil && len(classExpr.HeritageClauses.Nodes) > 0 {
-				// Simplified: if there are heritage clauses, assume it extends something
-				return true
+				// Check if it extends something other than null
+				for _, heritage := range classExpr.HeritageClauses.Nodes {
+					if heritageClause := heritage.AsHeritageClause(); heritageClause != nil {
+						for _, typeNode := range heritageClause.Types.Nodes {
+							if exprWithType := typeNode.AsExpressionWithTypeArguments(); exprWithType != nil {
+								if exprWithType.Expression.Kind != ast.KindNullKeyword {
+									return true
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 		current = current.Parent
@@ -65,10 +85,61 @@ func hasSuperCallBefore(constructor *ast.Node, position *ast.Node) bool {
 		return false
 	}
 
-	// Constructor nodes don't have AsConstructor(), we need to check for Body differently
-	// For now, return false as this is a simplified implementation
-	// A full implementation would need to properly traverse the constructor body
-	return false
+	// Get the constructor declaration to access its body
+	constructorDecl := constructor.AsConstructorDeclaration()
+	if constructorDecl == nil || constructorDecl.Body == nil {
+		return false
+	}
+
+	body := constructorDecl.Body.AsBlock()
+	if body == nil || body.Statements == nil {
+		return false
+	}
+
+	// Track if we've seen a super() call
+	foundSuper := false
+	positionStart := position.Pos()
+
+	// Walk through the statements in the constructor body
+	for _, stmt := range body.Statements.Nodes {
+		// If this statement starts after the position we're checking, stop
+		if stmt.Pos() >= positionStart {
+			break
+		}
+
+		// Check if this statement (or its descendants) contains a super() call
+		if containsSuperCall(stmt) {
+			foundSuper = true
+		}
+	}
+
+	return foundSuper
+}
+
+// Helper to check if a node or its descendants contain a super() call
+func containsSuperCall(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Check if this is a call expression with super as the callee
+	if node.Kind == ast.KindCallExpression {
+		callExpr := node.AsCallExpression()
+		if callExpr != nil && callExpr.Expression != nil && callExpr.Expression.Kind == ast.KindSuperKeyword {
+			return true
+		}
+	}
+
+	// Recursively check children
+	found := false
+	node.ForEachChild(func(child *ast.Node) bool {
+		if child != nil && containsSuperCall(child) {
+			found = true
+		}
+		return true // Continue iteration
+	})
+
+	return found
 }
 
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
