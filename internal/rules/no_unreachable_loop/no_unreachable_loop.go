@@ -68,29 +68,29 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Get the loop body
 		var body *ast.Node
 
-		switch node.Kind() {
+		switch node.Kind {
 		case ast.KindWhileStatement:
-			whileStmt := node.WhileStatement()
+			whileStmt := node.AsWhileStatement()
 			if whileStmt != nil {
 				body = &whileStmt.Statement
 			}
 		case ast.KindDoStatement:
-			doStmt := node.DoStatement()
+			doStmt := node.AsDoStatement()
 			if doStmt != nil {
 				body = &doStmt.Statement
 			}
 		case ast.KindForStatement:
-			forStmt := node.ForStatement()
+			forStmt := node.AsForStatement()
 			if forStmt != nil {
 				body = &forStmt.Statement
 			}
 		case ast.KindForInStatement:
-			forInStmt := node.ForInStatement()
+			forInStmt := node.AsForInStatement()
 			if forInStmt != nil {
 				body = &forInStmt.Statement
 			}
 		case ast.KindForOfStatement:
-			forOfStmt := node.ForOfStatement()
+			forOfStmt := node.AsForOfStatement()
 			if forOfStmt != nil {
 				body = &forOfStmt.Statement
 			}
@@ -144,7 +144,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 		return false
 	}
 
-	kind := stmt.Kind()
+	kind := stmt.Kind
 
 	switch kind {
 	case ast.KindReturnStatement, ast.KindThrowStatement:
@@ -153,7 +153,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 
 	case ast.KindBreakStatement:
 		// Break without label exits the current loop
-		breakStmt := stmt.BreakStatement()
+		breakStmt := stmt.AsBreakStatement()
 		if breakStmt == nil {
 			return true
 		}
@@ -167,7 +167,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 
 	case ast.KindBlock:
 		// A block exits if it contains any statement that exits
-		block := stmt.Block()
+		block := stmt.AsBlock()
 		if block == nil || block.Statements == nil {
 			return false
 		}
@@ -181,7 +181,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 
 	case ast.KindIfStatement:
 		// If statement exits if both branches exist and both exit
-		ifStmt := stmt.IfStatement()
+		ifStmt := stmt.AsIfStatement()
 		if ifStmt == nil {
 			return false
 		}
@@ -193,7 +193,7 @@ func allPathsExitLoop(stmt *ast.Node, loopNode *ast.Node) bool {
 
 	case ast.KindSwitchStatement:
 		// Switch exits if all cases exit (including default)
-		switchStmt := stmt.SwitchStatement()
+		switchStmt := stmt.AsSwitchStatement()
 		if switchStmt == nil || switchStmt.CaseBlock == nil {
 			return false
 		}

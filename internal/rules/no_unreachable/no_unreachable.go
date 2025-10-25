@@ -15,7 +15,7 @@ var NoUnreachableRule = rule.Rule{
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	return rule.RuleListeners{
 		ast.KindBlock: func(node *ast.Node) {
-			block := node.Block()
+			block := node.AsBlock()
 			if block == nil || block.Statements == nil {
 				return
 			}
@@ -41,19 +41,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 		},
 		ast.KindSwitchStatement: func(node *ast.Node) {
-			switchStmt := node.SwitchStatement()
+			switchStmt := node.AsSwitchStatement()
 			if switchStmt == nil || switchStmt.CaseBlock == nil {
 				return
 			}
 
-			caseBlock := switchStmt.CaseBlock.CaseBlock()
+			caseBlock := switchStmt.CaseBlock.AsCaseBlock()
 			if caseBlock == nil || caseBlock.Clauses == nil {
 				return
 			}
 
 			// Check each case/default clause for unreachable code
 			for _, clause := range *caseBlock.Clauses {
-				clauseNode := clause.CaseOrDefaultClause()
+				clauseNode := clause.AsCaseOrDefaultClause()
 				if clauseNode == nil || clauseNode.Statements == nil {
 					continue
 				}
@@ -79,7 +79,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 // isControlFlowExit checks if a statement causes control flow to exit
 // (return, throw, break, continue)
 func isControlFlowExit(stmt *ast.Node) bool {
-	kind := stmt.Kind()
+	kind := stmt.Kind
 
 	switch kind {
 	case ast.KindReturnStatement, ast.KindThrowStatement,
@@ -88,7 +88,7 @@ func isControlFlowExit(stmt *ast.Node) bool {
 
 	case ast.KindIfStatement:
 		// If statement exits control flow if both branches exit
-		ifStmt := stmt.IfStatement()
+		ifStmt := stmt.AsIfStatement()
 		if ifStmt == nil {
 			return false
 		}
@@ -101,7 +101,7 @@ func isControlFlowExit(stmt *ast.Node) bool {
 
 	case ast.KindBlock:
 		// A block exits if it contains an exiting statement
-		block := stmt.Block()
+		block := stmt.AsBlock()
 		if block == nil || block.Statements == nil {
 			return false
 		}

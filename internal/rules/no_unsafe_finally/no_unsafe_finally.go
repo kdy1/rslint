@@ -15,7 +15,7 @@ var NoUnsafeFinallyRule = rule.Rule{
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	return rule.RuleListeners{
 		ast.KindTryStatement: func(node *ast.Node) {
-			tryStmt := node.TryStatement()
+			tryStmt := node.AsTryStatement()
 			if tryStmt == nil || tryStmt.FinallyBlock == nil {
 				return
 			}
@@ -44,7 +44,7 @@ func traverseForUnsafeStatements(ctx rule.RuleContext, node *ast.Node, nestedFun
 		return
 	}
 
-	kind := node.Kind()
+	kind := node.Kind
 
 	// If we're inside a function or class, control flow statements are safe
 	if nestedFunctionDepth > 0 {
@@ -99,7 +99,7 @@ func traverseForUnsafeStatements(ctx rule.RuleContext, node *ast.Node, nestedFun
 }
 
 // isFunctionOrClass checks if a node kind represents a function or class
-func isFunctionOrClass(kind ast.SyntaxKind) bool {
+func isFunctionOrClass(kind ast.Kind) bool {
 	return kind == ast.KindFunctionDeclaration ||
 		kind == ast.KindFunctionExpression ||
 		kind == ast.KindArrowFunction ||
@@ -125,11 +125,11 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 		return
 	}
 
-	kind := node.Kind()
+	kind := node.Kind
 
 	switch kind {
 	case ast.KindBlock:
-		block := node.Block()
+		block := node.AsBlock()
 		if block != nil && block.Statements != nil {
 			for _, stmt := range block.Statements {
 				traverseForUnsafeStatements(ctx, &stmt, nestedFunctionDepth)
@@ -137,7 +137,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 		}
 
 	case ast.KindIfStatement:
-		ifStmt := node.IfStatement()
+		ifStmt := node.AsIfStatement()
 		if ifStmt != nil {
 			traverseForUnsafeStatements(ctx, &ifStmt.ThenStatement, nestedFunctionDepth)
 			if ifStmt.ElseStatement != nil {
@@ -146,7 +146,7 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 		}
 
 	case ast.KindSwitchStatement:
-		switchStmt := node.SwitchStatement()
+		switchStmt := node.AsSwitchStatement()
 		if switchStmt != nil && switchStmt.CaseBlock != nil {
 			caseBlock := switchStmt.CaseBlock.CaseBlock()
 			if caseBlock != nil && caseBlock.Clauses != nil {
@@ -162,43 +162,43 @@ func traverseChildren(ctx rule.RuleContext, node *ast.Node, nestedFunctionDepth 
 		}
 
 	case ast.KindWhileStatement:
-		whileStmt := node.WhileStatement()
+		whileStmt := node.AsWhileStatement()
 		if whileStmt != nil {
 			traverseForUnsafeStatements(ctx, &whileStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindDoStatement:
-		doStmt := node.DoStatement()
+		doStmt := node.AsDoStatement()
 		if doStmt != nil {
 			traverseForUnsafeStatements(ctx, &doStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindForStatement:
-		forStmt := node.ForStatement()
+		forStmt := node.AsForStatement()
 		if forStmt != nil {
 			traverseForUnsafeStatements(ctx, &forStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindForInStatement:
-		forInStmt := node.ForInStatement()
+		forInStmt := node.AsForInStatement()
 		if forInStmt != nil {
 			traverseForUnsafeStatements(ctx, &forInStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindForOfStatement:
-		forOfStmt := node.ForOfStatement()
+		forOfStmt := node.AsForOfStatement()
 		if forOfStmt != nil {
 			traverseForUnsafeStatements(ctx, &forOfStmt.Statement, nestedFunctionDepth)
 		}
 
 	case ast.KindTryStatement:
-		tryStmt := node.TryStatement()
+		tryStmt := node.AsTryStatement()
 		if tryStmt != nil {
 			if tryStmt.TryBlock != nil {
 				traverseForUnsafeStatements(ctx, tryStmt.TryBlock, nestedFunctionDepth)
 			}
 			if tryStmt.CatchClause != nil {
-				catchClause := tryStmt.CatchClause.CatchClause()
+				catchClause := tryStmt.CatchClause.AsCatchClause()
 				if catchClause != nil && catchClause.Block != nil {
 					traverseForUnsafeStatements(ctx, catchClause.Block, nestedFunctionDepth)
 				}
@@ -230,23 +230,23 @@ func getFunctionBody(node *ast.Node) *ast.Node {
 		return nil
 	}
 
-	switch node.Kind() {
+	switch node.Kind {
 	case ast.KindFunctionDeclaration:
-		funcDecl := node.FunctionDeclaration()
+		funcDecl := node.AsFunctionDeclaration()
 		if funcDecl != nil {
 			return funcDecl.Body
 		}
 	case ast.KindFunctionExpression:
-		funcExpr := node.FunctionExpression()
+		funcExpr := node.AsFunctionExpression()
 		if funcExpr != nil {
 			return funcExpr.Body
 		}
 	case ast.KindArrowFunction:
-		arrowFunc := node.ArrowFunction()
+		arrowFunc := node.AsArrowFunction()
 		if arrowFunc != nil {
 			// Arrow functions might have expression bodies
 			// For now, just return nil if not a block
-			if arrowFunc.Body != nil && arrowFunc.Body.Kind() == ast.KindBlock {
+			if arrowFunc.Body != nil && arrowFunc.Body.Kind == ast.KindBlock {
 				return arrowFunc.Body
 			}
 		}
