@@ -75,6 +75,9 @@ import (
 	"github.com/web-infra-dev/rslint/internal/rules/getter_return"
 	"github.com/web-infra-dev/rslint/internal/rules/no_async_promise_executor"
 	"github.com/web-infra-dev/rslint/internal/rules/no_await_in_loop"
+	"github.com/web-infra-dev/rslint/internal/rules/no_lone_blocks"
+	"github.com/web-infra-dev/rslint/internal/rules/no_multi_str"
+	"github.com/web-infra-dev/rslint/internal/rules/no_new"
 )
 
 // RslintConfig represents the top-level configuration array
@@ -419,6 +422,9 @@ func registerAllCoreEslintRules() {
 	GlobalRuleRegistry.Register("getter-return", getter_return.GetterReturnRule)
 	GlobalRuleRegistry.Register("no-async-promise-executor", no_async_promise_executor.NoAsyncPromiseExecutorRule)
 	GlobalRuleRegistry.Register("no-await-in-loop", no_await_in_loop.NoAwaitInLoopRule)
+	GlobalRuleRegistry.Register("no-lone-blocks", no_lone_blocks.NoLoneBlocksRule)
+	GlobalRuleRegistry.Register("no-multi-str", no_multi_str.NoMultiStrRule)
+	GlobalRuleRegistry.Register("no-new", no_new.NoNewRule)
 }
 
 // getAllTypeScriptEslintPluginRules returns all registered rules (for backward compatibility when no config is provided)
