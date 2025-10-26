@@ -25,28 +25,30 @@ This rule prevents passing arguments of type `any` to functions that expect spec
 #### Examples
 
 **Incorrect**:
+
 ```typescript
 declare function foo(arg: number): void;
-foo(1 as any);  // ❌ Unsafe argument of type 'any'
+foo(1 as any); // ❌ Unsafe argument of type 'any'
 
 declare function bar(...args: number[]): void;
-bar(1, 2, 1 as any);  // ❌ Unsafe argument of type 'any'
+bar(1, 2, 1 as any); // ❌ Unsafe argument of type 'any'
 
 // Unsafe spread
 declare function baz(arg1: string, arg2: number): void;
-baz(...(x as any));  // ❌ Unsafe spread of type 'any'
+baz(...(x as any)); // ❌ Unsafe spread of type 'any'
 ```
 
 **Correct**:
+
 ```typescript
 declare function foo(arg: number): void;
-foo(42);  // ✅ Properly typed argument
+foo(42); // ✅ Properly typed argument
 
 declare function bar(arg: any): void;
-bar(1 as any);  // ✅ Function accepts 'any'
+bar(1 as any); // ✅ Function accepts 'any'
 
 declare function baz(...args: any[]): void;
-baz(1, 2, 1 as any);  // ✅ Function accepts 'any[]'
+baz(1, 2, 1 as any); // ✅ Function accepts 'any[]'
 ```
 
 #### Message IDs
@@ -61,6 +63,7 @@ baz(1, 2, 1 as any);  // ✅ Function accepts 'any[]'
 **Location**: `internal/plugins/typescript/rules/no_unsafe_argument/no_unsafe_argument.go`
 
 **Key Features**:
+
 - Validates regular function arguments
 - Checks spread arguments and tuples
 - Handles tagged template expressions
@@ -88,28 +91,30 @@ This rule prevents calling expressions where the callee has type `any`. This is 
 #### Examples
 
 **Incorrect**:
+
 ```typescript
 declare const anyValue: any;
-anyValue();  // ❌ Unsafe call of an `any` typed value
+anyValue(); // ❌ Unsafe call of an `any` typed value
 
-new anyValue();  // ❌ Unsafe construction of an `any` typed value
+new anyValue(); // ❌ Unsafe construction of an `any` typed value
 
-anyValue`template`;  // ❌ Unsafe use of an `any` typed template tag
+anyValue`template`; // ❌ Unsafe use of an `any` typed template tag
 
 declare const func: Function;
-func();  // ❌ `Function` type is unsafe without proper signatures
+func(); // ❌ `Function` type is unsafe without proper signatures
 ```
 
 **Correct**:
+
 ```typescript
 declare const func: () => void;
-func();  // ✅ Properly typed function
+func(); // ✅ Properly typed function
 
 declare const Constructor: new () => Object;
-new Constructor();  // ✅ Properly typed constructor
+new Constructor(); // ✅ Properly typed constructor
 
 declare const tag: (strings: TemplateStringsArray) => string;
-tag`template`;  // ✅ Properly typed template tag
+tag`template`; // ✅ Properly typed template tag
 ```
 
 #### Message IDs
@@ -124,6 +129,7 @@ tag`template`;  // ✅ Properly typed template tag
 **Location**: `internal/plugins/typescript/rules/no_unsafe_call/no_unsafe_call.go`
 
 **Key Features**:
+
 - Validates call expressions
 - Checks new expressions (constructors)
 - Handles tagged template expressions
@@ -152,29 +158,31 @@ This rule prevents accessing properties on values with type `any`. Since TypeScr
 #### Examples
 
 **Incorrect**:
+
 ```typescript
 declare const anyValue: any;
-anyValue.foo;  // ❌ Unsafe member access on an `any` value
+anyValue.foo; // ❌ Unsafe member access on an `any` value
 
-anyValue['bar'];  // ❌ Unsafe member access on an `any` value
+anyValue['bar']; // ❌ Unsafe member access on an `any` value
 
 declare const obj: { prop: any };
-obj.prop.nested;  // ❌ Unsafe member access on an `any` value
+obj.prop.nested; // ❌ Unsafe member access on an `any` value
 
 const index: any = 'key';
-obj[index];  // ❌ Computed name resolves to an `any` value
+obj[index]; // ❌ Computed name resolves to an `any` value
 ```
 
 **Correct**:
+
 ```typescript
 declare const typedValue: { foo: string };
-typedValue.foo;  // ✅ Safe access on typed value
+typedValue.foo; // ✅ Safe access on typed value
 
 declare const record: Record<string, unknown>;
-record['bar'];  // ✅ Safe access with proper typing
+record['bar']; // ✅ Safe access with proper typing
 
 declare const obj: { prop: { nested: number } };
-obj.prop.nested;  // ✅ Fully typed access chain
+obj.prop.nested; // ✅ Fully typed access chain
 ```
 
 #### Message IDs
@@ -188,6 +196,7 @@ obj.prop.nested;  // ✅ Fully typed access chain
 **Location**: `internal/plugins/typescript/rules/no_unsafe_member_access/no_unsafe_member_access.go`
 
 **Key Features**:
+
 - Monitors property access expressions
 - Checks element access expressions
 - Caches state to avoid duplicate reports on nested member access
@@ -219,6 +228,7 @@ These rules are automatically registered in RSLint. To enable them in your `rsli
 ### Prerequisites
 
 These rules require:
+
 1. TypeScript type checking to be enabled
 2. A valid `tsconfig.json` in your project
 3. TypeScript files to be analyzed
@@ -226,6 +236,7 @@ These rules require:
 ### When to Use
 
 Enable these rules when:
+
 - You want to maintain strict type safety in your TypeScript codebase
 - You're migrating from JavaScript and want to eliminate `any` usage
 - You need to catch potential runtime errors at compile time
@@ -234,6 +245,7 @@ Enable these rules when:
 ### When Not to Use
 
 You might disable these rules when:
+
 - Working with legacy code that heavily uses `any`
 - Interfacing with untyped third-party libraries (consider using `@ts-ignore` or proper type definitions instead)
 - During initial migration phases (enable progressively)
