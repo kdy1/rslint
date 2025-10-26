@@ -5,91 +5,128 @@ import (
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-func buildAsyncMessage() rule.RuleMessage {
-	return rule.RuleMessage{
-		Id:          "async",
-		Description: "Promise executor functions should not be async.",
-	}
+// NoAsyncPromiseExecutorRule implements the no-async-promise-executor rule
+// Disallow using an async function as a Promise executor
+var NoAsyncPromiseExecutorRule = rule.Rule{
+	Name: "no-async-promise-executor",
+	Run:  run,
 }
 
-// NoAsyncPromiseExecutorRule disallows using an async function as a Promise executor
-var NoAsyncPromiseExecutorRule = rule.CreateRule(rule.Rule{
-	Name: "no-async-promise-executor",
-	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		return rule.RuleListeners{
-			ast.KindNewExpression: func(node *ast.Node) {
-				if node == nil {
-					return
+func run(ctx rule.RuleContext, options any) rule.RuleListeners {
+
+	return rule.RuleListeners{
+		ast.KindNewExpression: func(node *ast.Node) {
+			if node == nil {
+				return
+			}
+
+			newExpr := node.AsNewExpression()
+			if newExpr == nil {
+				return
+			}
+
+			// Check if the callee is "Promise"
+			if newExpr.Expression == nil {
+				return
+			}
+
+			callee := newExpr.Expression
+			var calleeName string
+
+			// Handle direct identifier (Promise)
+			if callee.Kind == ast.KindIdentifier {
+				ident := callee.AsIdentifier()
+				if ident != nil && ident.EscapedText != nil {
+					calleeName = *ident.EscapedText
 				}
+			}
 
-				// Check if it's a new Promise(...) expression
-				expr := node.Expression()
-				if expr == nil || expr.Kind != ast.KindIdentifier {
-					return
-				}
+			// Only check if the constructor is "Promise"
+			if calleeName != "Promise" {
+				return
+			}
 
-				if expr.Text() != "Promise" {
-					return
-				}
+			// Check if there are arguments and the first one is async
+			if newExpr.Arguments == nil || len(newExpr.Arguments.Elements) == 0 {
+				return
+			}
 
-				// Get the arguments
-				args := node.Arguments()
-				if args == nil || len(args) == 0 {
-					return
-				}
+			firstArg := newExpr.Arguments.Elements[0]
+			if firstArg == nil {
+				return
+			}
 
-				// Check the first argument (executor function)
-				executor := args[0]
-				if executor == nil {
-					return
-				}
+			// Check if the first argument is an async function
+			isAsync := false
+			var asyncNode *ast.Node = firstArg
 
-				// Unwrap parentheses to get to the actual function
-				actualExecutor := executor
-				for actualExecutor != nil && actualExecutor.Kind == ast.KindParenthesizedExpression {
-					actualExecutor = actualExecutor.Expression()
-				}
-
-				if actualExecutor == nil {
-					return
-				}
-
-				// Check if the executor is an async function
-				var isAsync bool
-				var asyncKeywordNode *ast.Node
-
-				switch actualExecutor.Kind {
-				case ast.KindFunctionExpression:
-					// Check for async keyword
-					mods := actualExecutor.Modifiers()
-					if mods != nil {
-						for _, mod := range mods.Nodes {
-							if mod != nil && mod.Kind == ast.KindAsyncKeyword {
-								isAsync = true
-								asyncKeywordNode = mod
-								break
-							}
-						}
-					}
-
-				case ast.KindArrowFunction:
-					// Arrow functions can be async
-					mods := actualExecutor.Modifiers()
-					if mods != nil {
-						for _, mod := range mods.Nodes {
-							if mod != nil && mod.Kind == ast.KindAsyncKeyword {
-								isAsync = true
-								asyncKeywordNode = mod
-								break
-							}
+			switch firstArg.Kind {
+			case ast.KindArrowFunction:
+				arrowFunc := firstArg.AsArrowFunction()
+				if arrowFunc != nil && arrowFunc.Modifiers != nil {
+					for _, mod := range arrowFunc.Modifiers.Elements {
+						if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+							isAsync = true
+							asyncNode = mod
+							break
 						}
 					}
 				}
-
-				if isAsync && asyncKeywordNode != nil {
-					ctx.ReportNode(asyncKeywordNode, buildAsyncMessage())
+			case ast.KindFunctionExpression:
+				funcExpr := firstArg.AsFunctionExpression()
+				if funcExpr != nil && funcExpr.Modifiers != nil {
+					for _, mod := range funcExpr.Modifiers.Elements {
+						if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+							isAsync = true
+							asyncNode = mod
+							break
+						}
+					}
 				}
-			},
-		}
-	},
-})
+			case ast.KindParenthesizedExpression:
+				// Unwrap parenthesized expressions
+				current := firstArg
+				for current != nil && current.Kind == ast.KindParenthesizedExpression {
+					parenExpr := current.AsParenthesizedExpression()
+					if parenExpr == nil || parenExpr.Expression == nil {
+						break
+					}
+					current = parenExpr.Expression
+
+					// Check if the unwrapped expression is an async function
+					if current.Kind == ast.KindArrowFunction {
+						arrowFunc := current.AsArrowFunction()
+						if arrowFunc != nil && arrowFunc.Modifiers != nil {
+							for _, mod := range arrowFunc.Modifiers.Elements {
+								if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+									isAsync = true
+									asyncNode = mod
+									break
+								}
+							}
+						}
+					} else if current.Kind == ast.KindFunctionExpression {
+						funcExpr := current.AsFunctionExpression()
+						if funcExpr != nil && funcExpr.Modifiers != nil {
+							for _, mod := range funcExpr.Modifiers.Elements {
+								if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+									isAsync = true
+									asyncNode = mod
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Report if async
+			if isAsync {
+				ctx.ReportNode(asyncNode, rule.RuleMessage{
+					Id:          "async",
+					Description: "Promise executor functions should not be async.",
+				})
+			}
+		},
+	}
+}

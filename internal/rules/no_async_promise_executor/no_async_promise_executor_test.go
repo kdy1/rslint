@@ -1,10 +1,9 @@
 package no_async_promise_executor
 
 import (
-	"testing"
-
-	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
 	"github.com/web-infra-dev/rslint/internal/rule_tester"
+	"github.com/web-infra-dev/rslint/internal/rules/fixtures"
+	"testing"
 )
 
 func TestNoAsyncPromiseExecutorRule(t *testing.T) {
@@ -13,16 +12,12 @@ func TestNoAsyncPromiseExecutorRule(t *testing.T) {
 		"tsconfig.json",
 		t,
 		&NoAsyncPromiseExecutorRule,
-		// Valid cases
 		[]rule_tester.ValidTestCase{
-			// Regular Promise executors (not async)
 			{Code: `new Promise((resolve, reject) => {})`},
 			{Code: `new Promise((resolve, reject) => {}, async function unrelated() {})`},
 			{Code: `new Foo(async (resolve, reject) => {})`},
 		},
-		// Invalid cases
 		[]rule_tester.InvalidTestCase{
-			// Async named function
 			{
 				Code: `new Promise(async function foo(resolve, reject) {})`,
 				Errors: []rule_tester.InvalidTestCaseError{
@@ -33,8 +28,6 @@ func TestNoAsyncPromiseExecutorRule(t *testing.T) {
 					},
 				},
 			},
-
-			// Async arrow function
 			{
 				Code: `new Promise(async (resolve, reject) => {})`,
 				Errors: []rule_tester.InvalidTestCaseError{
@@ -45,8 +38,6 @@ func TestNoAsyncPromiseExecutorRule(t *testing.T) {
 					},
 				},
 			},
-
-			// Wrapped async arrow function
 			{
 				Code: `new Promise(((((async () => {})))))`,
 				Errors: []rule_tester.InvalidTestCaseError{
