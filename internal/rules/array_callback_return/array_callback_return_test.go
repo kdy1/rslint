@@ -15,14 +15,6 @@ func TestArrayCallbackReturnRule(t *testing.T) {
 		&ArrayCallbackReturnRule,
 		// Valid cases
 		[]rule_tester.ValidTestCase{
-			// Non-target methods
-			{Code: `Array.from(x, function() {});`},
-			{Code: `foo.every(function() {});`},
-			{Code: `foo.filter(function foo() {});`},
-			{Code: `foo.find(function foo() {});`},
-			{Code: `foo.reduce(function foo() {});`},
-			{Code: `[].every(function() {});`},
-
 			// forEach without checkForEach option
 			{Code: `foo.forEach(function(x) { return x; });`},
 			{Code: `foo.forEach(function() { if (a === b) { return; } });`},

@@ -166,6 +166,52 @@ func isFunctionNode(node *ast.Node) bool {
 		node.Kind == ast.KindMethodDeclaration
 }
 
+// isGeneratorOrAsyncFunction checks if a node is a generator or async function
+func isGeneratorOrAsyncFunction(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Check if it has async modifier
+	modifiers := node.Modifiers()
+	if modifiers != nil {
+		for _, mod := range modifiers.Nodes {
+			if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+				return true
+			}
+		}
+	}
+
+	// Check for generator function (function*)
+	// Generators contain yield expressions
+	// We check recursively through the body
+	if containsYield(node.Body()) {
+		return true
+	}
+
+	return false
+}
+
+// containsYield recursively checks if a node contains a yield expression
+func containsYield(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+	if node.Kind == ast.KindYieldExpression {
+		return true
+	}
+	// Recursively check children
+	found := false
+	node.ForEachChild(func(child *ast.Node) bool {
+		if containsYield(child) {
+			found = true
+			return true // Stop iteration
+		}
+		return false // Continue iteration
+	})
+	return found
+}
+
 // isVoidExpression checks if an expression is a void expression
 func isVoidExpression(node *ast.Node) bool {
 	if node == nil {
@@ -177,6 +223,11 @@ func isVoidExpression(node *ast.Node) bool {
 // checkCallbackReturn validates that a callback has proper return statements
 func checkCallbackReturn(ctx rule.RuleContext, funcNode *ast.Node, methodName string, opts Options, checkForEach bool) {
 	if funcNode == nil {
+		return
+	}
+
+	// Skip generator and async functions - they have different control flow semantics
+	if isGeneratorOrAsyncFunction(funcNode) {
 		return
 	}
 
@@ -290,7 +341,7 @@ func analyzeCallbackReturns(body *ast.Node, allowImplicit bool) callbackReturnRe
 	}
 
 	// Heuristic for determining if all paths return:
-	// Similar to getter_return logic
+	// This is a simplified heuristic that works for common cases
 	countReturnsWithValue := 0
 	ast.ForEachReturnStatement(body, func(stmt *ast.Node) bool {
 		if stmt.Expression() != nil {
@@ -299,8 +350,30 @@ func analyzeCallbackReturns(body *ast.Node, allowImplicit bool) callbackReturnRe
 		return false
 	})
 
+	// For try-catch blocks, if the try block has a return, we consider it valid
+	// even if the catch doesn't (since the catch only runs on exception)
+	hasTryStatement := false
+	if body.Kind == ast.KindBlock {
+		statements := body.Statements()
+		for _, stmt := range statements {
+			if stmt != nil {
+				if stmt.Kind == ast.KindTryStatement {
+					hasTryStatement = true
+				}
+			}
+		}
+	}
+
+	// Check if all paths return based on the structure
+	// We use several heuristics:
+	// 1. Single return statement (obviously all paths return)
+	// 2. Simple body with no empty returns and at least one return
+	// 3. Try-catch with a return in the try block
+	// Note: We intentionally don't try to detect if-else patterns perfectly
+	// as this requires proper control flow analysis which is complex
 	allPathsReturn := isSingleReturn ||
-		(!hasReturnWithoutValue && (isSimpleBody(body) || countReturnsWithValue >= 2))
+		(!hasReturnWithoutValue && isSimpleBody(body) && hasReturnWithValue) ||
+		(hasTryStatement && hasReturnWithValue)
 
 	result.hasNoReturns = false
 	result.allPathsReturn = allPathsReturn
@@ -348,14 +421,15 @@ var ArrayCallbackReturnRule = rule.CreateRule(rule.Rule{
 				methodName := getMethodName(node)
 				isArrayFrom := false
 
-				// Check if it's Array.from
+				// Check if it's Array.from (needs special handling)
+				if isArrayFromCall(node) {
+					methodName = "from"
+					isArrayFrom = true
+				}
+
+				// Check if we have a method name
 				if methodName == "" {
-					if isArrayFromCall(node) {
-						methodName = "from"
-						isArrayFrom = true
-					} else {
-						return
-					}
+					return
 				}
 
 				// Check if it's a target method
