@@ -131,18 +131,9 @@ func isInvalidExtends(node *ast.Node) bool {
 		expr := node.Expression()
 		return isInvalidExtends(expr)
 	case ast.KindBinaryExpression:
-		// Binary expressions like B = 5, B += C are invalid
-		// Only simple references or valid expressions are OK
-		// We need to be conservative here
-		binExpr := node.AsBinaryExpression()
-		if binExpr != nil && binExpr.OperatorToken != nil {
-			// Assignment operators are invalid
-			switch binExpr.OperatorToken.Kind {
-			case ast.KindEqualsToken, ast.KindPlusEqualsToken, ast.KindMinusEqualsToken,
-				ast.KindAsteriskEqualsToken, ast.KindSlashEqualsToken:
-				return true
-			}
-		}
+		// For binary expressions, check if the result could be a constructor
+		// Assignment like (B = C) is valid if C could be a constructor
+		return !isPossibleConstructor(node)
 	}
 
 	return false
@@ -169,6 +160,7 @@ func isPossibleConstructor(node *ast.Node) bool {
 		// For assignments like (B = C), check the right side
 		binExpr := node.AsBinaryExpression()
 		if binExpr != nil && binExpr.OperatorToken != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken {
+			// Assignment - check if right side could be a constructor
 			return isPossibleConstructor(binExpr.Right)
 		}
 		// For logical expressions (&&, ||), check the right side
@@ -178,7 +170,7 @@ func isPossibleConstructor(node *ast.Node) bool {
 				return isPossibleConstructor(binExpr.Right)
 			}
 		}
-		// For other operators, it's not a constructor
+		// For other operators (+=, -=, *=, /=), it's not a valid constructor
 		return false
 	case ast.KindConditionalExpression:
 		// For ternary, both branches must be constructors
@@ -193,10 +185,206 @@ func isPossibleConstructor(node *ast.Node) bool {
 	case ast.KindCallExpression:
 		// Could return a constructor
 		return true
+	case ast.KindNumericLiteral, ast.KindStringLiteral, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword:
+		// Literals are definitely not constructors
+		return false
 	}
 
 	// For other node types, assume it could be a constructor
 	return true
+}
+
+// findDuplicateSuperCalls finds super() calls that could execute sequentially (real duplicates)
+// Returns super() calls that are duplicates (excluding the first one)
+func findDuplicateSuperCalls(body *ast.Node, superCallLocations []*ast.Node) []*ast.Node {
+	if body == nil || body.Kind != ast.KindBlock {
+		return nil
+	}
+
+	statements := body.Statements()
+	var duplicates []*ast.Node
+	foundFirstSuper := false
+
+	for _, stmt := range statements {
+		if stmt == nil {
+			continue
+		}
+
+		// Check if this statement directly contains a super() call
+		if hasSuperCall(stmt) {
+			if foundFirstSuper {
+				// This is a duplicate - super after another super at the same level
+				// Find the corresponding super call node
+				for _, loc := range superCallLocations {
+					if isSuperCallInStatement(stmt, loc) {
+						duplicates = append(duplicates, loc)
+					}
+				}
+			} else {
+				foundFirstSuper = true
+			}
+		}
+
+		// After finding first super, any additional super calls anywhere are duplicates
+		if foundFirstSuper {
+			// Find all super calls in this statement (recursively)
+			findSuperCallsInNode(stmt, superCallLocations, &duplicates)
+		}
+
+		// Check branching statements that have super in all branches
+		switch stmt.Kind {
+		case ast.KindIfStatement:
+			ifStmt := stmt.AsIfStatement()
+			if ifStmt != nil && ifStmt.ElseStatement != nil {
+				// If-else with super in both branches
+				if statementHasSuper(ifStmt.ThenStatement) && statementHasSuper(ifStmt.ElseStatement) {
+					foundFirstSuper = true
+				}
+			}
+		case ast.KindSwitchStatement:
+			if switchHasSuper(stmt) {
+				foundFirstSuper = true
+			}
+		case ast.KindExpressionStatement:
+			// Check ternary expression with super in both branches
+			expr := stmt.Expression()
+			if expr != nil && expr.Kind == ast.KindConditionalExpression {
+				condExpr := expr.AsConditionalExpression()
+				if condExpr != nil {
+					if expressionHasSuper(condExpr.WhenTrue) && expressionHasSuper(condExpr.WhenFalse) {
+						foundFirstSuper = true
+					}
+				}
+			}
+		}
+	}
+
+	return duplicates
+}
+
+// findSuperCallsInNode finds super() calls in a node (excluding direct super calls at the statement level)
+func findSuperCallsInNode(node *ast.Node, superCallLocations []*ast.Node, duplicates *[]*ast.Node) {
+	if node == nil {
+		return
+	}
+
+	// Don't check direct expression statements with super (already handled)
+	if node.Kind == ast.KindExpressionStatement {
+		if hasSuperCall(node) {
+			return
+		}
+	}
+
+	// Check if this node contains any super calls
+	for _, loc := range superCallLocations {
+		if isSuperCallInNode(node, loc) && !contains(*duplicates, loc) {
+			*duplicates = append(*duplicates, loc)
+		}
+	}
+}
+
+// isSuperCallInNode checks if a super call is inside a node (not at the direct statement level)
+func isSuperCallInNode(node *ast.Node, superCall *ast.Node) bool {
+	// Don't match if this IS the super call itself at expression statement level
+	if node.Kind == ast.KindExpressionStatement {
+		expr := node.Expression()
+		if expr != nil && expr == superCall {
+			return false
+		}
+	}
+
+	return isSuperCallInStatement(node, superCall)
+}
+
+// contains checks if a slice contains a node
+func contains(slice []*ast.Node, item *ast.Node) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// isSuperCallInStatement checks if a super call node is contained in a statement
+func isSuperCallInStatement(stmt *ast.Node, superCall *ast.Node) bool {
+	found := false
+	var check func(*ast.Node)
+	check = func(node *ast.Node) {
+		if node == nil || found {
+			return
+		}
+		if node == superCall {
+			found = true
+			return
+		}
+		node.ForEachChild(func(child *ast.Node) bool {
+			check(child)
+			return found // Stop if found
+		})
+	}
+	check(stmt)
+	return found
+}
+
+// allPathsTerminateEarly checks if all code paths terminate early (return/throw) without calling super
+func allPathsTerminateEarly(body *ast.Node) bool {
+	if body == nil || body.Kind != ast.KindBlock {
+		return false
+	}
+
+	statements := body.Statements()
+	if len(statements) == 0 {
+		return false
+	}
+
+	// Check if all paths lead to early termination
+	return statementTerminatesEarly(statements)
+}
+
+// statementTerminatesEarly checks if a statement or sequence of statements terminates early
+func statementTerminatesEarly(statements []*ast.Node) bool {
+	for _, stmt := range statements {
+		if stmt == nil {
+			continue
+		}
+
+		// Direct termination
+		if stmt.Kind == ast.KindReturnStatement || stmt.Kind == ast.KindThrowStatement {
+			return true
+		}
+
+		// If-else where both branches terminate
+		if stmt.Kind == ast.KindIfStatement {
+			ifStmt := stmt.AsIfStatement()
+			if ifStmt != nil && ifStmt.ElseStatement != nil {
+				thenTerminates := branchTerminates(ifStmt.ThenStatement)
+				elseTerminates := branchTerminates(ifStmt.ElseStatement)
+				if thenTerminates && elseTerminates {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// branchTerminates checks if a branch (statement or block) terminates early
+func branchTerminates(stmt *ast.Node) bool {
+	if stmt == nil {
+		return false
+	}
+
+	if stmt.Kind == ast.KindReturnStatement || stmt.Kind == ast.KindThrowStatement {
+		return true
+	}
+
+	if stmt.Kind == ast.KindBlock {
+		return statementTerminatesEarly(stmt.Statements())
+	}
+
+	return false
 }
 
 // analyzeSuperCalls analyzes super() calls in a constructor body
@@ -287,12 +475,12 @@ func checkAllPathsHaveSuper(body *ast.Node) bool {
 
 // analyzeStatements checks if super() is called in all code paths
 func analyzeStatements(statements []*ast.Node) bool {
-	for _, stmt := range statements {
+	for i, stmt := range statements {
 		if stmt == nil {
 			continue
 		}
 
-		// If we find a super() call at this level, all paths up to here have it
+		// If we find a super() call at this level, all paths have it
 		if hasSuperCall(stmt) {
 			return true
 		}
@@ -300,16 +488,21 @@ func analyzeStatements(statements []*ast.Node) bool {
 		// Check control flow statements
 		switch stmt.Kind {
 		case ast.KindIfStatement:
-			// If-else with super in all branches
+			// If-else with super/return/throw in all branches
 			ifStmt := stmt.AsIfStatement()
 			if ifStmt != nil {
 				thenHasSuper := statementHasSuper(ifStmt.ThenStatement)
 				elseStmt := ifStmt.ElseStatement
 
 				if elseStmt != nil {
-					// Has else clause
+					// Has else clause - both branches must have super or terminate
 					elseHasSuper := statementHasSuper(elseStmt)
 					if thenHasSuper && elseHasSuper {
+						// Both branches have super or terminate, so we can continue
+						// Check remaining statements
+						if i+1 < len(statements) {
+							return analyzeStatements(statements[i+1:])
+						}
 						return true
 					}
 				}
@@ -318,16 +511,57 @@ func analyzeStatements(statements []*ast.Node) bool {
 		case ast.KindSwitchStatement:
 			// Switch with super in all cases (including default)
 			if switchHasSuper(stmt) {
+				// All switch paths have super, check remaining statements
+				if i+1 < len(statements) {
+					return analyzeStatements(statements[i+1:])
+				}
 				return true
 			}
 
-		case ast.KindReturnStatement:
-			// Early return means this path doesn't need super
+		case ast.KindReturnStatement, ast.KindThrowStatement:
+			// Early return/throw means this path terminates without needing super
+			// This is only valid if it's the only statement or all preceding paths also terminate
 			return true
 
-		case ast.KindThrowStatement:
-			// Throw means this path doesn't need super
+		case ast.KindExpressionStatement:
+			// Check if this is a ternary expression with super in both branches
+			expr := stmt.Expression()
+			if expr != nil && expr.Kind == ast.KindConditionalExpression {
+				condExpr := expr.AsConditionalExpression()
+				if condExpr != nil {
+					// Check if both branches have super
+					whenTrueHasSuper := expressionHasSuper(condExpr.WhenTrue)
+					whenFalseHasSuper := expressionHasSuper(condExpr.WhenFalse)
+					if whenTrueHasSuper && whenFalseHasSuper {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// expressionHasSuper checks if an expression contains a super() call
+func expressionHasSuper(expr *ast.Node) bool {
+	if expr == nil {
+		return false
+	}
+
+	// Direct super() call
+	if expr.Kind == ast.KindCallExpression {
+		callExpr := expr.Expression()
+		if callExpr != nil && callExpr.Kind == ast.KindSuperKeyword {
 			return true
+		}
+	}
+
+	// For conditional expressions, need super in both branches
+	if expr.Kind == ast.KindConditionalExpression {
+		condExpr := expr.AsConditionalExpression()
+		if condExpr != nil {
+			return expressionHasSuper(condExpr.WhenTrue) && expressionHasSuper(condExpr.WhenFalse)
 		}
 	}
 
@@ -354,7 +588,7 @@ func hasSuperCall(stmt *ast.Node) bool {
 	return false
 }
 
-// statementHasSuper checks if a statement (or block) has super call
+// statementHasSuper checks if a statement (or block) has super call or terminates
 func statementHasSuper(stmt *ast.Node) bool {
 	if stmt == nil {
 		return false
@@ -362,6 +596,11 @@ func statementHasSuper(stmt *ast.Node) bool {
 
 	if stmt.Kind == ast.KindBlock {
 		return analyzeStatements(stmt.Statements())
+	}
+
+	// Return and throw statements are valid path terminators
+	if stmt.Kind == ast.KindReturnStatement || stmt.Kind == ast.KindThrowStatement {
+		return true
 	}
 
 	return hasSuperCall(stmt)
@@ -413,7 +652,12 @@ func switchHasSuper(switchStmt *ast.Node) bool {
 		}
 
 		// Check if this clause has super
-		statements := clause.Statements()
+		// Get statements from the clause using ForEachChild
+		var statements []*ast.Node
+		clause.ForEachChild(func(child *ast.Node) bool {
+			statements = append(statements, child)
+			return false // Continue iteration
+		})
 		if !analyzeStatements(statements) {
 			allClausesHaveSuper = false
 		}
@@ -452,53 +696,26 @@ var ConstructorSuperRule = rule.CreateRule(rule.Rule{
 				if hasExtends {
 					// Derived class: must call super()
 					if !analysis.hasSuperCall {
-						// No super() call at all
-						ctx.ReportNode(node, buildMissingAll())
+						// No super() call at all - but check if all paths terminate early
+						if !allPathsTerminateEarly(body) {
+							ctx.ReportNode(node, buildMissingAll())
+						}
 					} else if !analysis.allPathsHaveSuper {
 						// super() called in some paths but not all
 						ctx.ReportNode(node, buildMissingSome())
-					} else if len(analysis.superCallLocations) > 1 {
-						// Multiple super() calls - report duplicates
-						for i := 1; i < len(analysis.superCallLocations); i++ {
-							ctx.ReportNode(analysis.superCallLocations[i], buildDuplicate())
+					} else if analysis.allPathsHaveSuper && len(analysis.superCallLocations) > 1 {
+						// Check for actual duplicates (super calls that can execute sequentially)
+						duplicates := findDuplicateSuperCalls(body, analysis.superCallLocations)
+						for _, superCall := range duplicates {
+							ctx.ReportNode(superCall, buildDuplicate())
 						}
 					}
 				} else {
-					// Non-derived class or extends null: must NOT call super()
+					// Non-derived class or extends null/invalid: must NOT call super()
 					if analysis.hasSuperCall {
 						// Report each super() call as invalid
 						for _, superCall := range analysis.superCallLocations {
 							ctx.ReportNode(superCall, buildBadSuper())
-						}
-					}
-				}
-
-				// Special check for extends with invalid expressions
-				// Check if class extends something but it's invalid (like null, literals, etc.)
-				heritageClauses := utils.GetHeritageClauses(classNode)
-				if heritageClauses != nil && len(heritageClauses.Nodes) > 0 {
-					for _, clause := range heritageClauses.Nodes {
-						if clause == nil {
-							continue
-						}
-						heritageClause := clause.AsHeritageClause()
-						if heritageClause == nil {
-							continue
-						}
-						if heritageClause.Token == ast.KindExtendsKeyword {
-							types := heritageClause.Types
-							if types != nil && len(types.Nodes) > 0 {
-								exprWithType := types.Nodes[0].AsExpressionWithTypeArguments()
-								if exprWithType != nil {
-									extendsExpr := exprWithType.Expression
-									// If extends is invalid AND we have super() calls, report them
-									if isInvalidExtends(extendsExpr) && analysis.hasSuperCall {
-										for _, superCall := range analysis.superCallLocations {
-											ctx.ReportNode(superCall, buildBadSuper())
-										}
-									}
-								}
-							}
 						}
 					}
 				}
