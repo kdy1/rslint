@@ -369,14 +369,15 @@ func analyzeCallbackReturns(body *ast.Node, allowImplicit bool) callbackReturnRe
 	// 1. Single return statement (obviously all paths return)
 	// 2. Simple body with no empty returns and at least one return
 	// 3. Try-catch with a return in the try block
-	// Note: We don't attempt to detect if-else patterns as that requires
-	// access to AST methods that are not available in the shim
+	// 4. If-else statements where both branches return
+	hasIfElseWithReturns := checkIfElseReturns(body)
 
 	// Note: We intentionally don't try to detect all control flow patterns perfectly
 	// as this requires proper control flow analysis which is complex
 	allPathsReturn := isSingleReturn ||
 		(!hasReturnWithoutValue && isSimpleBody(body) && hasReturnWithValue) ||
-		(hasTryStatement && hasReturnWithValue)
+		(hasTryStatement && hasReturnWithValue) ||
+		hasIfElseWithReturns
 
 	result.hasNoReturns = false
 	result.allPathsReturn = allPathsReturn
@@ -411,6 +412,123 @@ func isSimpleBody(body *ast.Node) bool {
 	}
 
 	return true
+}
+
+// checkIfElseReturns checks if an if-else statement has returns in all branches
+// This properly analyzes if-else chains to ensure all branches return
+func checkIfElseReturns(body *ast.Node) bool {
+	if body == nil || body.Kind != ast.KindBlock {
+		return false
+	}
+
+	statements := body.Statements()
+	if len(statements) == 0 {
+		return false
+	}
+
+	// Check if the function body consists of a single if-else chain that covers all paths
+	// For example:
+	// if (a) { return x; } else { return y; }  -> all paths return
+	// if (a) { return x; } else if (b) { return y; }  -> NOT all paths (missing final else)
+	// if (a) { return x; } else if (b) { return y; } else { return z; }  -> all paths return
+
+	for _, stmt := range statements {
+		if stmt == nil {
+			continue
+		}
+		if stmt.Kind == ast.KindIfStatement {
+			if ifStatementCoversAllPaths(stmt) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// ifStatementCoversAllPaths checks if an if-statement covers all code paths with returns
+func ifStatementCoversAllPaths(ifStmt *ast.Node) bool {
+	if ifStmt == nil || ifStmt.Kind != ast.KindIfStatement {
+		return false
+	}
+
+	// Access the IfStatement structure
+	ifStmtData := ifStmt.AsIfStatement()
+	if ifStmtData == nil {
+		return false
+	}
+
+	// Get the then statement
+	thenStmt := ifStmtData.ThenStatement
+	if thenStmt == nil || !blockReturnsValue(thenStmt) {
+		return false
+	}
+
+	// Get the else statement
+	elseStmt := ifStmtData.ElseStatement
+	if elseStmt == nil {
+		// No else clause - doesn't cover all paths
+		return false
+	}
+
+	// If the else statement is another if-statement (else if), check it recursively
+	if elseStmt.Kind == ast.KindIfStatement {
+		return ifStatementCoversAllPaths(elseStmt)
+	}
+
+	// Otherwise, check if the else block returns a value
+	return blockReturnsValue(elseStmt)
+}
+
+// blockReturnsValue checks if a block/statement returns a value
+func blockReturnsValue(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Direct return statement
+	if node.Kind == ast.KindReturnStatement {
+		return node.Expression() != nil
+	}
+
+	// Block statement - check if it ends with a return
+	if node.Kind == ast.KindBlock {
+		statements := node.Statements()
+		if len(statements) == 0 {
+			return false
+		}
+		// Check the last statement
+		lastStmt := statements[len(statements)-1]
+		if lastStmt != nil && lastStmt.Kind == ast.KindReturnStatement {
+			return lastStmt.Expression() != nil
+		}
+	}
+
+	return false
+}
+
+// hasReturnWithValue checks if a node contains a return statement with a value
+func hasReturnWithValue(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Direct return statement
+	if node.Kind == ast.KindReturnStatement {
+		return node.Expression() != nil
+	}
+
+	// Block statement - check all statements
+	if node.Kind == ast.KindBlock {
+		statements := node.Statements()
+		for _, stmt := range statements {
+			if stmt != nil && stmt.Kind == ast.KindReturnStatement && stmt.Expression() != nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // ArrayCallbackReturnRule enforces return statements in callbacks of array methods
