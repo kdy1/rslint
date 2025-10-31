@@ -152,13 +152,13 @@ func TestConstructorSuperRule(t *testing.T) {
 			{
 				Code: `class A extends B { constructor() { super(); if (a) super(); } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "duplicate", Line: 1, Column: 54},
+					{MessageId: "duplicate", Line: 1, Column: 53},
 				},
 			},
 			{
 				Code: `class A extends B { constructor() { if (a) super(); else super(); super(); } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "duplicate", Line: 1, Column: 68},
+					{MessageId: "duplicate", Line: 1, Column: 67},
 				},
 			},
 
@@ -228,7 +228,7 @@ func TestConstructorSuperRule(t *testing.T) {
 			{
 				Code: `class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); break; } super(); } }`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "duplicate", Line: 1, Column: 104},
+					{MessageId: "duplicate", Line: 1, Column: 101},
 				},
 			},
 
