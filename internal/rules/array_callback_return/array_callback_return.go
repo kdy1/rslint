@@ -369,15 +369,14 @@ func analyzeCallbackReturns(body *ast.Node, allowImplicit bool) callbackReturnRe
 	// 1. Single return statement (obviously all paths return)
 	// 2. Simple body with no empty returns and at least one return
 	// 3. Try-catch with a return in the try block
-	// 4. If-else statements where both branches return
-	hasIfElseWithReturns := checkIfElseReturns(body)
+	// Note: We don't attempt to detect if-else patterns as that requires
+	// access to AST methods that are not available in the shim
 
 	// Note: We intentionally don't try to detect all control flow patterns perfectly
 	// as this requires proper control flow analysis which is complex
 	allPathsReturn := isSingleReturn ||
 		(!hasReturnWithoutValue && isSimpleBody(body) && hasReturnWithValue) ||
-		(hasTryStatement && hasReturnWithValue) ||
-		hasIfElseWithReturns
+		(hasTryStatement && hasReturnWithValue)
 
 	result.hasNoReturns = false
 	result.allPathsReturn = allPathsReturn
@@ -412,69 +411,6 @@ func isSimpleBody(body *ast.Node) bool {
 	}
 
 	return true
-}
-
-// checkIfElseReturns checks if an if-else statement has returns in all branches
-// Note: This is a simplified heuristic. We count if there are multiple returns
-// in a function with if statements, which suggests both branches return.
-func checkIfElseReturns(body *ast.Node) bool {
-	if body == nil || body.Kind != ast.KindBlock {
-		return false
-	}
-
-	// Check if there are if statements in the body
-	hasIfStatement := false
-	statements := body.Statements()
-	for _, stmt := range statements {
-		if stmt == nil {
-			continue
-		}
-		if stmt.Kind == ast.KindIfStatement {
-			hasIfStatement = true
-			break
-		}
-	}
-
-	if !hasIfStatement {
-		return false
-	}
-
-	// If there are multiple returns with values in a function with if statements,
-	// we assume both branches return (simplified heuristic)
-	countReturns := 0
-	ast.ForEachReturnStatement(body, func(stmt *ast.Node) bool {
-		if stmt.Expression() != nil {
-			countReturns++
-		}
-		return false
-	})
-
-	// If we have at least 2 returns in an if-statement context, assume all paths return
-	return countReturns >= 2
-}
-
-// hasReturnWithValue checks if a node contains a return statement with a value
-func hasReturnWithValue(node *ast.Node) bool {
-	if node == nil {
-		return false
-	}
-
-	// Direct return statement
-	if node.Kind == ast.KindReturnStatement {
-		return node.Expression() != nil
-	}
-
-	// Block statement - check all statements
-	if node.Kind == ast.KindBlock {
-		statements := node.Statements()
-		for _, stmt := range statements {
-			if stmt != nil && stmt.Kind == ast.KindReturnStatement && stmt.Expression() != nil {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // ArrayCallbackReturnRule enforces return statements in callbacks of array methods
