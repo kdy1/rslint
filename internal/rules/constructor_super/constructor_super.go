@@ -373,12 +373,29 @@ func switchHasSuper(switchStmt *ast.Node) bool {
 		return false
 	}
 
-	caseBlock := switchStmt.CaseBlock()
+	// Find the case block by traversing children
+	var caseBlock *ast.Node
+	switchStmt.ForEachChild(func(child *ast.Node) bool {
+		if child != nil && child.Kind == ast.KindCaseBlock {
+			caseBlock = child
+			return true // Stop iteration
+		}
+		return false // Continue iteration
+	})
+
 	if caseBlock == nil {
 		return false
 	}
 
-	clauses := caseBlock.Clauses()
+	// Get clauses from the case block
+	var clauses []*ast.Node
+	caseBlock.ForEachChild(func(child *ast.Node) bool {
+		if child != nil && (child.Kind == ast.KindCaseClause || child.Kind == ast.KindDefaultClause) {
+			clauses = append(clauses, child)
+		}
+		return false // Continue iteration
+	})
+
 	if len(clauses) == 0 {
 		return false
 	}
