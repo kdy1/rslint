@@ -415,35 +415,42 @@ func isSimpleBody(body *ast.Node) bool {
 }
 
 // checkIfElseReturns checks if an if-else statement has returns in all branches
+// Note: This is a simplified heuristic. We count if there are multiple returns
+// in a function with if statements, which suggests both branches return.
 func checkIfElseReturns(body *ast.Node) bool {
 	if body == nil || body.Kind != ast.KindBlock {
 		return false
 	}
 
+	// Check if there are if statements in the body
+	hasIfStatement := false
 	statements := body.Statements()
 	for _, stmt := range statements {
-		if stmt == nil || stmt.Kind != ast.KindIfStatement {
+		if stmt == nil {
 			continue
 		}
-
-		// Check if this if statement has both then and else branches
-		thenStatement := stmt.ThenStatement()
-		elseStatement := stmt.ElseStatement()
-
-		if thenStatement == nil || elseStatement == nil {
-			continue
-		}
-
-		// Check if both branches have return statements with values
-		thenHasReturn := hasReturnWithValue(thenStatement)
-		elseHasReturn := hasReturnWithValue(elseStatement)
-
-		if thenHasReturn && elseHasReturn {
-			return true
+		if stmt.Kind == ast.KindIfStatement {
+			hasIfStatement = true
+			break
 		}
 	}
 
-	return false
+	if !hasIfStatement {
+		return false
+	}
+
+	// If there are multiple returns with values in a function with if statements,
+	// we assume both branches return (simplified heuristic)
+	countReturns := 0
+	ast.ForEachReturnStatement(body, func(stmt *ast.Node) bool {
+		if stmt.Expression() != nil {
+			countReturns++
+		}
+		return false
+	})
+
+	// If we have at least 2 returns in an if-statement context, assume all paths return
+	return countReturns >= 2
 }
 
 // hasReturnWithValue checks if a node contains a return statement with a value
