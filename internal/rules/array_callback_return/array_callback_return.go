@@ -369,11 +369,15 @@ func analyzeCallbackReturns(body *ast.Node, allowImplicit bool) callbackReturnRe
 	// 1. Single return statement (obviously all paths return)
 	// 2. Simple body with no empty returns and at least one return
 	// 3. Try-catch with a return in the try block
-	// Note: We intentionally don't try to detect if-else patterns perfectly
+	// 4. If-else statements where both branches return
+	hasIfElseWithReturns := checkIfElseReturns(body)
+
+	// Note: We intentionally don't try to detect all control flow patterns perfectly
 	// as this requires proper control flow analysis which is complex
 	allPathsReturn := isSingleReturn ||
 		(!hasReturnWithoutValue && isSimpleBody(body) && hasReturnWithValue) ||
-		(hasTryStatement && hasReturnWithValue)
+		(hasTryStatement && hasReturnWithValue) ||
+		hasIfElseWithReturns
 
 	result.hasNoReturns = false
 	result.allPathsReturn = allPathsReturn
@@ -408,6 +412,62 @@ func isSimpleBody(body *ast.Node) bool {
 	}
 
 	return true
+}
+
+// checkIfElseReturns checks if an if-else statement has returns in all branches
+func checkIfElseReturns(body *ast.Node) bool {
+	if body == nil || body.Kind != ast.KindBlock {
+		return false
+	}
+
+	statements := body.Statements()
+	for _, stmt := range statements {
+		if stmt == nil || stmt.Kind != ast.KindIfStatement {
+			continue
+		}
+
+		// Check if this if statement has both then and else branches
+		thenStatement := stmt.ThenStatement()
+		elseStatement := stmt.ElseStatement()
+
+		if thenStatement == nil || elseStatement == nil {
+			continue
+		}
+
+		// Check if both branches have return statements with values
+		thenHasReturn := hasReturnWithValue(thenStatement)
+		elseHasReturn := hasReturnWithValue(elseStatement)
+
+		if thenHasReturn && elseHasReturn {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasReturnWithValue checks if a node contains a return statement with a value
+func hasReturnWithValue(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Direct return statement
+	if node.Kind == ast.KindReturnStatement {
+		return node.Expression() != nil
+	}
+
+	// Block statement - check all statements
+	if node.Kind == ast.KindBlock {
+		statements := node.Statements()
+		for _, stmt := range statements {
+			if stmt != nil && stmt.Kind == ast.KindReturnStatement && stmt.Expression() != nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // ArrayCallbackReturnRule enforces return statements in callbacks of array methods

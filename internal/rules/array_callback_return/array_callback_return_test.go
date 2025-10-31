@@ -292,7 +292,7 @@ func TestArrayCallbackReturnRule(t *testing.T) {
 			{
 				Code: `foo.map(x => x).filter(() => {});`,
 				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "expectedReturnValue", Line: 1, Column: 25},
+					{MessageId: "expectedReturnValue", Line: 1, Column: 24},
 				},
 			},
 
