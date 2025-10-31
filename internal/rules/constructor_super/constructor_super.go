@@ -758,7 +758,13 @@ var ConstructorSuperRule = rule.CreateRule(rule.Rule{
 						// Check for actual duplicates (super calls that can execute sequentially)
 						duplicates := findDuplicateSuperCalls(body, analysis.superCallLocations)
 						for _, superCall := range duplicates {
-							ctx.ReportNode(superCall, buildDuplicate())
+							// Report on the super keyword, not the call expression
+							superKeyword := superCall.Expression()
+							if superKeyword != nil && superKeyword.Kind == ast.KindSuperKeyword {
+								ctx.ReportNode(superKeyword, buildDuplicate())
+							} else {
+								ctx.ReportNode(superCall, buildDuplicate())
+							}
 						}
 					}
 				} else {
@@ -766,7 +772,13 @@ var ConstructorSuperRule = rule.CreateRule(rule.Rule{
 					if analysis.hasSuperCall {
 						// Report each super() call as invalid
 						for _, superCall := range analysis.superCallLocations {
-							ctx.ReportNode(superCall, buildBadSuper())
+							// Report on the super keyword, not the call expression
+							superKeyword := superCall.Expression()
+							if superKeyword != nil && superKeyword.Kind == ast.KindSuperKeyword {
+								ctx.ReportNode(superKeyword, buildBadSuper())
+							} else {
+								ctx.ReportNode(superCall, buildBadSuper())
+							}
 						}
 					}
 				}
