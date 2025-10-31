@@ -3,6 +3,7 @@ package constructor_super
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // Message builders
@@ -63,12 +64,12 @@ func getClassNode(constructorNode *ast.Node) *ast.Node {
 	}
 
 	// Walk up the parent chain to find the class
-	current := constructorNode.Parent()
+	current := constructorNode.Parent
 	for current != nil {
 		if current.Kind == ast.KindClassDeclaration || current.Kind == ast.KindClassExpression {
 			return current
 		}
-		current = current.Parent()
+		current = current.Parent
 	}
 
 	return nil
@@ -81,7 +82,7 @@ func hasValidExtends(classNode *ast.Node) bool {
 	}
 
 	// Get heritage clause (extends clause)
-	heritageClauses := classNode.HeritageClauses()
+	heritageClauses := utils.GetHeritageClauses(classNode)
 	if heritageClauses == nil || len(heritageClauses.Nodes) == 0 {
 		return false
 	}
@@ -91,14 +92,21 @@ func hasValidExtends(classNode *ast.Node) bool {
 		if clause == nil {
 			continue
 		}
+		heritageClause := clause.AsHeritageClause()
+		if heritageClause == nil {
+			continue
+		}
 		// Check if this is an extends clause
-		if clause.Token() == ast.KindExtendsKeyword {
-			types := clause.Types()
-			if types != nil && len(types) > 0 {
+		if heritageClause.Token == ast.KindExtendsKeyword {
+			types := heritageClause.Types
+			if types != nil && len(types.Nodes) > 0 {
 				// Check if the extended type is valid (not null, not a primitive)
-				extendsExpr := types[0].Expression()
-				if extendsExpr != nil && !isInvalidExtends(extendsExpr) {
-					return true
+				exprWithType := types.Nodes[0].AsExpressionWithTypeArguments()
+				if exprWithType != nil {
+					extendsExpr := exprWithType.Expression
+					if extendsExpr != nil && !isInvalidExtends(extendsExpr) {
+						return true
+					}
 				}
 			}
 		}
@@ -126,10 +134,10 @@ func isInvalidExtends(node *ast.Node) bool {
 		// Binary expressions like B = 5, B += C are invalid
 		// Only simple references or valid expressions are OK
 		// We need to be conservative here
-		operator := node.OperatorToken()
-		if operator != nil {
+		binExpr := node.AsBinaryExpression()
+		if binExpr != nil && binExpr.OperatorToken != nil {
 			// Assignment operators are invalid
-			switch operator.Kind {
+			switch binExpr.OperatorToken.Kind {
 			case ast.KindEqualsToken, ast.KindPlusEqualsToken, ast.KindMinusEqualsToken,
 				ast.KindAsteriskEqualsToken, ast.KindSlashEqualsToken:
 				return true
@@ -159,22 +167,26 @@ func isPossibleConstructor(node *ast.Node) bool {
 		return isPossibleConstructor(expr)
 	case ast.KindBinaryExpression:
 		// For assignments like (B = C), check the right side
-		operator := node.OperatorToken()
-		if operator != nil && operator.Kind == ast.KindEqualsToken {
-			right := node.Right()
-			return isPossibleConstructor(right)
+		binExpr := node.AsBinaryExpression()
+		if binExpr != nil && binExpr.OperatorToken != nil && binExpr.OperatorToken.Kind == ast.KindEqualsToken {
+			return isPossibleConstructor(binExpr.Right)
+		}
+		// For logical expressions (&&, ||), check the right side
+		if binExpr != nil && binExpr.OperatorToken != nil {
+			if binExpr.OperatorToken.Kind == ast.KindAmpersandAmpersandToken ||
+			   binExpr.OperatorToken.Kind == ast.KindBarBarToken {
+				return isPossibleConstructor(binExpr.Right)
+			}
 		}
 		// For other operators, it's not a constructor
 		return false
 	case ast.KindConditionalExpression:
 		// For ternary, both branches must be constructors
-		whenTrue := node.WhenTrue()
-		whenFalse := node.WhenFalse()
-		return isPossibleConstructor(whenTrue) && isPossibleConstructor(whenFalse)
-	case ast.KindLogicalAndExpression, ast.KindLogicalOrExpression:
-		// For logical expressions, check the right side (result)
-		right := node.Right()
-		return isPossibleConstructor(right)
+		condExpr := node.AsConditionalExpression()
+		if condExpr != nil {
+			return isPossibleConstructor(condExpr.WhenTrue) && isPossibleConstructor(condExpr.WhenFalse)
+		}
+		return false
 	case ast.KindPropertyAccessExpression, ast.KindElementAccessExpression:
 		// Could be a constructor reference like Class.Static
 		return true
@@ -446,20 +458,27 @@ var ConstructorSuperRule = rule.CreateRule(rule.Rule{
 
 				// Special check for extends with invalid expressions
 				// Check if class extends something but it's invalid (like null, literals, etc.)
-				heritageClauses := classNode.HeritageClauses()
+				heritageClauses := utils.GetHeritageClauses(classNode)
 				if heritageClauses != nil && len(heritageClauses.Nodes) > 0 {
 					for _, clause := range heritageClauses.Nodes {
 						if clause == nil {
 							continue
 						}
-						if clause.Token() == ast.KindExtendsKeyword {
-							types := clause.Types()
-							if types != nil && len(types) > 0 {
-								extendsExpr := types[0].Expression()
-								// If extends is invalid AND we have super() calls, report them
-								if isInvalidExtends(extendsExpr) && analysis.hasSuperCall {
-									for _, superCall := range analysis.superCallLocations {
-										ctx.ReportNode(superCall, buildBadSuper())
+						heritageClause := clause.AsHeritageClause()
+						if heritageClause == nil {
+							continue
+						}
+						if heritageClause.Token == ast.KindExtendsKeyword {
+							types := heritageClause.Types
+							if types != nil && len(types.Nodes) > 0 {
+								exprWithType := types.Nodes[0].AsExpressionWithTypeArguments()
+								if exprWithType != nil {
+									extendsExpr := exprWithType.Expression
+									// If extends is invalid AND we have super() calls, report them
+									if isInvalidExtends(extendsExpr) && analysis.hasSuperCall {
+										for _, superCall := range analysis.superCallLocations {
+											ctx.ReportNode(superCall, buildBadSuper())
+										}
 									}
 								}
 							}
