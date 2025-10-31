@@ -327,6 +327,50 @@ func isSuperCallInStatement(stmt *ast.Node, superCall *ast.Node) bool {
 	return found
 }
 
+// hasBranchingWithEarlyReturn checks if there's any branching where some paths have early return/throw
+func hasBranchingWithEarlyReturn(body *ast.Node) bool {
+	if body == nil || body.Kind != ast.KindBlock {
+		return false
+	}
+
+	statements := body.Statements()
+	for _, stmt := range statements {
+		if stmt == nil {
+			continue
+		}
+
+		// Check if this is an if statement with early return in one branch but not all
+		if stmt.Kind == ast.KindIfStatement {
+			ifStmt := stmt.AsIfStatement()
+			if ifStmt != nil {
+				thenTerminates := branchTerminates(ifStmt.ThenStatement)
+				elseStmt := ifStmt.ElseStatement
+
+				if elseStmt != nil {
+					elseTerminates := branchTerminates(elseStmt)
+					// If one branch terminates but not both, there's branching with partial early return
+					if thenTerminates != elseTerminates {
+						return true
+					}
+				} else {
+					// If only has then branch and it terminates, that's branching with partial early return
+					if thenTerminates {
+						return true
+					}
+				}
+			}
+		}
+
+		// Check for switch statements with partial early returns
+		if stmt.Kind == ast.KindSwitchStatement {
+			// If switch has any branches, consider it branching
+			return true
+		}
+	}
+
+	return false
+}
+
 // allPathsTerminateEarly checks if all code paths terminate early (return/throw) without calling super
 func allPathsTerminateEarly(body *ast.Node) bool {
 	if body == nil || body.Kind != ast.KindBlock {
@@ -425,6 +469,7 @@ func findSuperCalls(node *ast.Node, locations *[]*ast.Node) {
 	if node.Kind == ast.KindCallExpression {
 		expr := node.Expression()
 		if expr != nil && expr.Kind == ast.KindSuperKeyword {
+			// Store the call expression to get the correct position
 			*locations = append(*locations, node)
 		}
 	}
@@ -696,8 +741,14 @@ var ConstructorSuperRule = rule.CreateRule(rule.Rule{
 				if hasExtends {
 					// Derived class: must call super()
 					if !analysis.hasSuperCall {
-						// No super() call at all - but check if all paths terminate early
-						if !allPathsTerminateEarly(body) {
+						// No super() call at all
+						if allPathsTerminateEarly(body) {
+							// All paths terminate early, no error
+						} else if hasBranchingWithEarlyReturn(body) {
+							// Some paths have early return/throw, report missingSome
+							ctx.ReportNode(node, buildMissingSome())
+						} else {
+							// No branching or early returns, report missingAll
 							ctx.ReportNode(node, buildMissingAll())
 						}
 					} else if !analysis.allPathsHaveSuper {
