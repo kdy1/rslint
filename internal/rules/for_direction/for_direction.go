@@ -23,25 +23,25 @@ func getUpdateDirection(updateExpr *ast.Node) int {
 	}
 
 	switch updateExpr.Kind {
-	case ast.KindPostfixUnaryExpression, ast.KindPrefixUnaryExpression:
-		var operator ast.SyntaxKind
-		if updateExpr.Kind == ast.KindPostfixUnaryExpression {
-			postfix := updateExpr.AsPostfixUnaryExpression()
-			if postfix != nil {
-				operator = postfix.Operator
-			}
-		} else {
-			prefix := updateExpr.AsPrefixUnaryExpression()
-			if prefix != nil {
-				operator = prefix.Operator
+	case ast.KindPostfixUnaryExpression:
+		postfix := updateExpr.AsPostfixUnaryExpression()
+		if postfix != nil {
+			switch postfix.Operator {
+			case ast.KindPlusPlusToken:
+				return 1
+			case ast.KindMinusMinusToken:
+				return -1
 			}
 		}
-
-		switch operator {
-		case ast.KindPlusPlusToken:
-			return 1
-		case ast.KindMinusMinusToken:
-			return -1
+	case ast.KindPrefixUnaryExpression:
+		prefix := updateExpr.AsPrefixUnaryExpression()
+		if prefix != nil {
+			switch prefix.Operator {
+			case ast.KindPlusPlusToken:
+				return 1
+			case ast.KindMinusMinusToken:
+				return -1
+			}
 		}
 	}
 
@@ -50,7 +50,7 @@ func getUpdateDirection(updateExpr *ast.Node) int {
 
 // getStaticNumberValue extracts static numeric value from an expression
 // Returns the numeric value and true if it's a static number, 0 and false otherwise
-func getStaticNumberValue(node *ast.Node) (*big.Float, bool) {
+func getStaticNumberValue(node *ast.Node, ctx *rule.RuleContext) (*big.Float, bool) {
 	if node == nil {
 		return nil, false
 	}
@@ -71,7 +71,7 @@ func getStaticNumberValue(node *ast.Node) (*big.Float, bool) {
 		// Handle unary minus/plus
 		prefix := node.AsPrefixUnaryExpression()
 		if prefix != nil && prefix.Operand != nil {
-			if val, ok := getStaticNumberValue(prefix.Operand); ok {
+			if val, ok := getStaticNumberValue(prefix.Operand, ctx); ok {
 				switch prefix.Operator {
 				case ast.KindMinusToken:
 					negVal := new(big.Float).Neg(val)
@@ -86,7 +86,25 @@ func getStaticNumberValue(node *ast.Node) (*big.Float, bool) {
 	case ast.KindParenthesizedExpression:
 		// Unwrap parentheses
 		expr := node.Expression()
-		return getStaticNumberValue(expr)
+		return getStaticNumberValue(expr, ctx)
+
+	case ast.KindIdentifier:
+		// Try to resolve constant variable values
+		if ctx != nil && ctx.TypeChecker != nil {
+			constValue := ctx.TypeChecker.GetConstantValue(node)
+			if constValue != nil {
+				// Try to convert the constant value to a float
+				switch v := constValue.(type) {
+				case float64:
+					return big.NewFloat(v), true
+				case int:
+					return big.NewFloat(float64(v)), true
+				case int64:
+					return big.NewFloat(float64(v)), true
+				}
+			}
+		}
+		return nil, false
 	}
 
 	return nil, false
@@ -94,7 +112,7 @@ func getStaticNumberValue(node *ast.Node) (*big.Float, bool) {
 
 // getAssignmentDirection determines the direction of a compound assignment (+=, -=)
 // Returns: 1 for positive direction, -1 for negative direction, 0 for unknown
-func getAssignmentDirection(binaryExpr *ast.Node) int {
+func getAssignmentDirection(binaryExpr *ast.Node, ctx *rule.RuleContext) int {
 	if binaryExpr == nil || binaryExpr.Kind != ast.KindBinaryExpression {
 		return 0
 	}
@@ -109,7 +127,7 @@ func getAssignmentDirection(binaryExpr *ast.Node) int {
 	switch operator {
 	case ast.KindPlusEqualsToken:
 		// += direction depends on the right operand
-		if val, ok := getStaticNumberValue(binary.Right); ok {
+		if val, ok := getStaticNumberValue(binary.Right, ctx); ok {
 			if val.Sign() > 0 {
 				return 1
 			} else if val.Sign() < 0 {
@@ -120,7 +138,7 @@ func getAssignmentDirection(binaryExpr *ast.Node) int {
 
 	case ast.KindMinusEqualsToken:
 		// -= direction is opposite of the right operand
-		if val, ok := getStaticNumberValue(binary.Right); ok {
+		if val, ok := getStaticNumberValue(binary.Right, ctx); ok {
 			if val.Sign() > 0 {
 				return -1
 			} else if val.Sign() < 0 {
@@ -206,13 +224,14 @@ func getExpectedDirection(testExpr *ast.Node, counterOnLeft bool) int {
 		}
 	} else {
 		// Counter is on the right side (e.g., 10 > i)
+		// The logic is reversed: 10 > i means i < 10
 		switch operator {
 		case ast.KindLessThanToken, ast.KindLessThanEqualsToken:
-			// 10 < i or 10 <= i -> should increase
-			return 1
-		case ast.KindGreaterThanToken, ast.KindGreaterThanEqualsToken:
-			// 10 > i or 10 >= i -> should decrease
+			// 10 < i or 10 <= i is equivalent to i > 10 -> should decrease
 			return -1
+		case ast.KindGreaterThanToken, ast.KindGreaterThanEqualsToken:
+			// 10 > i or 10 >= i is equivalent to i < 10 -> should increase
+			return 1
 		}
 	}
 
@@ -295,7 +314,7 @@ var ForDirectionRule = rule.CreateRule(rule.Rule{
 
 				// If we couldn't determine direction from unary operators, try compound assignment
 				if actualDirection == 0 {
-					actualDirection = getAssignmentDirection(incrementor)
+					actualDirection = getAssignmentDirection(incrementor, &ctx)
 				}
 
 				// If we still can't determine direction, it's ambiguous (e.g., i += unknown)
