@@ -378,21 +378,19 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 
 		// Logical assignment operators (||=, &&=)
 		if operator == ast.KindBarBarEqualsToken || operator == ast.KindAmpersandAmpersandEqualsToken {
-			var baseOp ast.Kind
-			if operator == ast.KindBarBarEqualsToken {
-				baseOp = ast.KindBarBarToken
-			} else {
-				baseOp = ast.KindAmpersandAmpersandToken
+			if inBooleanPosition {
+				var baseOp ast.Kind
+				if operator == ast.KindBarBarEqualsToken {
+					baseOp = ast.KindBarBarToken
+				} else {
+					baseOp = ast.KindAmpersandAmpersandToken
+				}
+				// The assignment is constant ONLY if the right side is a logical identity
+				// For ||=: identity is true (1, "foo", etc - always truthy)
+				// For &&=: identity is false (0, null, undefined, etc - always falsy)
+				return isLogicalIdentity(binary.Right, baseOp)
 			}
-			// The assignment is constant if the right side is a logical identity
-			// Logical identity: for ||, it's truthy values (true, 1, "foo", /regex/, etc.)
-			//                   for &&, it's falsy values (false, 0, null, undefined, etc.)
-			// Example: a ||= true -> always truthy (constant)
-			//          a ||= false -> depends on a (not constant)
-			//          a ||= (b || /regex/) -> /regex/ is identity for ||, so constant
-			//          a &&= false -> always falsy (constant)
-			//          a &&= true -> depends on a (not constant)
-			return isLogicalIdentity(binary.Right, baseOp)
+			return false
 		}
 
 		// Logical operators (&&, ||, ??)
