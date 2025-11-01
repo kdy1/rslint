@@ -424,12 +424,68 @@ func containsYield(node *ast.Node) bool {
 		return false
 	}
 
-	// Recursively check children
-	children := node.Children()
-	if children != nil {
-		for _, child := range children.Nodes {
-			if containsYield(child) {
+	// Recursively check children based on node type
+	// We need to be careful to avoid calling Children() on unsupported node types
+	switch node.Kind {
+	case ast.KindBlock:
+		block := node.AsBlock()
+		if block != nil && block.Statements != nil {
+			for _, stmt := range block.Statements.Nodes {
+				if containsYield(stmt) {
+					return true
+				}
+			}
+		}
+	case ast.KindIfStatement:
+		ifStmt := node.AsIfStatement()
+		if ifStmt != nil {
+			if containsYield(ifStmt.Statement) {
 				return true
+			}
+			if ifStmt.ElseStatement != nil && containsYield(ifStmt.ElseStatement) {
+				return true
+			}
+		}
+	case ast.KindWhileStatement:
+		whileStmt := node.AsWhileStatement()
+		if whileStmt != nil && containsYield(whileStmt.Statement) {
+			return true
+		}
+	case ast.KindDoStatement:
+		doStmt := node.AsDoStatement()
+		if doStmt != nil && containsYield(doStmt.Statement) {
+			return true
+		}
+	case ast.KindForStatement:
+		forStmt := node.AsForStatement()
+		if forStmt != nil && containsYield(forStmt.Statement) {
+			return true
+		}
+	case ast.KindExpressionStatement:
+		exprStmt := node.AsExpressionStatement()
+		if exprStmt != nil && exprStmt.Expression != nil {
+			if containsYield(exprStmt.Expression) {
+				return true
+			}
+		}
+	case ast.KindBinaryExpression,
+		ast.KindConditionalExpression,
+		ast.KindCallExpression,
+		ast.KindPrefixUnaryExpression,
+		ast.KindPostfixUnaryExpression:
+		// For expressions, try using Children if available
+		// But don't panic if it's not supported
+		defer func() {
+			if r := recover(); r != nil {
+				// Ignore panic from unsupported node types
+			}
+		}()
+		children := node.Children()
+		if children != nil {
+			for _, child := range children.Nodes {
+				if containsYield(child) {
+					return true
+				}
 			}
 		}
 	}
