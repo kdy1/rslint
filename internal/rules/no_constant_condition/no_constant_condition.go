@@ -495,7 +495,7 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 					// First check if this identifier is the global built-in (not shadowed)
 					// If we can't determine (no TypeChecker), conservatively assume it's NOT the global builtin
 					// to avoid false positives from shadowing
-					if ctx == nil || ctx.TypeChecker == nil || ctx.Program == nil {
+					if ctx == nil || ctx.TypeChecker == nil || ctx.Program == nil || ctx.SourceFile == nil {
 						// Can't check for shadowing - conservatively assume it's shadowed
 						return false
 					}
@@ -505,6 +505,16 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 					if symbol == nil {
 						// Can't resolve symbol - conservatively assume it's shadowed
 						return false
+					}
+
+					// Check if any of the symbol's declarations is from the current source file
+					// If so, it's a local shadowed variable, not the global builtin
+					for _, declaration := range symbol.Declarations {
+						declarationSourceFile := ast.GetSourceFileOfNode(declaration)
+						if declarationSourceFile != nil && declarationSourceFile == ctx.SourceFile {
+							// This is a local declaration (shadowing the global), not constant
+							return false
+						}
 					}
 
 					// Check if the symbol is from the default library (not shadowed)
