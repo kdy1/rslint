@@ -378,19 +378,20 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 
 		// Logical assignment operators (||=, &&=)
 		if operator == ast.KindBarBarEqualsToken || operator == ast.KindAmpersandAmpersandEqualsToken {
-			if inBooleanPosition {
-				var baseOp ast.Kind
-				if operator == ast.KindBarBarEqualsToken {
-					baseOp = ast.KindBarBarToken
-				} else {
-					baseOp = ast.KindAmpersandAmpersandToken
-				}
-				// The assignment is constant ONLY if the right side is a logical identity
-				// For ||=: identity is true (1, "foo", etc - always truthy)
-				// For &&=: identity is false (0, null, undefined, etc - always falsy)
-				return isLogicalIdentity(binary.Right, baseOp)
+			// Logical assignments are only constant in boolean context when right side is identity
+			if !inBooleanPosition {
+				return false
 			}
-			return false
+			var baseOp ast.Kind
+			if operator == ast.KindBarBarEqualsToken {
+				baseOp = ast.KindBarBarToken
+			} else {
+				baseOp = ast.KindAmpersandAmpersandToken
+			}
+			// The assignment is constant ONLY if the right side is a logical identity
+			// For ||=: identity is true (1, "foo", etc - always truthy)
+			// For &&=: identity is false (0, null, undefined, etc - always falsy)
+			return isLogicalIdentity(binary.Right, baseOp)
 		}
 
 		// Logical operators (&&, ||, ??)
@@ -660,7 +661,6 @@ func shouldCheckLoop(node *ast.Node, opts Options) bool {
 	// Don't check loops in generator functions that contain yield
 	// This applies even when checkLoops is "all"
 	// If the loop body contains a yield, don't check the loop condition
-	// Note: We still check other conditions inside the loop (like if statements)
 	if body != nil && containsYield(body) {
 		return false
 	}
@@ -705,12 +705,11 @@ func getTestExpression(node *ast.Node) *ast.Node {
 	return nil
 }
 
-// isInGeneratorWithYield checks if a node is in a generator function that contains yield at the same level
-func isInGeneratorWithYield(ctx *rule.RuleContext, node *ast.Node) bool {
-	// Walk up the tree to find the enclosing function
-	// For now, we'll use a simple heuristic: check if the statement contains yield
-	// This is a simplified check - in a real implementation, we'd need to track scope
-	return false
+// findEnclosingLoop walks up the tree to find the enclosing loop (if any)
+func findEnclosingLoop(ctx *rule.RuleContext, node *ast.Node) *ast.Node {
+	// We need to track ancestors - use the context's ancestor tracking if available
+	// For now, we'll return nil as we need a different approach
+	return nil
 }
 
 // checkCondition reports if a condition is constant
