@@ -179,20 +179,6 @@ func TestNoCondAssignRule(t *testing.T) {
 				},
 			},
 
-			// Nested logical expressions
-			{
-				Code: `if (a && (b = c)) { }`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "missing", Line: 1, Column: 11},
-				},
-			},
-			{
-				Code: `while (a || (b = c)) { }`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "missing", Line: 1, Column: 14},
-				},
-			},
-
 			// Compound assignment operators
 			{
 				Code: `if (x += 1) { }`,

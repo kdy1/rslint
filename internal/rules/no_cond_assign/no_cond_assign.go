@@ -59,6 +59,26 @@ func isAssignmentOperator(node *ast.Node) bool {
 	return false
 }
 
+// isLogicalOperator checks if a binary expression uses a logical operator (&&, ||)
+func isLogicalOperator(node *ast.Node) bool {
+	if node == nil || node.Kind != ast.KindBinaryExpression {
+		return false
+	}
+
+	binary := node.AsBinaryExpression()
+	if binary == nil || binary.OperatorToken == nil {
+		return false
+	}
+
+	// Check for logical operators
+	switch binary.OperatorToken.Kind {
+	case ast.KindAmpersandAmpersandToken, // &&
+		ast.KindBarBarToken: // ||
+		return true
+	}
+	return false
+}
+
 // isConditionalTestExpression checks if a node is a test expression in a conditional statement
 func isConditionalTestExpression(node, parent *ast.Node) bool {
 	if parent == nil {
@@ -196,16 +216,15 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Walk up to find if we're directly in a conditional test (not nested in other expressions)
-				// Skip over ParenthesizedExpressions as they don't change the semantics
 				var conditionalAncestor *ast.Node
 				current := node.Parent
 
-				// Skip parentheses to find the real parent expression
-				for current != nil && current.Kind == ast.KindParenthesizedExpression {
-					current = current.Parent
-				}
+				// Walk up the tree to find the conditional ancestor
+				// Track whether we encounter any non-parenthesis expressions
+				// If the assignment is nested in any expression (like ||, &&, ===, etc.),
+				// it's allowed in "except-parens" mode
+				hasNonParenExpression := false
 
-				// Now check if we're directly in a conditional or in a larger expression
 				for current != nil {
 					if current.Kind == ast.KindIfStatement ||
 						current.Kind == ast.KindWhileStatement ||
@@ -214,6 +233,12 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 						current.Kind == ast.KindConditionalExpression {
 						conditionalAncestor = current
 						break
+					}
+					// Check if this is a non-parenthesis expression
+					// Any expression besides ParenthesizedExpression means the assignment
+					// is nested in a larger expression context
+					if current.Kind != ast.KindParenthesizedExpression {
+						hasNonParenExpression = true
 					}
 					// Stop at function boundaries
 					if current.Kind == ast.KindFunctionDeclaration ||
@@ -245,9 +270,16 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 					// Always report assignments in conditionals
 					ctx.ReportNode(node, buildUnexpectedMessage(getConditionalTypeName(conditionalAncestor)))
 				} else if mode == "except-parens" {
-					// Check if the assignment is properly parenthesized
-					// ESLint logic: assignments need to be "doubly parenthesized" except in for loops
-					// where single parentheses suffice
+					// In "except-parens" mode, assignments are allowed if:
+					// 1. They are nested in any expression (like ||, &&, ===, etc.)
+					// 2. OR they are wrapped in double parentheses (for most conditionals)
+					// 3. OR they are wrapped in single parentheses (for for-loop conditions only)
+
+					if hasNonParenExpression {
+						// Assignment is nested in a larger expression (e.g., a || (a = b), (a = b) !== null)
+						// This is allowed because the assignment is not the direct test expression
+						return
+					}
 
 					// Count consecutive ParenthesizedExpression nodes wrapping the assignment
 					parenLevels := 0
@@ -259,14 +291,12 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 						current = current.Parent
 					}
 
+
 					var isProperlyParenthesized bool
-					if conditionalAncestor.Kind == ast.KindForStatement {
-						// For loops only require single parentheses
-						isProperlyParenthesized = parenLevels >= 1
-					} else {
-						// Other statements (if, while, do-while, ternary) require double parentheses
-						isProperlyParenthesized = parenLevels >= 2
-					}
+					// NOTE: In the TypeScript-Go AST, it appears that ((a = b)) only creates
+					// one ParenthesizedExpression node, not two. So we only require >= 1 parenthesis level.
+					// This differs from how ESLint checks by counting actual token positions.
+					isProperlyParenthesized = parenLevels >= 1
 
 					if !isProperlyParenthesized {
 						ctx.ReportNode(node, buildMissingMessage())
