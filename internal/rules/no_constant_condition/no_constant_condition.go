@@ -127,6 +127,19 @@ func isLogicalIdentity(node *ast.Node, operator ast.Kind) bool {
 		}
 	}
 
+	// For ||, check if node is always truthy (regex, functions, objects, arrays, etc.)
+	if operator == ast.KindBarBarToken {
+		switch node.Kind {
+		case ast.KindRegularExpressionLiteral,
+			ast.KindArrowFunction,
+			ast.KindFunctionExpression,
+			ast.KindClassExpression,
+			ast.KindObjectLiteralExpression,
+			ast.KindArrayLiteralExpression:
+			return true
+		}
+	}
+
 	// void operator is identity for &&
 	if node.Kind == ast.KindVoidExpression {
 		return operator == ast.KindAmpersandAmpersandToken
@@ -365,8 +378,14 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 					baseOp = ast.KindAmpersandAmpersandToken
 				}
 				// The assignment is constant if the right side is a logical identity
-				// OR if the right side is itself constant
-				return isLogicalIdentity(binary.Right, baseOp) || isConstant(ctx, binary.Right, inBooleanPosition)
+				// Logical identity: for ||, it's truthy values (true, 1, "foo", /regex/, etc.)
+				//                   for &&, it's falsy values (false, 0, null, undefined, etc.)
+				// Example: a ||= true -> always truthy (constant)
+				//          a ||= false -> depends on a (not constant)
+				//          a ||= (b || /regex/) -> /regex/ is identity for ||, so constant
+				//          a &&= false -> always falsy (constant)
+				//          a &&= true -> depends on a (not constant)
+				return isLogicalIdentity(binary.Right, baseOp)
 			}
 			return false
 		}
