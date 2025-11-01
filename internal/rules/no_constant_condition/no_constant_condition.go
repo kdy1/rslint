@@ -102,6 +102,18 @@ func getBooleanValue(node *ast.Node) *bool {
 			f := false
 			return &f
 		}
+	case ast.KindBigIntLiteral:
+		// BigInt: 0n is falsy, other values are truthy
+		text := node.Text()
+		// Check for 0n, 0x0n, 0b0n, 0o0n, etc.
+		if text == "0n" || text == "0x0n" || text == "0X0n" ||
+		   text == "0b0n" || text == "0B0n" ||
+		   text == "0o0n" || text == "0O0n" {
+			f := false
+			return &f
+		}
+		t := true
+		return &t
 	}
 	return nil
 }
@@ -124,11 +136,8 @@ func isLogicalIdentity(node *ast.Node, operator ast.Kind) bool {
 	}
 
 	// void operator is identity for &&
-	if node.Kind == ast.KindPrefixUnaryExpression {
-		prefix := node.AsPrefixUnaryExpression()
-		if prefix != nil && prefix.Operator == ast.KindVoidKeyword {
-			return operator == ast.KindAmpersandAmpersandToken
-		}
+	if node.Kind == ast.KindVoidExpression {
+		return operator == ast.KindAmpersandAmpersandToken
 	}
 
 	// Logical expressions with same operator
@@ -295,6 +304,14 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 			return isConstant(paren.Expression, inBooleanPosition)
 		}
 
+	case ast.KindVoidExpression:
+		// void operator always returns undefined (constant falsy value)
+		return true
+
+	case ast.KindTypeOfExpression:
+		// typeof always returns a non-empty string (constant)
+		return true
+
 	case ast.KindPrefixUnaryExpression:
 		prefix := node.AsPrefixUnaryExpression()
 		if prefix == nil {
@@ -307,13 +324,6 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 				return isConstant(prefix.Operand, true)
 			}
 			return false
-		case ast.KindTypeOfKeyword: // typeof
-			// typeof always returns a truthy string, so it's constant in boolean position
-			// In non-boolean position, typeof is still constant (always returns string)
-			return true
-		case ast.KindVoidKeyword: // void
-			// void always returns undefined (constant)
-			return true
 		case ast.KindPlusToken, ast.KindMinusToken, ast.KindTildeToken: // +, -, ~
 			if prefix.Operand != nil {
 				return isConstant(prefix.Operand, false)
@@ -446,30 +456,11 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		return false
 
 	case ast.KindCallExpression:
-		// Boolean(), String(), Number() with constant arguments are constant
-		// But only if they're simple identifiers (not shadowed or method calls)
-		call := node.AsCallExpression()
-		if call != nil && call.Expression != nil && call.Expression.Kind == ast.KindIdentifier {
-			name := call.Expression.Text()
-			if name == "Boolean" || name == "String" || name == "Number" {
-				// Check if all arguments are constant
-				if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
-					return true
-				}
-				allConstant := true
-				for _, arg := range call.Arguments.Nodes {
-					// Skip spread elements - they make it non-constant
-					if arg.Kind == ast.KindSpreadElement {
-						return false
-					}
-					if !isConstant(arg, false) {
-						allConstant = false
-						break
-					}
-				}
-				return allConstant
-			}
-		}
+		// Boolean(), String(), Number() calls are NOT considered constant
+		// because we can't reliably detect if these identifiers are shadowed
+		// without full scope analysis. This means we'll miss some cases like
+		// `if (Boolean(1))`, but it's better than false positives.
+		// TODO: Implement scope analysis to properly handle these cases.
 		return false
 
 	case ast.KindPostfixUnaryExpression:
