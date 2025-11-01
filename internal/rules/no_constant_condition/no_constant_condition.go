@@ -378,24 +378,21 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 
 		// Logical assignment operators (||=, &&=)
 		if operator == ast.KindBarBarEqualsToken || operator == ast.KindAmpersandAmpersandEqualsToken {
-			if inBooleanPosition {
-				var baseOp ast.Kind
-				if operator == ast.KindBarBarEqualsToken {
-					baseOp = ast.KindBarBarToken
-				} else {
-					baseOp = ast.KindAmpersandAmpersandToken
-				}
-				// The assignment is constant if the right side is a logical identity
-				// Logical identity: for ||, it's truthy values (true, 1, "foo", /regex/, etc.)
-				//                   for &&, it's falsy values (false, 0, null, undefined, etc.)
-				// Example: a ||= true -> always truthy (constant)
-				//          a ||= false -> depends on a (not constant)
-				//          a ||= (b || /regex/) -> /regex/ is identity for ||, so constant
-				//          a &&= false -> always falsy (constant)
-				//          a &&= true -> depends on a (not constant)
-				return isLogicalIdentity(binary.Right, baseOp)
+			var baseOp ast.Kind
+			if operator == ast.KindBarBarEqualsToken {
+				baseOp = ast.KindBarBarToken
+			} else {
+				baseOp = ast.KindAmpersandAmpersandToken
 			}
-			return false
+			// The assignment is constant if the right side is a logical identity
+			// Logical identity: for ||, it's truthy values (true, 1, "foo", /regex/, etc.)
+			//                   for &&, it's falsy values (false, 0, null, undefined, etc.)
+			// Example: a ||= true -> always truthy (constant)
+			//          a ||= false -> depends on a (not constant)
+			//          a ||= (b || /regex/) -> /regex/ is identity for ||, so constant
+			//          a &&= false -> always falsy (constant)
+			//          a &&= true -> depends on a (not constant)
+			return isLogicalIdentity(binary.Right, baseOp)
 		}
 
 		// Logical operators (&&, ||, ??)
@@ -524,6 +521,10 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 					// For Boolean(), we need to check if arguments are constant in boolean position
 					if callExpr.Arguments != nil {
 						for _, arg := range callExpr.Arguments.Nodes {
+							// Skip spread elements - they make the result non-constant
+							if arg.Kind == ast.KindSpreadElement {
+								return false
+							}
 							// For Boolean(), check if the argument is constant in boolean context
 							if !isConstant(ctx, arg, name == "Boolean") {
 								return false
@@ -607,9 +608,9 @@ func containsYield(node *ast.Node) bool {
 	node.ForEachChild(func(child *ast.Node) bool {
 		if containsYield(child) {
 			found = true
-			return false // Stop iteration
+			return true // Stop iteration
 		}
-		return true // Continue iteration
+		return false // Continue iteration
 	})
 
 	return found
@@ -650,7 +651,8 @@ func shouldCheckLoop(node *ast.Node, opts Options) bool {
 
 	// Don't check loops in generator functions that contain yield
 	// This applies even when checkLoops is "all"
-	// If the loop body contains a yield, don't check it
+	// If the loop body contains a yield, don't check the loop condition
+	// Note: We still check other conditions inside the loop (like if statements)
 	if body != nil && containsYield(body) {
 		return false
 	}
