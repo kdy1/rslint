@@ -65,21 +65,21 @@ func isWriteReference(node *ast.Node) bool {
 		// Check for all assignment operators
 		switch binary.OperatorToken.Kind {
 		case ast.KindEqualsToken, // =
-			ast.KindPlusEqualsToken,              // +=
-			ast.KindMinusEqualsToken,             // -=
-			ast.KindAsteriskEqualsToken,          // *=
-			ast.KindSlashEqualsToken,             // /=
-			ast.KindPercentEqualsToken,           // %=
-			ast.KindAsteriskAsteriskEqualsToken,  // **=
-			ast.KindLessThanLessThanEqualsToken,  // <<=
-			ast.KindGreaterThanGreaterThanEqualsToken,        // >>=
+			ast.KindPlusEqualsToken,                              // +=
+			ast.KindMinusEqualsToken,                             // -=
+			ast.KindAsteriskEqualsToken,                          // *=
+			ast.KindSlashEqualsToken,                             // /=
+			ast.KindPercentEqualsToken,                           // %=
+			ast.KindAsteriskAsteriskEqualsToken,                  // **=
+			ast.KindLessThanLessThanEqualsToken,                  // <<=
+			ast.KindGreaterThanGreaterThanEqualsToken,            // >>=
 			ast.KindGreaterThanGreaterThanGreaterThanEqualsToken, // >>>=
-			ast.KindAmpersandEqualsToken,         // &=
-			ast.KindBarEqualsToken,               // |=
-			ast.KindCaretEqualsToken,             // ^=
-			ast.KindQuestionQuestionEqualsToken,  // ??=
-			ast.KindAmpersandAmpersandEqualsToken, // &&=
-			ast.KindBarBarEqualsToken:            // ||=
+			ast.KindAmpersandEqualsToken,                         // &=
+			ast.KindBarEqualsToken,                               // |=
+			ast.KindCaretEqualsToken,                             // ^=
+			ast.KindQuestionQuestionEqualsToken,                  // ??=
+			ast.KindAmpersandAmpersandEqualsToken,                // &&=
+			ast.KindBarBarEqualsToken:                            // ||=
 			return true
 		}
 
@@ -91,9 +91,9 @@ func isWriteReference(node *ast.Node) bool {
 		}
 
 		switch prefix.Operator {
-		case ast.KindPlusPlusToken,   // ++
+		case ast.KindPlusPlusToken, // ++
 			ast.KindMinusMinusToken: // --
-			return true
+			return prefix.Operand == node
 		}
 
 	case ast.KindPostfixUnaryExpression:
@@ -104,10 +104,22 @@ func isWriteReference(node *ast.Node) bool {
 		}
 
 		switch postfix.Operator {
-		case ast.KindPlusPlusToken,   // ++
+		case ast.KindPlusPlusToken, // ++
 			ast.KindMinusMinusToken: // --
-			return true
+			return postfix.Operand == node
 		}
+
+	case ast.KindObjectBindingPattern:
+		// In destructuring like {x} = obj, x is a write reference
+		return isBindingPatternInAssignment(parent)
+
+	case ast.KindArrayBindingPattern:
+		// In array destructuring like [x] = arr, x is a write reference
+		return isBindingPatternInAssignment(parent)
+
+	case ast.KindBindingElement:
+		// Check if the binding element is part of a write context
+		return isWriteReference(parent)
 
 	case ast.KindShorthandPropertyAssignment:
 		// In destructuring like {x} = obj or ({x} = obj), x is a write reference
@@ -132,6 +144,47 @@ func isWriteReference(node *ast.Node) bool {
 	case ast.KindParenthesizedExpression:
 		// Unwrap parentheses and check the parent context
 		return isWriteReference(parent)
+
+	case ast.KindAsExpression, ast.KindTypeAssertionExpression:
+		// Type assertions like (x as any) = 0
+		// The type assertion wraps the identifier, check if the assertion is a write target
+		return isWriteReference(parent)
+	}
+
+	return false
+}
+
+// isBindingPatternInAssignment checks if a binding pattern is the left side of an assignment
+func isBindingPatternInAssignment(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// The binding pattern's parent might be wrapped in parentheses
+	parent := node.Parent
+
+	// Unwrap parentheses
+	for parent != nil && parent.Kind == ast.KindParenthesizedExpression {
+		parent = parent.Parent
+	}
+
+	// Check if the parent is a binary expression with = operator
+	if parent != nil && parent.Kind == ast.KindBinaryExpression {
+		binary := parent.AsBinaryExpression()
+		if binary != nil && binary.OperatorToken != nil && binary.OperatorToken.Kind == ast.KindEqualsToken {
+			// Check if the binding pattern is on the left side
+			leftNode := binary.Left
+			// Unwrap parentheses on the left side
+			for leftNode != nil && leftNode.Kind == ast.KindParenthesizedExpression {
+				parenExpr := leftNode.AsParenthesizedExpression()
+				if parenExpr != nil {
+					leftNode = parenExpr.Expression
+				} else {
+					break
+				}
+			}
+			return leftNode == node
+		}
 	}
 
 	return false
