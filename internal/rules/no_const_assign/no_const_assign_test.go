@@ -65,6 +65,30 @@ func TestNoConstAssignRule(t *testing.T) {
 
 			// Const in arrow function parameter
 			{Code: `const x = 0; const f = (y = x) => y;`},
+
+			// Scope shadowing with destructuring - different variable
+			{Code: `const {x} = {x: 0}; { let x; x = 1; }`},
+
+			// Scope shadowing with destructuring in block
+			{Code: `const {x} = {x: 0}; { const x = 1; }`},
+
+			// Try-catch with const - different scopes
+			{Code: `try { const x = 1; } catch (e) { const x = 2; }`},
+
+			// Catch variable shadows const
+			{Code: `const e = 0; try {} catch (e) { e = 1; }`},
+
+			// Function parameter shadows const in nested function
+			{Code: `const x = 0; function outer() { function inner(x) { x = 1; } }`},
+
+			// Arrow function parameter shadows const
+			{Code: `const x = 0; const f = (x) => { x = 1; };`},
+
+			// Block scope shadows const
+			{Code: `const x = 0; { const x = 1; }`},
+
+			// Nested block scopes
+			{Code: `const x = 0; { { let x; x = 1; } }`},
 		},
 		// Invalid cases - ported from ESLint
 		[]rule_tester.InvalidTestCase{
@@ -298,6 +322,40 @@ func TestNoConstAssignRule(t *testing.T) {
 				Code: `const x = 2; x **= 3;`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "const", Line: 1, Column: 14},
+				},
+			},
+
+			// Const in different scopes - outer scope
+			{
+				Code: `const x = 1; function foo() { const x = 2; x = 3; } x = 4;`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "const", Line: 1, Column: 44},
+					{MessageId: "const", Line: 1, Column: 53},
+				},
+			},
+
+			// Try-catch with const reassignment
+			{
+				Code: `try { const x = 1; x = 2; } catch (e) { const x = 3; x = 4; }`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "const", Line: 1, Column: 20},
+					{MessageId: "const", Line: 1, Column: 55},
+				},
+			},
+
+			// Nested function reassigns outer const
+			{
+				Code: `const x = 1; function outer() { function inner() { x = 2; } }`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "const", Line: 1, Column: 52},
+				},
+			},
+
+			// Reassignment in nested block
+			{
+				Code: `const x = 1; { { x = 2; } }`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "const", Line: 1, Column: 18},
 				},
 			},
 		},
