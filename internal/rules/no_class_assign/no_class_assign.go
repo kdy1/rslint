@@ -79,9 +79,15 @@ func isWriteReference(node *ast.Node) bool {
 			return prefix.Operand == node
 		}
 
-	case ast.KindObjectBindingPattern, ast.KindArrayBindingPattern:
-		// This is a destructuring pattern - check if it's part of an assignment
-		return isWriteReference(parent)
+	case ast.KindObjectBindingPattern:
+		// In destructuring like {A} = obj, A is a write reference
+		// ObjectBindingPattern is used in destructuring assignments
+		// Check if this pattern is on the left side of an assignment
+		return isBindingPatternInAssignment(parent)
+
+	case ast.KindArrayBindingPattern:
+		// In array destructuring like [A] = arr, A is a write reference
+		return isBindingPatternInAssignment(parent)
 
 	case ast.KindBindingElement:
 		// Check if the binding element is part of a write context
@@ -91,10 +97,6 @@ func isWriteReference(node *ast.Node) bool {
 		// In destructuring like {A} = obj or ({A} = obj), A is a write reference
 		shorthand := parent.AsShorthandPropertyAssignment()
 		if shorthand != nil && shorthand.Name() == node {
-			// The shorthand is in an object literal, check if that's in a destructuring assignment
-			if parent.Parent != nil && parent.Parent.Kind == ast.KindObjectLiteralExpression {
-				return isInDestructuringAssignment(parent.Parent)
-			}
 			return isInDestructuringAssignment(parent)
 		}
 
@@ -121,6 +123,42 @@ func isWriteReference(node *ast.Node) bool {
 		// Type assertions like (A as any) = 0
 		// The type assertion wraps the identifier, check if the assertion is a write target
 		return isWriteReference(parent)
+	}
+
+	return false
+}
+
+// isBindingPatternInAssignment checks if a binding pattern is the left side of an assignment
+func isBindingPatternInAssignment(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// The binding pattern's parent might be wrapped in parentheses
+	parent := node.Parent
+
+	// Unwrap parentheses
+	for parent != nil && parent.Kind == ast.KindParenthesizedExpression {
+		parent = parent.Parent
+	}
+
+	// Check if the parent is a binary expression with = operator
+	if parent != nil && parent.Kind == ast.KindBinaryExpression {
+		binary := parent.AsBinaryExpression()
+		if binary != nil && binary.OperatorToken != nil && binary.OperatorToken.Kind == ast.KindEqualsToken {
+			// Check if the binding pattern is on the left side
+			leftNode := binary.Left
+			// Unwrap parentheses on the left side
+			for leftNode != nil && leftNode.Kind == ast.KindParenthesizedExpression {
+				parenExpr := leftNode.AsParenthesizedExpression()
+				if parenExpr != nil {
+					leftNode = parenExpr.Expression
+				} else {
+					break
+				}
+			}
+			return leftNode == node
+		}
 	}
 
 	return false
