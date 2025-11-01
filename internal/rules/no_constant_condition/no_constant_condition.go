@@ -145,6 +145,14 @@ func isLogicalIdentity(node *ast.Node, operator ast.Kind) bool {
 		return operator == ast.KindAmpersandAmpersandToken
 	}
 
+	// Parenthesized expressions
+	if node.Kind == ast.KindParenthesizedExpression {
+		paren := node.AsParenthesizedExpression()
+		if paren != nil && paren.Expression != nil {
+			return isLogicalIdentity(paren.Expression, operator)
+		}
+	}
+
 	// Logical expressions with same operator
 	if node.Kind == ast.KindBinaryExpression {
 		binary := node.AsBinaryExpression()
