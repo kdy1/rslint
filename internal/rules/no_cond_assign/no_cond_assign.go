@@ -197,7 +197,6 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 
 				// Walk up to find if we're directly in a conditional test (not nested in other expressions)
 				// Skip over ParenthesizedExpressions as they don't change the semantics
-				var testExpressionRoot *ast.Node
 				var conditionalAncestor *ast.Node
 				current := node.Parent
 
@@ -223,8 +222,6 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 						current.Kind == ast.KindMethodDeclaration {
 						break
 					}
-					//  Remember this as a potential test expression root
-					testExpressionRoot = current
 					current = current.Parent
 				}
 
