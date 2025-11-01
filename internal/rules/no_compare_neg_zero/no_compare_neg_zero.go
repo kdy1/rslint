@@ -13,6 +13,30 @@ func buildCompareNegZeroMessage(operator string) rule.RuleMessage {
 	}
 }
 
+// getOperatorText converts an operator Kind to its string representation
+func getOperatorText(kind ast.Kind) string {
+	switch kind {
+	case ast.KindGreaterThanToken:
+		return ">"
+	case ast.KindGreaterThanEqualsToken:
+		return ">="
+	case ast.KindLessThanToken:
+		return "<"
+	case ast.KindLessThanEqualsToken:
+		return "<="
+	case ast.KindEqualsEqualsToken:
+		return "=="
+	case ast.KindEqualsEqualsEqualsToken:
+		return "==="
+	case ast.KindExclamationEqualsToken:
+		return "!="
+	case ast.KindExclamationEqualsEqualsToken:
+		return "!=="
+	default:
+		return ""
+	}
+}
+
 // isNegativeZero checks if a node represents -0
 // This matches: UnaryExpression with operator "-" and argument being Literal with value 0
 func isNegativeZero(node *ast.Node) bool {
@@ -34,12 +58,7 @@ func isNegativeZero(node *ast.Node) bool {
 	switch operand.Kind {
 	case ast.KindNumericLiteral:
 		numLiteral := operand.AsNumericLiteral()
-		if numLiteral != nil && numLiteral.Text() == "0" {
-			return true
-		}
-	case ast.KindFirstLiteralToken:
-		// Some parsers might use FirstLiteralToken for numeric literals
-		if operand.Text() == "0" {
+		if numLiteral != nil && numLiteral.Text == "0" {
 			return true
 		}
 	}
@@ -52,7 +71,7 @@ var NoCompareNegZeroRule = rule.CreateRule(rule.Rule{
 	Name: "no-compare-neg-zero",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Define the operators we want to check
-		operatorsToCheck := map[ast.SyntaxKind]bool{
+		operatorsToCheck := map[ast.Kind]bool{
 			ast.KindGreaterThanToken:             true, // >
 			ast.KindGreaterThanEqualsToken:       true, // >=
 			ast.KindLessThanToken:                true, // <
@@ -78,7 +97,7 @@ var NoCompareNegZeroRule = rule.CreateRule(rule.Rule{
 				// Check if either side is -0
 				if isNegativeZero(binary.Left) || isNegativeZero(binary.Right) {
 					// Get the operator text for the error message
-					operatorText := binary.OperatorToken.Text()
+					operatorText := getOperatorText(binary.OperatorToken.Kind)
 					ctx.ReportNode(node, buildCompareNegZeroMessage(operatorText))
 				}
 			},
