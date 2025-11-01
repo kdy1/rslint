@@ -90,6 +90,40 @@ func isConditionalTestExpression(node, parent *ast.Node) bool {
 	return false
 }
 
+// getTestExpression returns the test expression for a conditional statement
+func getTestExpression(node *ast.Node) *ast.Node {
+	if node == nil {
+		return nil
+	}
+
+	switch node.Kind {
+	case ast.KindIfStatement:
+		ifStmt := node.AsIfStatement()
+		if ifStmt != nil {
+			return ifStmt.Expression
+		}
+	case ast.KindWhileStatement:
+		whileStmt := node.AsWhileStatement()
+		if whileStmt != nil {
+			return whileStmt.Expression
+		}
+	case ast.KindDoStatement:
+		doStmt := node.AsDoStatement()
+		if doStmt != nil {
+			return doStmt.Expression
+		}
+	case ast.KindForStatement:
+		forStmt := node.AsForStatement()
+		if forStmt != nil {
+			return forStmt.Condition
+		}
+	case ast.KindConditionalExpression:
+		// For ternary, return the entire expression
+		return node
+	}
+	return nil
+}
+
 // getConditionalTypeName returns a human-readable name for the conditional statement type
 func getConditionalTypeName(node *ast.Node) string {
 	if node == nil {
@@ -154,82 +188,58 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		// Track parent nodes to determine context
-		parentStack := make([]*ast.Node, 0)
-
 		return rule.RuleListeners{
-			// Track parent nodes
-			"*": func(node *ast.Node) {
-				parentStack = append(parentStack, node)
-			},
-			"*:exit": func(node *ast.Node) {
-				if len(parentStack) > 0 {
-					parentStack = parentStack[:len(parentStack)-1]
-				}
-			},
-
 			ast.KindBinaryExpression: func(node *ast.Node) {
 				// Check if this is an assignment expression
 				if !isAssignmentExpression(node) {
 					return
 				}
 
-				// Get parent node
-				var parent *ast.Node
-				if len(parentStack) > 0 {
-					parent = parentStack[len(parentStack)-1]
+				// Walk up to find if we're directly in a conditional test (not nested in other expressions)
+				// Skip over ParenthesizedExpressions as they don't change the semantics
+				var testExpressionRoot *ast.Node
+				var conditionalAncestor *ast.Node
+				current := node.Parent
+
+				// Skip parentheses to find the real parent expression
+				for current != nil && current.Kind == ast.KindParenthesizedExpression {
+					current = current.Parent
 				}
 
-				// Check if we're in a conditional test expression
-				var conditionalAncestor *ast.Node
-				for i := len(parentStack) - 1; i >= 0; i-- {
-					p := parentStack[i]
-					if p.Kind == ast.KindIfStatement ||
-						p.Kind == ast.KindWhileStatement ||
-						p.Kind == ast.KindDoStatement ||
-						p.Kind == ast.KindForStatement ||
-						p.Kind == ast.KindConditionalExpression {
-						conditionalAncestor = p
+				// Now check if we're directly in a conditional or in a larger expression
+				for current != nil {
+					if current.Kind == ast.KindIfStatement ||
+						current.Kind == ast.KindWhileStatement ||
+						current.Kind == ast.KindDoStatement ||
+						current.Kind == ast.KindForStatement ||
+						current.Kind == ast.KindConditionalExpression {
+						conditionalAncestor = current
 						break
 					}
 					// Stop at function boundaries
-					if p.Kind == ast.KindFunctionDeclaration ||
-						p.Kind == ast.KindFunctionExpression ||
-						p.Kind == ast.KindArrowFunction ||
-						p.Kind == ast.KindMethodDeclaration {
+					if current.Kind == ast.KindFunctionDeclaration ||
+						current.Kind == ast.KindFunctionExpression ||
+						current.Kind == ast.KindArrowFunction ||
+						current.Kind == ast.KindMethodDeclaration {
 						break
 					}
+					//  Remember this as a potential test expression root
+					testExpressionRoot = current
+					current = current.Parent
 				}
 
 				if conditionalAncestor == nil {
 					return
 				}
 
-				// Check if the assignment is in the test part of the conditional
-				var inTestExpression bool
-				switch conditionalAncestor.Kind {
-				case ast.KindIfStatement:
-					ifStmt := conditionalAncestor.AsIfStatement()
-					inTestExpression = ifStmt != nil && containsNode(ifStmt.Expression, node)
-
-				case ast.KindWhileStatement:
-					whileStmt := conditionalAncestor.AsWhileStatement()
-					inTestExpression = whileStmt != nil && containsNode(whileStmt.Expression, node)
-
-				case ast.KindDoStatement:
-					doStmt := conditionalAncestor.AsDoStatement()
-					inTestExpression = doStmt != nil && containsNode(doStmt.Expression, node)
-
-				case ast.KindForStatement:
-					forStmt := conditionalAncestor.AsForStatement()
-					inTestExpression = forStmt != nil && containsNode(forStmt.Condition, node)
-
-				case ast.KindConditionalExpression:
-					condExpr := conditionalAncestor.AsConditionalExpression()
-					inTestExpression = condExpr != nil && containsNode(condExpr.Condition, node)
+				// Get the actual test expression
+				testExpr := getTestExpression(conditionalAncestor)
+				if testExpr == nil {
+					return
 				}
 
-				if !inTestExpression {
+				// Check if the assignment is in the test part of the conditional
+				if !containsNode(testExpr, node) {
 					return
 				}
 
@@ -239,26 +249,26 @@ var NoCondAssignRule = rule.CreateRule(rule.Rule{
 					ctx.ReportNode(node, buildUnexpectedMessage(getConditionalTypeName(conditionalAncestor)))
 				} else if mode == "except-parens" {
 					// Check if the assignment is properly parenthesized
-					isProperlyParenthesized := false
+					// ESLint logic: assignments need to be "doubly parenthesized" except in for loops
+					// where single parentheses suffice
 
-					// For ternary expressions, we need double parentheses
-					if conditionalAncestor.Kind == ast.KindConditionalExpression {
-						// Check if wrapped in at least 2 levels of parentheses
-						parenCount := 0
-						if parent != nil && parent.Kind == ast.KindParenthesizedExpression {
-							parenCount++
-							// Check grandparent
-							if len(parentStack) >= 2 {
-								grandparent := parentStack[len(parentStack)-2]
-								if grandparent != nil && grandparent.Kind == ast.KindParenthesizedExpression {
-									parenCount++
-								}
-							}
-						}
-						isProperlyParenthesized = parenCount >= 2
+					// Count consecutive ParenthesizedExpression nodes wrapping the assignment
+					parenLevels := 0
+					current := node.Parent
+
+					// Count consecutive parenthesized expressions
+					for current != nil && current.Kind == ast.KindParenthesizedExpression {
+						parenLevels++
+						current = current.Parent
+					}
+
+					var isProperlyParenthesized bool
+					if conditionalAncestor.Kind == ast.KindForStatement {
+						// For loops only require single parentheses
+						isProperlyParenthesized = parenLevels >= 1
 					} else {
-						// For other statements, single parentheses suffice
-						isProperlyParenthesized = parent != nil && parent.Kind == ast.KindParenthesizedExpression
+						// Other statements (if, while, do-while, ternary) require double parentheses
+						isProperlyParenthesized = parenLevels >= 2
 					}
 
 					if !isProperlyParenthesized {
@@ -279,10 +289,13 @@ func containsNode(root, target *ast.Node) bool {
 		return true
 	}
 
-	// Simple check - in a real implementation, we'd traverse the full AST
-	// For now, we assume if target's position is within root's range, it's contained
-	if root.Pos <= target.Pos && target.End <= root.End {
-		return true
+	// Walk up from target to see if we reach root
+	current := target.Parent
+	for current != nil {
+		if current == root {
+			return true
+		}
+		current = current.Parent
 	}
 
 	return false
