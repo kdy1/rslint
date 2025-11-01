@@ -262,6 +262,11 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 
 		operator := binary.OperatorToken.Kind
 
+		// Comma operator: sequence expression, constant if last expression is constant
+		if operator == ast.KindCommaToken {
+			return isConstant(binary.Right, inBooleanPosition)
+		}
+
 		// Assignment expressions
 		if operator == ast.KindEqualsToken {
 			// Simple assignment: constant if right side is constant
@@ -366,14 +371,6 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 	case ast.KindPostfixUnaryExpression:
 		// ++ and -- are not constant (they modify variables)
 		return false
-
-	case ast.KindCommaListExpression:
-		// Sequence expression (comma operator): constant if last expression is constant
-		comma := node.AsCommaListExpression()
-		if comma != nil && comma.Elements != nil && len(comma.Elements.Nodes) > 0 {
-			lastExpr := comma.Elements.Nodes[len(comma.Elements.Nodes)-1]
-			return isConstant(lastExpr, inBooleanPosition)
-		}
 	}
 
 	return false
