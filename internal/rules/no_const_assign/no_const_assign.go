@@ -35,12 +35,7 @@ func getIdentifierName(node *ast.Node) string {
 		return ""
 	}
 
-	identifier := node.AsIdentifier()
-	if identifier == nil {
-		return ""
-	}
-
-	return identifier.EscapedText
+	return node.Text()
 }
 
 // isWriteReference checks if a reference is a write operation (assignment, increment, decrement, etc.)
@@ -182,18 +177,18 @@ func findVariableDeclaration(identifier *ast.Node, variableDeclarationList *ast.
 	}
 
 	// Search through all declarations
-	for _, decl := range varDeclList.Declarations.Slice() {
+	for _, decl := range varDeclList.Declarations.Nodes {
 		if decl.Kind != ast.KindVariableDeclaration {
 			continue
 		}
 
 		varDecl := decl.AsVariableDeclaration()
-		if varDecl == nil || varDecl.Name == nil {
+		if varDecl == nil || varDecl.Name() == nil {
 			continue
 		}
 
 		// Check if this declaration matches our identifier
-		if matchesIdentifier(varDecl.Name, identName) {
+		if matchesIdentifier(varDecl.Name(), identName) {
 			return decl
 		}
 	}
@@ -213,39 +208,39 @@ func matchesIdentifier(bindingName *ast.Node, identName string) bool {
 
 	case ast.KindObjectBindingPattern:
 		// Check if any element in the object binding matches
-		objBinding := bindingName.AsObjectBindingPattern()
-		if objBinding == nil || objBinding.Elements == nil {
-			return false
-		}
-
-		for _, elem := range objBinding.Elements.Slice() {
-			if elem.Kind == ast.KindBindingElement {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					if matchesIdentifier(bindingElem.Name, identName) {
-						return true
+		// Walk through child nodes to find binding elements
+		matched := false
+		bindingName.ForEachChild(func(child *ast.Node) bool {
+			if child.Kind == ast.KindBindingElement {
+				bindingElem := child.AsBindingElement()
+				if bindingElem != nil && bindingElem.Name() != nil {
+					if matchesIdentifier(bindingElem.Name(), identName) {
+						matched = true
+						return true // stop iteration
 					}
 				}
 			}
-		}
+			return false
+		})
+		return matched
 
 	case ast.KindArrayBindingPattern:
 		// Check if any element in the array binding matches
-		arrBinding := bindingName.AsArrayBindingPattern()
-		if arrBinding == nil || arrBinding.Elements == nil {
-			return false
-		}
-
-		for _, elem := range arrBinding.Elements.Slice() {
-			if elem.Kind == ast.KindBindingElement {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					if matchesIdentifier(bindingElem.Name, identName) {
-						return true
+		// Walk through child nodes to find binding elements
+		matched := false
+		bindingName.ForEachChild(func(child *ast.Node) bool {
+			if child.Kind == ast.KindBindingElement {
+				bindingElem := child.AsBindingElement()
+				if bindingElem != nil && bindingElem.Name() != nil {
+					if matchesIdentifier(bindingElem.Name(), identName) {
+						matched = true
+						return true // stop iteration
 					}
 				}
 			}
-		}
+			return false
+		})
+		return matched
 	}
 
 	return false
@@ -271,18 +266,18 @@ var NoConstAssignRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Track all identifiers declared as const
-				for _, decl := range varDeclList.Declarations.Slice() {
+				for _, decl := range varDeclList.Declarations.Nodes {
 					if decl.Kind != ast.KindVariableDeclaration {
 						continue
 					}
 
 					varDecl := decl.AsVariableDeclaration()
-					if varDecl == nil || varDecl.Name == nil {
+					if varDecl == nil || varDecl.Name() == nil {
 						continue
 					}
 
 					// Collect all identifiers from the binding name
-					collectIdentifiers(varDecl.Name, node, constDeclarations)
+					collectIdentifiers(varDecl.Name(), node, constDeclarations)
 				}
 			},
 
@@ -336,33 +331,27 @@ func collectIdentifiers(bindingName *ast.Node, declListNode *ast.Node, constDecl
 		}
 
 	case ast.KindObjectBindingPattern:
-		objBinding := bindingName.AsObjectBindingPattern()
-		if objBinding == nil || objBinding.Elements == nil {
-			return
-		}
-
-		for _, elem := range objBinding.Elements.Slice() {
-			if elem.Kind == ast.KindBindingElement {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					collectIdentifiers(bindingElem.Name, declListNode, constDeclarations)
+		// Walk through child nodes to find binding elements
+		bindingName.ForEachChild(func(child *ast.Node) bool {
+			if child.Kind == ast.KindBindingElement {
+				bindingElem := child.AsBindingElement()
+				if bindingElem != nil && bindingElem.Name() != nil {
+					collectIdentifiers(bindingElem.Name(), declListNode, constDeclarations)
 				}
 			}
-		}
+			return false
+		})
 
 	case ast.KindArrayBindingPattern:
-		arrBinding := bindingName.AsArrayBindingPattern()
-		if arrBinding == nil || arrBinding.Elements == nil {
-			return
-		}
-
-		for _, elem := range arrBinding.Elements.Slice() {
-			if elem.Kind == ast.KindBindingElement {
-				bindingElem := elem.AsBindingElement()
-				if bindingElem != nil && bindingElem.Name != nil {
-					collectIdentifiers(bindingElem.Name, declListNode, constDeclarations)
+		// Walk through child nodes to find binding elements
+		bindingName.ForEachChild(func(child *ast.Node) bool {
+			if child.Kind == ast.KindBindingElement {
+				bindingElem := child.AsBindingElement()
+				if bindingElem != nil && bindingElem.Name() != nil {
+					collectIdentifiers(bindingElem.Name(), declListNode, constDeclarations)
 				}
 			}
-		}
+			return false
+		})
 	}
 }
