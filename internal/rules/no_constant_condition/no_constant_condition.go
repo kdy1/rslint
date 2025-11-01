@@ -3,6 +3,7 @@ package no_constant_condition
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // Message builder
@@ -71,9 +72,12 @@ func getBooleanValue(node *ast.Node) *bool {
 		t := true
 		return &t
 	case ast.KindBigIntLiteral:
-		// 0n is falsy, other bigints are truthy
+		// BigInt: 0n is falsy, other values are truthy
 		text := node.Text()
-		if text == "0n" || text == "0x0n" || text == "0b0n" || text == "0o0n" {
+		// Check for 0n, 0x0n, 0b0n, 0o0n, etc. (case-insensitive for hex prefix)
+		if text == "0n" || text == "0x0n" || text == "0X0n" ||
+		   text == "0b0n" || text == "0B0n" ||
+		   text == "0o0n" || text == "0O0n" {
 			f := false
 			return &f
 		}
@@ -102,18 +106,6 @@ func getBooleanValue(node *ast.Node) *bool {
 			f := false
 			return &f
 		}
-	case ast.KindBigIntLiteral:
-		// BigInt: 0n is falsy, other values are truthy
-		text := node.Text()
-		// Check for 0n, 0x0n, 0b0n, 0o0n, etc.
-		if text == "0n" || text == "0x0n" || text == "0X0n" ||
-		   text == "0b0n" || text == "0B0n" ||
-		   text == "0o0n" || text == "0O0n" {
-			f := false
-			return &f
-		}
-		t := true
-		return &t
 	}
 	return nil
 }
@@ -173,7 +165,7 @@ func isLogicalIdentity(node *ast.Node, operator ast.Kind) bool {
 }
 
 // isConstant checks if a node represents a constant value
-func isConstant(node *ast.Node, inBooleanPosition bool) bool {
+func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) bool {
 	if node == nil {
 		return false
 	}
@@ -222,13 +214,13 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 				if elem.Kind == ast.KindSpreadElement {
 					spread := elem.AsSpreadElement()
 					if spread != nil && spread.Expression != nil {
-						if !isConstant(spread.Expression, false) {
+						if !isConstant(ctx, spread.Expression, false) {
 							return false
 						}
 					}
 					continue
 				}
-				if !isConstant(elem, false) {
+				if !isConstant(ctx, elem, false) {
 					return false
 				}
 			}
@@ -289,7 +281,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 				if span.Kind == ast.KindTemplateSpan {
 					templateSpan := span.AsTemplateSpan()
 					if templateSpan != nil && templateSpan.Expression != nil {
-						if !isConstant(templateSpan.Expression, false) {
+						if !isConstant(ctx, templateSpan.Expression, false) {
 							return false
 						}
 					}
@@ -301,16 +293,24 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 	case ast.KindParenthesizedExpression:
 		paren := node.AsParenthesizedExpression()
 		if paren != nil && paren.Expression != nil {
-			return isConstant(paren.Expression, inBooleanPosition)
+			return isConstant(ctx, paren.Expression, inBooleanPosition)
 		}
 
 	case ast.KindVoidExpression:
 		// void operator always returns undefined (constant falsy value)
+		// The operand's constantness doesn't matter - void always returns undefined
 		return true
 
 	case ast.KindTypeOfExpression:
-		// typeof always returns a non-empty string (constant)
-		return true
+		// typeof always returns a non-empty string (always truthy in boolean context)
+		// However, typeof is only constant if the operand is constant
+		// typeof 'string' -> constant "string"
+		// typeof x -> not constant (depends on x's type at runtime)
+		typeofExpr := node.AsTypeOfExpression()
+		if typeofExpr != nil && typeofExpr.Expression != nil {
+			return isConstant(ctx, typeofExpr.Expression, false)
+		}
+		return false
 
 	case ast.KindPrefixUnaryExpression:
 		prefix := node.AsPrefixUnaryExpression()
@@ -321,12 +321,12 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		switch prefix.Operator {
 		case ast.KindExclamationToken: // !
 			if prefix.Operand != nil {
-				return isConstant(prefix.Operand, true)
+				return isConstant(ctx, prefix.Operand, true)
 			}
 			return false
 		case ast.KindPlusToken, ast.KindMinusToken, ast.KindTildeToken: // +, -, ~
 			if prefix.Operand != nil {
-				return isConstant(prefix.Operand, false)
+				return isConstant(ctx, prefix.Operand, false)
 			}
 			return false
 		}
@@ -341,13 +341,13 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 
 		// Comma operator (sequence expression): constant if right side is constant
 		if operator == ast.KindCommaToken {
-			return isConstant(binary.Right, inBooleanPosition)
+			return isConstant(ctx, binary.Right, inBooleanPosition)
 		}
 
 		// Assignment expressions
 		if operator == ast.KindEqualsToken {
 			// Simple assignment: constant if right side is constant
-			return isConstant(binary.Right, inBooleanPosition)
+			return isConstant(ctx, binary.Right, inBooleanPosition)
 		}
 
 		// Logical assignment operators (||=, &&=)
@@ -367,8 +367,8 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		// Logical operators (&&, ||, ??)
 		switch operator {
 		case ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken:
-			isLeftConstant := isConstant(binary.Left, inBooleanPosition)
-			isRightConstant := isConstant(binary.Right, inBooleanPosition)
+			isLeftConstant := isConstant(ctx, binary.Left, inBooleanPosition)
+			isRightConstant := isConstant(ctx, binary.Right, inBooleanPosition)
 			isLeftShortCircuit := isLeftConstant && isLogicalIdentity(binary.Left, operator)
 			isRightShortCircuit := inBooleanPosition && isRightConstant && isLogicalIdentity(binary.Right, operator)
 
@@ -385,7 +385,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 			ast.KindExclamationEqualsToken,
 			ast.KindEqualsEqualsEqualsToken,
 			ast.KindExclamationEqualsEqualsToken:
-			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+			return isConstant(ctx, binary.Left, false) && isConstant(ctx, binary.Right, false)
 
 		case ast.KindInKeyword:
 			// 'in' operator: not constant if right side is object/array literal (prototype properties)
@@ -395,10 +395,10 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 					return false
 				}
 			}
-			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+			return isConstant(ctx, binary.Left, false) && isConstant(ctx, binary.Right, false)
 
 		case ast.KindInstanceOfKeyword:
-			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+			return isConstant(ctx, binary.Left, false) && isConstant(ctx, binary.Right, false)
 		}
 
 		// Arithmetic operators - both sides must be constant
@@ -415,14 +415,14 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 			ast.KindBarToken,
 			ast.KindAmpersandToken,
 			ast.KindCaretToken:
-			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+			return isConstant(ctx, binary.Left, false) && isConstant(ctx, binary.Right, false)
 		}
 
 	case ast.KindConditionalExpression:
 		// Ternary operator - only constant if test is constant
 		cond := node.AsConditionalExpression()
 		if cond != nil && cond.Condition != nil {
-			return isConstant(cond.Condition, false)
+			return isConstant(ctx, cond.Condition, false)
 		}
 
 	case ast.KindNewExpression:
@@ -445,7 +445,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 					}
 					// All arguments must be constant
 					for _, arg := range newExpr.Arguments.Nodes {
-						if !isConstant(arg, false) {
+						if !isConstant(ctx, arg, false) {
 							return false
 						}
 					}
@@ -456,11 +456,52 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		return false
 
 	case ast.KindCallExpression:
-		// Boolean(), String(), Number() calls are NOT considered constant
-		// because we can't reliably detect if these identifiers are shadowed
-		// without full scope analysis. This means we'll miss some cases like
-		// `if (Boolean(1))`, but it's better than false positives.
-		// TODO: Implement scope analysis to properly handle these cases.
+		// Boolean(), String(), Number() calls with constant arguments are constant
+		// if the function is the global built-in (not shadowed)
+		callExpr := node.AsCallExpression()
+		if callExpr != nil && callExpr.Expression != nil && inBooleanPosition {
+			if callExpr.Expression.Kind == ast.KindIdentifier {
+				name := callExpr.Expression.Text()
+				if name == "Boolean" || name == "String" || name == "Number" {
+					// Check if all arguments are constant first
+					allArgsConstant := true
+					if callExpr.Arguments != nil {
+						for _, arg := range callExpr.Arguments.Nodes {
+							if !isConstant(ctx, arg, false) {
+								allArgsConstant = false
+								break
+							}
+						}
+					}
+
+					// If arguments are not constant, the call is definitely not constant
+					if !allArgsConstant {
+						return false
+					}
+
+					// Now check if this identifier is the global built-in (not shadowed)
+					// If we can't determine (no TypeChecker), conservatively assume it's NOT the global builtin
+					// to avoid false positives from shadowing
+					if ctx == nil || ctx.TypeChecker == nil || ctx.Program == nil {
+						// Can't check for shadowing - conservatively assume it's shadowed
+						return false
+					}
+
+					// Get the symbol at this location
+					symbol := ctx.TypeChecker.GetSymbolAtLocation(callExpr.Expression)
+					if symbol == nil {
+						// Can't resolve symbol - conservatively assume it's shadowed
+						return false
+					}
+
+					// Check if the symbol is from the default library (not shadowed)
+					isGlobalBuiltin := utils.IsSymbolFromDefaultLibrary(ctx.Program, symbol)
+
+					// Only treat as constant if it's the global builtin with constant arguments
+					return isGlobalBuiltin
+				}
+			}
+		}
 		return false
 
 	case ast.KindPostfixUnaryExpression:
@@ -472,7 +513,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		children := node.Children()
 		if children != nil && len(children.Nodes) > 0 {
 			lastExpr := children.Nodes[len(children.Nodes)-1]
-			return isConstant(lastExpr, inBooleanPosition)
+			return isConstant(ctx, lastExpr, inBooleanPosition)
 		}
 	}
 
@@ -554,29 +595,32 @@ func shouldCheckLoop(node *ast.Node, opts Options) bool {
 	}
 
 	// Don't check loops in generator functions that contain yield
-	// Get the loop body
-	var body *ast.Node
-	switch node.Kind {
-	case ast.KindWhileStatement:
-		whileStmt := node.AsWhileStatement()
-		if whileStmt != nil {
-			body = whileStmt.Statement
+	// UNLESS checkLoops is "all"
+	if opts.CheckLoops != "all" {
+		// Get the loop body
+		var body *ast.Node
+		switch node.Kind {
+		case ast.KindWhileStatement:
+			whileStmt := node.AsWhileStatement()
+			if whileStmt != nil {
+				body = whileStmt.Statement
+			}
+		case ast.KindDoStatement:
+			doStmt := node.AsDoStatement()
+			if doStmt != nil {
+				body = doStmt.Statement
+			}
+		case ast.KindForStatement:
+			forStmt := node.AsForStatement()
+			if forStmt != nil {
+				body = forStmt.Statement
+			}
 		}
-	case ast.KindDoStatement:
-		doStmt := node.AsDoStatement()
-		if doStmt != nil {
-			body = doStmt.Statement
-		}
-	case ast.KindForStatement:
-		forStmt := node.AsForStatement()
-		if forStmt != nil {
-			body = forStmt.Statement
-		}
-	}
 
-	// If the loop body contains a yield, don't check it
-	if body != nil && containsYield(body) {
-		return false
+		// If the loop body contains a yield, don't check it
+		if body != nil && containsYield(body) {
+			return false
+		}
 	}
 
 	return true
@@ -620,7 +664,7 @@ func getTestExpression(node *ast.Node) *ast.Node {
 }
 
 // checkCondition reports if a condition is constant
-func checkCondition(ctx rule.RuleContext, node *ast.Node, opts Options) {
+func checkCondition(ctx *rule.RuleContext, node *ast.Node, opts Options) {
 	testExpr := getTestExpression(node)
 	if testExpr == nil {
 		return
@@ -635,7 +679,7 @@ func checkCondition(ctx rule.RuleContext, node *ast.Node, opts Options) {
 	}
 
 	// Check if the test expression is constant
-	if isConstant(testExpr, true) {
+	if isConstant(ctx, testExpr, true) {
 		ctx.ReportNode(testExpr, buildUnexpectedMessage())
 	}
 }
@@ -649,27 +693,27 @@ var NoConstantConditionRule = rule.CreateRule(rule.Rule{
 		return rule.RuleListeners{
 			// Check if statements
 			ast.KindIfStatement: func(node *ast.Node) {
-				checkCondition(ctx, node, opts)
+				checkCondition(&ctx, node, opts)
 			},
 
 			// Check conditional expressions (ternary)
 			ast.KindConditionalExpression: func(node *ast.Node) {
-				checkCondition(ctx, node, opts)
+				checkCondition(&ctx, node, opts)
 			},
 
 			// Check while loops
 			ast.KindWhileStatement: func(node *ast.Node) {
-				checkCondition(ctx, node, opts)
+				checkCondition(&ctx, node, opts)
 			},
 
 			// Check do-while loops
 			ast.KindDoStatement: func(node *ast.Node) {
-				checkCondition(ctx, node, opts)
+				checkCondition(&ctx, node, opts)
 			},
 
 			// Check for loops
 			ast.KindForStatement: func(node *ast.Node) {
-				checkCondition(ctx, node, opts)
+				checkCondition(&ctx, node, opts)
 			},
 		}
 	},
