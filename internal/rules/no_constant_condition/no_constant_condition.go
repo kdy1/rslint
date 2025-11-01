@@ -177,11 +177,44 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		text := node.Text()
 		return text == "undefined" || text == "Infinity"
 
-	case ast.KindObjectLiteralExpression,
-		ast.KindArrayLiteralExpression,
-		ast.KindArrowFunction,
+	case ast.KindArrowFunction,
 		ast.KindFunctionExpression,
 		ast.KindClassExpression:
+		return true
+
+	case ast.KindObjectLiteralExpression:
+		// Object literals are always truthy in boolean context
+		// In non-boolean context, they're considered constant (new object)
+		return true
+
+	case ast.KindArrayLiteralExpression:
+		// Array literals are always truthy in boolean context
+		if inBooleanPosition {
+			return true
+		}
+		// In non-boolean context, only constant if all elements are constant
+		arrayLit := node.AsArrayLiteralExpression()
+		if arrayLit != nil && arrayLit.Elements != nil {
+			for _, elem := range arrayLit.Elements.Nodes {
+				// Skip omitted expressions
+				if elem.Kind == ast.KindOmittedExpression {
+					continue
+				}
+				// Spread elements: check the spread argument
+				if elem.Kind == ast.KindSpreadElement {
+					spread := elem.AsSpreadElement()
+					if spread != nil && spread.Expression != nil {
+						if !isConstant(spread.Expression, false) {
+							return false
+						}
+					}
+					continue
+				}
+				if !isConstant(elem, false) {
+					return false
+				}
+			}
+		}
 		return true
 
 	case ast.KindTemplateExpression:
@@ -192,13 +225,23 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 			return false
 		}
 
-		// In boolean position: constant if any quasi has content
+		// In boolean position: constant if any quasi has content OR all expressions are constant
 		if inBooleanPosition {
-			// Check template head
-			if template.Head != nil && len(template.Head.Text()) > 0 {
+			// Check template head for non-empty content
+			hasContent := false
+			if template.Head != nil {
+				text := template.Head.Text()
+				if len(text) > 0 {
+					hasContent = true
+				}
+			}
+
+			// If we found static content, it's constant
+			if hasContent {
 				return true
 			}
-			// Check template spans
+
+			// Check template spans for static content
 			if template.TemplateSpans != nil {
 				for _, span := range template.TemplateSpans.Nodes {
 					if span.Kind == ast.KindTemplateSpan {
@@ -206,16 +249,23 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 						if templateSpan != nil && templateSpan.Literal != nil {
 							text := templateSpan.Literal.Text()
 							if len(text) > 0 {
-								return true
+								hasContent = true
+								break
 							}
 						}
 					}
 				}
 			}
-			return false
+
+			if hasContent {
+				return true
+			}
+
+			// No static content, so check if all expressions are constant
+			// Fall through to check expressions below
 		}
 
-		// Not in boolean position: constant if all expressions are constant
+		// Check if all expressions are constant
 		if template.TemplateSpans != nil {
 			for _, span := range template.TemplateSpans.Nodes {
 				if span.Kind == ast.KindTemplateSpan {
@@ -238,20 +288,28 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 
 	case ast.KindPrefixUnaryExpression:
 		prefix := node.AsPrefixUnaryExpression()
-		if prefix == nil || prefix.Operand == nil {
+		if prefix == nil {
 			return false
 		}
 
 		switch prefix.Operator {
 		case ast.KindExclamationToken: // !
-			return isConstant(prefix.Operand, true)
+			if prefix.Operand != nil {
+				return isConstant(prefix.Operand, true)
+			}
+			return false
 		case ast.KindTypeOfKeyword: // typeof
-			// typeof always returns a constant string in boolean position
-			return inBooleanPosition
+			// typeof always returns a truthy string, so it's constant in boolean position
+			// In non-boolean position, typeof is still constant (always returns string)
+			return true
 		case ast.KindVoidKeyword: // void
+			// void always returns undefined (constant)
 			return true
 		case ast.KindPlusToken, ast.KindMinusToken, ast.KindTildeToken: // +, -, ~
-			return isConstant(prefix.Operand, false)
+			if prefix.Operand != nil {
+				return isConstant(prefix.Operand, false)
+			}
+			return false
 		}
 
 	case ast.KindBinaryExpression:
@@ -262,7 +320,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 
 		operator := binary.OperatorToken.Kind
 
-		// Comma operator: sequence expression, constant if last expression is constant
+		// Comma operator (sequence expression): constant if right side is constant
 		if operator == ast.KindCommaToken {
 			return isConstant(binary.Right, inBooleanPosition)
 		}
@@ -307,9 +365,20 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 			ast.KindEqualsEqualsToken,
 			ast.KindExclamationEqualsToken,
 			ast.KindEqualsEqualsEqualsToken,
-			ast.KindExclamationEqualsEqualsToken,
-			ast.KindInKeyword,
-			ast.KindInstanceOfKeyword:
+			ast.KindExclamationEqualsEqualsToken:
+			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+
+		case ast.KindInKeyword:
+			// 'in' operator: not constant if right side is object/array literal (prototype properties)
+			if binary.Right != nil {
+				rightKind := binary.Right.Kind
+				if rightKind == ast.KindObjectLiteralExpression || rightKind == ast.KindArrayLiteralExpression {
+					return false
+				}
+			}
+			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
+
+		case ast.KindInstanceOfKeyword:
 			return isConstant(binary.Left, false) && isConstant(binary.Right, false)
 		}
 
@@ -338,39 +407,68 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		}
 
 	case ast.KindNewExpression:
-		// new expressions with certain constructors are constant
+		// new expressions with certain constructors are constant if args are constant
 		newExpr := node.AsNewExpression()
 		if newExpr != nil && newExpr.Expression != nil {
 			if newExpr.Expression.Kind == ast.KindIdentifier {
 				name := newExpr.Expression.Text()
-				// new Boolean(), new String(), new Number() are constant
+				// new Boolean(), new String(), new Number() with constant arguments are constant
 				if name == "Boolean" || name == "String" || name == "Number" {
+					// Check arguments
+					if newExpr.Arguments == nil || len(newExpr.Arguments.Nodes) == 0 {
+						return true
+					}
+					// All arguments must be constant
+					for _, arg := range newExpr.Arguments.Nodes {
+						if !isConstant(arg, false) {
+							return false
+						}
+					}
 					return true
 				}
 			}
 		}
-		// Other new expressions create new objects (not constant in terms of identity)
-		return true
+		// Other new expressions create new objects (always truthy in boolean context)
+		return inBooleanPosition
 
 	case ast.KindCallExpression:
 		// Boolean(), String(), Number() with constant arguments are constant
+		// But only if they're simple identifiers (not shadowed or method calls)
 		call := node.AsCallExpression()
 		if call != nil && call.Expression != nil && call.Expression.Kind == ast.KindIdentifier {
 			name := call.Expression.Text()
 			if name == "Boolean" || name == "String" || name == "Number" {
-				// With no arguments or constant arguments, these are constant
+				// Check if all arguments are constant
 				if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
 					return true
 				}
-				if len(call.Arguments.Nodes) == 1 {
-					return isConstant(call.Arguments.Nodes[0], false)
+				allConstant := true
+				for _, arg := range call.Arguments.Nodes {
+					// Skip spread elements - they make it non-constant
+					if arg.Kind == ast.KindSpreadElement {
+						return false
+					}
+					if !isConstant(arg, false) {
+						allConstant = false
+						break
+					}
 				}
+				return allConstant
 			}
 		}
+		return false
 
 	case ast.KindPostfixUnaryExpression:
 		// ++ and -- are not constant (they modify variables)
 		return false
+
+	case ast.KindCommaListExpression:
+		// Sequence expression (comma operator): constant if last expression is constant
+		children := node.Children()
+		if children != nil && len(children.Nodes) > 0 {
+			lastExpr := children.Nodes[len(children.Nodes)-1]
+			return isConstant(lastExpr, inBooleanPosition)
+		}
 	}
 
 	return false
@@ -424,73 +522,17 @@ func containsYield(node *ast.Node) bool {
 		return false
 	}
 
-	// Recursively check children based on node type
-	// We need to be careful to avoid calling Children() on unsupported node types
-	switch node.Kind {
-	case ast.KindBlock:
-		block := node.AsBlock()
-		if block != nil && block.Statements != nil {
-			for _, stmt := range block.Statements.Nodes {
-				if containsYield(stmt) {
-					return true
-				}
-			}
+	// Recursively check children using ForEachChild
+	found := false
+	node.ForEachChild(func(child *ast.Node) bool {
+		if containsYield(child) {
+			found = true
+			return false // Stop iteration
 		}
-	case ast.KindIfStatement:
-		ifStmt := node.AsIfStatement()
-		if ifStmt != nil {
-			if containsYield(ifStmt.Statement) {
-				return true
-			}
-			if ifStmt.ElseStatement != nil && containsYield(ifStmt.ElseStatement) {
-				return true
-			}
-		}
-	case ast.KindWhileStatement:
-		whileStmt := node.AsWhileStatement()
-		if whileStmt != nil && containsYield(whileStmt.Statement) {
-			return true
-		}
-	case ast.KindDoStatement:
-		doStmt := node.AsDoStatement()
-		if doStmt != nil && containsYield(doStmt.Statement) {
-			return true
-		}
-	case ast.KindForStatement:
-		forStmt := node.AsForStatement()
-		if forStmt != nil && containsYield(forStmt.Statement) {
-			return true
-		}
-	case ast.KindExpressionStatement:
-		exprStmt := node.AsExpressionStatement()
-		if exprStmt != nil && exprStmt.Expression != nil {
-			if containsYield(exprStmt.Expression) {
-				return true
-			}
-		}
-	case ast.KindBinaryExpression,
-		ast.KindConditionalExpression,
-		ast.KindCallExpression,
-		ast.KindPrefixUnaryExpression,
-		ast.KindPostfixUnaryExpression:
-		// For expressions, try using Children if available
-		// But don't panic if it's not supported
-		defer func() {
-			if r := recover(); r != nil {
-				// Ignore panic from unsupported node types
-			}
-		}()
-		children := node.Children()
-		if children != nil {
-			for _, child := range children.Nodes {
-				if containsYield(child) {
-					return true
-				}
-			}
-		}
-	}
+		return true // Continue iteration
+	})
 
-	return false
+	return found
 }
 
 // shouldCheckLoop determines if a loop should be checked based on options
