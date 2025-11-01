@@ -70,6 +70,15 @@ func getBooleanValue(node *ast.Node) *bool {
 		}
 		t := true
 		return &t
+	case ast.KindBigIntLiteral:
+		// 0n is falsy, other bigints are truthy
+		text := node.Text()
+		if text == "0n" || text == "0x0n" || text == "0b0n" || text == "0o0n" {
+			f := false
+			return &f
+		}
+		t := true
+		return &t
 	case ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
 		// Empty string is falsy
 		text := node.Text()
@@ -407,7 +416,13 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		}
 
 	case ast.KindNewExpression:
-		// new expressions with certain constructors are constant if args are constant
+		// new expressions create new objects, which are always truthy
+		// In boolean context, they're always constant (always truthy)
+		// Outside boolean context, they're constant only if constructor and args are constant
+		if inBooleanPosition {
+			return true
+		}
+
 		newExpr := node.AsNewExpression()
 		if newExpr != nil && newExpr.Expression != nil {
 			if newExpr.Expression.Kind == ast.KindIdentifier {
@@ -428,8 +443,7 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 				}
 			}
 		}
-		// Other new expressions create new objects (always truthy in boolean context)
-		return inBooleanPosition
+		return false
 
 	case ast.KindCallExpression:
 		// Boolean(), String(), Number() with constant arguments are constant
