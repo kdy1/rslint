@@ -258,7 +258,7 @@ func hasConstantStrictBooleanComparison(node *ast.Node) bool {
 }
 
 // findBinaryExpressionConstantOperand finds which operand makes a comparison constant
-func findBinaryExpressionConstantOperand(left, right *ast.Node, operator ast.SyntaxKind) *ast.Node {
+func findBinaryExpressionConstantOperand(left, right *ast.Node, operator ast.Kind) *ast.Node {
 	// For equality operators
 	switch operator {
 	case ast.KindEqualsEqualsToken, ast.KindExclamationEqualsToken:
