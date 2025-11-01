@@ -45,6 +45,115 @@ func parseOptions(options any) Options {
 	return opts
 }
 
+// getBooleanValue returns the boolean value of a literal
+func getBooleanValue(node *ast.Node) *bool {
+	if node == nil {
+		return nil
+	}
+
+	switch node.Kind {
+	case ast.KindTrueKeyword:
+		t := true
+		return &t
+	case ast.KindFalseKeyword:
+		f := false
+		return &f
+	case ast.KindNullKeyword:
+		f := false
+		return &f
+	case ast.KindNumericLiteral:
+		// 0 is falsy, other numbers are truthy
+		text := node.Text()
+		if text == "0" || text == "0.0" || text == "-0" {
+			f := false
+			return &f
+		}
+		t := true
+		return &t
+	case ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
+		// Empty string is falsy
+		text := node.Text()
+		// Remove quotes for string literals
+		if node.Kind == ast.KindStringLiteral && len(text) >= 2 {
+			text = text[1 : len(text)-1]
+		}
+		// Remove backticks for template literals
+		if node.Kind == ast.KindNoSubstitutionTemplateLiteral && len(text) >= 2 {
+			text = text[1 : len(text)-1]
+		}
+		if len(text) == 0 {
+			f := false
+			return &f
+		}
+		t := true
+		return &t
+	case ast.KindIdentifier:
+		// undefined is falsy
+		if node.Text() == "undefined" {
+			f := false
+			return &f
+		}
+	}
+	return nil
+}
+
+// isLogicalIdentity checks if a node is a logical identity element
+func isLogicalIdentity(node *ast.Node, operator ast.Kind) bool {
+	if node == nil {
+		return false
+	}
+
+	// Check literals
+	boolVal := getBooleanValue(node)
+	if boolVal != nil {
+		if operator == ast.KindBarBarToken && *boolVal == true {
+			return true
+		}
+		if operator == ast.KindAmpersandAmpersandToken && *boolVal == false {
+			return true
+		}
+	}
+
+	// void operator is identity for &&
+	if node.Kind == ast.KindPrefixUnaryExpression {
+		prefix := node.AsPrefixUnaryExpression()
+		if prefix != nil && prefix.Operator == ast.KindVoidKeyword {
+			return operator == ast.KindAmpersandAmpersandToken
+		}
+	}
+
+	// Logical expressions with same operator
+	if node.Kind == ast.KindBinaryExpression {
+		binary := node.AsBinaryExpression()
+		if binary != nil && binary.OperatorToken != nil {
+			nodeOp := binary.OperatorToken.Kind
+			if nodeOp == operator && (nodeOp == ast.KindBarBarToken || nodeOp == ast.KindAmpersandAmpersandToken) {
+				return isLogicalIdentity(binary.Left, operator) || isLogicalIdentity(binary.Right, operator)
+			}
+		}
+	}
+
+	// Assignment expressions
+	if node.Kind == ast.KindBinaryExpression {
+		binary := node.AsBinaryExpression()
+		if binary != nil && binary.OperatorToken != nil {
+			nodeOp := binary.OperatorToken.Kind
+			if nodeOp == ast.KindBarBarEqualsToken || nodeOp == ast.KindAmpersandAmpersandEqualsToken {
+				// Extract the base operator (|| or &&)
+				var baseOp ast.Kind
+				if nodeOp == ast.KindBarBarEqualsToken {
+					baseOp = ast.KindBarBarToken
+				} else {
+					baseOp = ast.KindAmpersandAmpersandToken
+				}
+				return operator == baseOp && isLogicalIdentity(binary.Right, operator)
+			}
+		}
+	}
+
+	return false
+}
+
 // isConstant checks if a node represents a constant value
 func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 	if node == nil {
@@ -76,8 +185,50 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 		return true
 
 	case ast.KindTemplateExpression:
-		// Template literals with expressions are not constant
-		return false
+		// Template literals: constant if any static part has length (in boolean position)
+		// or all expressions are constant (not in boolean position)
+		template := node.AsTemplateExpression()
+		if template == nil {
+			return false
+		}
+
+		// In boolean position: constant if any quasi has content
+		if inBooleanPosition {
+			// Check template head
+			if template.Head != nil && len(template.Head.Text()) > 0 {
+				return true
+			}
+			// Check template spans
+			if template.TemplateSpans != nil {
+				for _, span := range template.TemplateSpans.Nodes {
+					if span.Kind == ast.KindTemplateSpan {
+						templateSpan := span.AsTemplateSpan()
+						if templateSpan != nil && templateSpan.Literal != nil {
+							text := templateSpan.Literal.Text()
+							if len(text) > 0 {
+								return true
+							}
+						}
+					}
+				}
+			}
+			return false
+		}
+
+		// Not in boolean position: constant if all expressions are constant
+		if template.TemplateSpans != nil {
+			for _, span := range template.TemplateSpans.Nodes {
+				if span.Kind == ast.KindTemplateSpan {
+					templateSpan := span.AsTemplateSpan()
+					if templateSpan != nil && templateSpan.Expression != nil {
+						if !isConstant(templateSpan.Expression, false) {
+							return false
+						}
+					}
+				}
+			}
+		}
+		return true
 
 	case ast.KindParenthesizedExpression:
 		paren := node.AsParenthesizedExpression()
@@ -111,16 +262,35 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 
 		operator := binary.OperatorToken.Kind
 
-		// Logical operators - only constant if left side is constant
-		switch operator {
-		case ast.KindAmpersandAmpersandToken, // &&
-			ast.KindBarBarToken: // ||
-			return isConstant(binary.Left, inBooleanPosition)
+		// Assignment expressions
+		if operator == ast.KindEqualsToken {
+			// Simple assignment: constant if right side is constant
+			return isConstant(binary.Right, inBooleanPosition)
 		}
 
-		// Nullish coalescing operator
-		if operator == ast.KindQuestionQuestionToken {
-			return isConstant(binary.Left, inBooleanPosition)
+		// Logical assignment operators (||=, &&=)
+		if operator == ast.KindBarBarEqualsToken || operator == ast.KindAmpersandAmpersandEqualsToken {
+			if inBooleanPosition {
+				var baseOp ast.Kind
+				if operator == ast.KindBarBarEqualsToken {
+					baseOp = ast.KindBarBarToken
+				} else {
+					baseOp = ast.KindAmpersandAmpersandToken
+				}
+				return isLogicalIdentity(binary.Right, baseOp)
+			}
+			return false
+		}
+
+		// Logical operators (&&, ||, ??)
+		switch operator {
+		case ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken:
+			isLeftConstant := isConstant(binary.Left, inBooleanPosition)
+			isRightConstant := isConstant(binary.Right, inBooleanPosition)
+			isLeftShortCircuit := isLeftConstant && isLogicalIdentity(binary.Left, operator)
+			isRightShortCircuit := inBooleanPosition && isRightConstant && isLogicalIdentity(binary.Right, operator)
+
+			return (isLeftConstant && isRightConstant) || isLeftShortCircuit || isRightShortCircuit
 		}
 
 		// Comparison operators - both sides must be constant
@@ -196,6 +366,14 @@ func isConstant(node *ast.Node, inBooleanPosition bool) bool {
 	case ast.KindPostfixUnaryExpression:
 		// ++ and -- are not constant (they modify variables)
 		return false
+
+	case ast.KindCommaListExpression:
+		// Sequence expression (comma operator): constant if last expression is constant
+		comma := node.AsCommaListExpression()
+		if comma != nil && comma.Elements != nil && len(comma.Elements.Nodes) > 0 {
+			lastExpr := comma.Elements.Nodes[len(comma.Elements.Nodes)-1]
+			return isConstant(lastExpr, inBooleanPosition)
+		}
 	}
 
 	return false
@@ -230,6 +408,38 @@ func isWhileTrueLoop(node *ast.Node) bool {
 	return expr.Kind == ast.KindTrueKeyword
 }
 
+// containsYield checks if a node contains a yield expression (not inside nested functions)
+func containsYield(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// If this is a yield expression, return true
+	if node.Kind == ast.KindYieldExpression {
+		return true
+	}
+
+	// Don't traverse into nested function bodies
+	switch node.Kind {
+	case ast.KindFunctionDeclaration,
+		ast.KindFunctionExpression,
+		ast.KindArrowFunction:
+		return false
+	}
+
+	// Recursively check children
+	children := node.Children()
+	if children != nil {
+		for _, child := range children.Nodes {
+			if containsYield(child) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // shouldCheckLoop determines if a loop should be checked based on options
 func shouldCheckLoop(node *ast.Node, opts Options) bool {
 	if opts.CheckLoops == "none" {
@@ -241,6 +451,32 @@ func shouldCheckLoop(node *ast.Node, opts Options) bool {
 		if isWhileTrueLoop(node) {
 			return false
 		}
+	}
+
+	// Don't check loops in generator functions that contain yield
+	// Get the loop body
+	var body *ast.Node
+	switch node.Kind {
+	case ast.KindWhileStatement:
+		whileStmt := node.AsWhileStatement()
+		if whileStmt != nil {
+			body = whileStmt.Statement
+		}
+	case ast.KindDoStatement:
+		doStmt := node.AsDoStatement()
+		if doStmt != nil {
+			body = doStmt.Statement
+		}
+	case ast.KindForStatement:
+		forStmt := node.AsForStatement()
+		if forStmt != nil {
+			body = forStmt.Statement
+		}
+	}
+
+	// If the loop body contains a yield, don't check it
+	if body != nil && containsYield(body) {
+		return false
 	}
 
 	return true
