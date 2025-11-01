@@ -111,10 +111,8 @@ func isWriteReference(node *ast.Node) bool {
 
 	case ast.KindShorthandPropertyAssignment:
 		// In destructuring like {x} = obj or ({x} = obj), x is a write reference
-		shorthand := parent.AsShorthandPropertyAssignment()
-		if shorthand != nil && shorthand.Name() == node {
-			return isInDestructuringAssignment(parent)
-		}
+		// Check if the parent shorthand property is in a destructuring assignment
+		return isInDestructuringAssignment(parent)
 
 	case ast.KindPropertyAssignment:
 		// In destructuring like {b: x} = obj, x is a write reference

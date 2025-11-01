@@ -330,7 +330,7 @@ func TestNoConstAssignRule(t *testing.T) {
 				Code: `const x = 1; function foo() { const x = 2; x = 3; } x = 4;`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "const", Line: 1, Column: 44},
-					{MessageId: "const", Line: 1, Column: 53},
+					{MessageId: "const", Line: 1, Column: 54},
 				},
 			},
 
