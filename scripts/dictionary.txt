@@ -16,6 +16,7 @@ cachedvfs
 catchable
 clazz
 clientrc
+constantness
 clippy
 cpuprof
 dirxml

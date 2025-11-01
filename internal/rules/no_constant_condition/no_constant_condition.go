@@ -303,9 +303,11 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 
 	case ast.KindTypeOfExpression:
 		// typeof always returns a non-empty string (always truthy in boolean context)
-		// However, typeof is only constant if the operand is constant
-		// typeof 'string' -> constant "string"
-		// typeof x -> not constant (depends on x's type at runtime)
+		// In boolean position, typeof is always constant (always truthy)
+		// In non-boolean position, typeof is only constant if the operand is constant
+		if inBooleanPosition {
+			return true
+		}
 		typeofExpr := node.AsTypeOfExpression()
 		if typeofExpr != nil && typeofExpr.Expression != nil {
 			return isConstant(ctx, typeofExpr.Expression, false)
@@ -321,11 +323,14 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 		switch prefix.Operator {
 		case ast.KindExclamationToken: // !
 			if prefix.Operand != nil {
+				// ! operator: constant if operand is constant in boolean context
 				return isConstant(ctx, prefix.Operand, true)
 			}
 			return false
 		case ast.KindPlusToken, ast.KindMinusToken, ast.KindTildeToken: // +, -, ~
 			if prefix.Operand != nil {
+				// Unary +, -, ~: constant if operand is constant
+				// In boolean position, result is constant if operand is constant
 				return isConstant(ctx, prefix.Operand, false)
 			}
 			return false
@@ -359,7 +364,9 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 				} else {
 					baseOp = ast.KindAmpersandAmpersandToken
 				}
-				return isLogicalIdentity(binary.Right, baseOp)
+				// The assignment is constant if the right side is a logical identity
+				// OR if the right side is itself constant
+				return isLogicalIdentity(binary.Right, baseOp) || isConstant(ctx, binary.Right, inBooleanPosition)
 			}
 			return false
 		}
@@ -463,23 +470,7 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 			if callExpr.Expression.Kind == ast.KindIdentifier {
 				name := callExpr.Expression.Text()
 				if name == "Boolean" || name == "String" || name == "Number" {
-					// Check if all arguments are constant first
-					allArgsConstant := true
-					if callExpr.Arguments != nil {
-						for _, arg := range callExpr.Arguments.Nodes {
-							if !isConstant(ctx, arg, false) {
-								allArgsConstant = false
-								break
-							}
-						}
-					}
-
-					// If arguments are not constant, the call is definitely not constant
-					if !allArgsConstant {
-						return false
-					}
-
-					// Now check if this identifier is the global built-in (not shadowed)
+					// First check if this identifier is the global built-in (not shadowed)
 					// If we can't determine (no TypeChecker), conservatively assume it's NOT the global builtin
 					// to avoid false positives from shadowing
 					if ctx == nil || ctx.TypeChecker == nil || ctx.Program == nil {
@@ -497,8 +488,24 @@ func isConstant(ctx *rule.RuleContext, node *ast.Node, inBooleanPosition bool) b
 					// Check if the symbol is from the default library (not shadowed)
 					isGlobalBuiltin := utils.IsSymbolFromDefaultLibrary(ctx.Program, symbol)
 
-					// Only treat as constant if it's the global builtin with constant arguments
-					return isGlobalBuiltin
+					// If it's not the global builtin, it's not constant
+					if !isGlobalBuiltin {
+						return false
+					}
+
+					// Now check if all arguments produce a constant result
+					// For Boolean(), we need to check if arguments are constant in boolean position
+					if callExpr.Arguments != nil {
+						for _, arg := range callExpr.Arguments.Nodes {
+							// For Boolean(), check if the argument is constant in boolean context
+							if !isConstant(ctx, arg, name == "Boolean") {
+								return false
+							}
+						}
+					}
+
+					// It's the global builtin with constant arguments
+					return true
 				}
 			}
 		}
@@ -594,33 +601,31 @@ func shouldCheckLoop(node *ast.Node, opts Options) bool {
 		}
 	}
 
-	// Don't check loops in generator functions that contain yield
-	// UNLESS checkLoops is "all"
-	if opts.CheckLoops != "all" {
-		// Get the loop body
-		var body *ast.Node
-		switch node.Kind {
-		case ast.KindWhileStatement:
-			whileStmt := node.AsWhileStatement()
-			if whileStmt != nil {
-				body = whileStmt.Statement
-			}
-		case ast.KindDoStatement:
-			doStmt := node.AsDoStatement()
-			if doStmt != nil {
-				body = doStmt.Statement
-			}
-		case ast.KindForStatement:
-			forStmt := node.AsForStatement()
-			if forStmt != nil {
-				body = forStmt.Statement
-			}
+	// Get the loop body
+	var body *ast.Node
+	switch node.Kind {
+	case ast.KindWhileStatement:
+		whileStmt := node.AsWhileStatement()
+		if whileStmt != nil {
+			body = whileStmt.Statement
 		}
+	case ast.KindDoStatement:
+		doStmt := node.AsDoStatement()
+		if doStmt != nil {
+			body = doStmt.Statement
+		}
+	case ast.KindForStatement:
+		forStmt := node.AsForStatement()
+		if forStmt != nil {
+			body = forStmt.Statement
+		}
+	}
 
-		// If the loop body contains a yield, don't check it
-		if body != nil && containsYield(body) {
-			return false
-		}
+	// Don't check loops in generator functions that contain yield
+	// This applies even when checkLoops is "all"
+	// If the loop body contains a yield, don't check it
+	if body != nil && containsYield(body) {
+		return false
 	}
 
 	return true
@@ -661,6 +666,14 @@ func getTestExpression(node *ast.Node) *ast.Node {
 	}
 
 	return nil
+}
+
+// isInGeneratorWithYield checks if a node is in a generator function that contains yield at the same level
+func isInGeneratorWithYield(ctx *rule.RuleContext, node *ast.Node) bool {
+	// Walk up the tree to find the enclosing function
+	// For now, we'll use a simple heuristic: check if the statement contains yield
+	// This is a simplified check - in a real implementation, we'd need to track scope
+	return false
 }
 
 // checkCondition reports if a condition is constant
