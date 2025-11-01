@@ -49,6 +49,9 @@ func isNullOrUndefined(node *ast.Node) bool {
 	case ast.KindVoidExpression:
 		// void operator always produces undefined
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && isNullOrUndefined(paren.Expression)
 	}
 	return false
 }
@@ -62,14 +65,18 @@ func isStaticBoolean(node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindTrueKeyword, ast.KindFalseKeyword:
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && isStaticBoolean(paren.Expression)
 	case ast.KindPrefixUnaryExpression:
-		// !constant is a static boolean
+		// !value is always a boolean
 		prefix := node.AsPrefixUnaryExpression()
 		if prefix != nil && prefix.Operator == ast.KindExclamationToken {
-			return isConstant(prefix.Operand)
+			// Any value negated with ! produces a boolean
+			return true
 		}
 	case ast.KindCallExpression:
-		// Boolean(constant) is a static boolean
+		// Boolean() with constant argument is a static boolean
 		call := node.AsCallExpression()
 		if call != nil && call.Expression != nil && call.Expression.Kind == ast.KindIdentifier {
 			if call.Expression.Text() == "Boolean" {
@@ -96,6 +103,9 @@ func isAlwaysNew(node *ast.Node) bool {
 		ast.KindRegularExpressionLiteral,
 		ast.KindNewExpression:
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && isAlwaysNew(paren.Expression)
 	}
 	return false
 }
@@ -117,7 +127,8 @@ func isConstant(node *ast.Node) bool {
 		ast.KindObjectLiteralExpression,
 		ast.KindArrayLiteralExpression,
 		ast.KindArrowFunction,
-		ast.KindFunctionExpression:
+		ast.KindFunctionExpression,
+		ast.KindNewExpression:
 		return true
 	case ast.KindIdentifier:
 		// 'undefined' is a constant
@@ -125,12 +136,24 @@ func isConstant(node *ast.Node) bool {
 	case ast.KindVoidExpression:
 		// void operator
 		return true
+	case ast.KindParenthesizedExpression:
+		// Parenthesized expressions - check the inner expression
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && isConstant(paren.Expression)
 	case ast.KindPrefixUnaryExpression:
-		// Unary operators on constants
+		// Unary operators
 		prefix := node.AsPrefixUnaryExpression()
-		return prefix != nil && isConstant(prefix.Operand)
+		if prefix != nil {
+			// ! (logical not) always produces a boolean, so it's constant behavior
+			if prefix.Operator == ast.KindExclamationToken {
+				return true
+			}
+			// Other unary operators (+, -, ~, etc.) are constant if operand is constant
+			return isConstant(prefix.Operand)
+		}
 	case ast.KindCallExpression:
 		// Built-in type conversions: Boolean(), String(), Number()
+		// Only treat as constant if argument is constant (to avoid issues with shadowing)
 		call := node.AsCallExpression()
 		if call != nil && call.Expression != nil && call.Expression.Kind == ast.KindIdentifier {
 			name := call.Expression.Text()
@@ -169,6 +192,9 @@ func hasConstantNullishness(node *ast.Node) bool {
 		ast.KindFunctionExpression,
 		ast.KindNewExpression:
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && hasConstantNullishness(paren.Expression)
 	case ast.KindCallExpression:
 		// Boolean(), String(), Number() with constant arguments are non-nullish
 		call := node.AsCallExpression()
@@ -223,6 +249,9 @@ func hasConstantLooseBooleanComparison(node *ast.Node) bool {
 		return true
 	case ast.KindRegularExpressionLiteral:
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && hasConstantLooseBooleanComparison(paren.Expression)
 	}
 	return false
 }
@@ -253,6 +282,9 @@ func hasConstantStrictBooleanComparison(node *ast.Node) bool {
 		return node.Text() == "undefined"
 	case ast.KindVoidExpression:
 		return true
+	case ast.KindParenthesizedExpression:
+		paren := node.AsParenthesizedExpression()
+		return paren != nil && hasConstantStrictBooleanComparison(paren.Expression)
 	}
 	return false
 }
@@ -263,31 +295,38 @@ func findBinaryExpressionConstantOperand(left, right *ast.Node, operator ast.Kin
 	switch operator {
 	case ast.KindEqualsEqualsToken, ast.KindExclamationEqualsToken:
 		// Loose equality - check for constant boolean comparison
-		if hasConstantLooseBooleanComparison(left) {
+		// Only report if comparing a boolean to another constant (not a variable)
+		if isStaticBoolean(left) && hasConstantLooseBooleanComparison(right) {
 			return left
 		}
-		if hasConstantLooseBooleanComparison(right) {
+		if isStaticBoolean(right) && hasConstantLooseBooleanComparison(left) {
 			return right
 		}
 
 	case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken:
 		// Strict equality - check for constant boolean comparison
-		if hasConstantStrictBooleanComparison(left) {
+		// Only report if comparing a boolean to another constant (not a variable)
+		if isStaticBoolean(left) && hasConstantStrictBooleanComparison(right) {
 			return left
 		}
-		if hasConstantStrictBooleanComparison(right) {
+		if isStaticBoolean(right) && hasConstantStrictBooleanComparison(left) {
 			return right
 		}
 	}
 
 	// Check for nullish comparisons
+	// Only report when BOTH sides have constant nullishness
 	if operator == ast.KindEqualsEqualsToken || operator == ast.KindExclamationEqualsToken ||
 		operator == ast.KindEqualsEqualsEqualsToken || operator == ast.KindExclamationEqualsEqualsToken {
-		// Check if comparing with null/undefined
-		if isNullOrUndefined(left) && hasConstantNullishness(right) {
+		// Check if comparing null/undefined with another constant nullish value
+		if isNullOrUndefined(left) && isNullOrUndefined(right) {
 			return right
 		}
-		if isNullOrUndefined(right) && hasConstantNullishness(left) {
+		// Check if comparing constant non-nullish with null/undefined
+		if isNullOrUndefined(left) && !isNullOrUndefined(right) && hasConstantNullishness(right) {
+			return right
+		}
+		if isNullOrUndefined(right) && !isNullOrUndefined(left) && hasConstantNullishness(left) {
 			return left
 		}
 	}
@@ -338,12 +377,12 @@ var NoConstantBinaryExpressionRule = rule.CreateRule(rule.Rule{
 						return
 					}
 
-					// Check if one operand is always new and the other is not a constant
-					if isAlwaysNew(binary.Left) && !isAlwaysNew(binary.Right) && !isConstant(binary.Right) {
+					// Check if one operand is always new and the other is a variable (not a constant)
+					if isAlwaysNew(binary.Left) && !isConstant(binary.Right) {
 						ctx.ReportNode(node, buildAlwaysNewMessage())
 						return
 					}
-					if isAlwaysNew(binary.Right) && !isAlwaysNew(binary.Left) && !isConstant(binary.Left) {
+					if isAlwaysNew(binary.Right) && !isConstant(binary.Left) {
 						ctx.ReportNode(node, buildAlwaysNewMessage())
 						return
 					}
