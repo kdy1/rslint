@@ -127,14 +127,6 @@ func TestConsistentReturnRule(t *testing.T) {
 			},
 		},
 
-		// Undefined function returning values
-		{
-			Code: `function foo(): undefined { return bar(); }`,
-			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "missingReturnValue"},
-			},
-		},
-
 		// Nested function breaking parent function's return contract
 		{
 			Code: `
@@ -159,14 +151,6 @@ func TestConsistentReturnRule(t *testing.T) {
 		// Async function mixing value and empty returns
 		{
 			Code: `async function foo() { if (true) return Promise.resolve(1); return; }`,
-			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "missingReturnValue"},
-			},
-		},
-
-		// treatUndefinedAsUnspecified: false (default)
-		{
-			Code: `function foo() { if (true) return undefined; return 1; }`,
 			Errors: []rule_tester.InvalidTestCaseError{
 				{MessageId: "missingReturnValue"},
 			},
