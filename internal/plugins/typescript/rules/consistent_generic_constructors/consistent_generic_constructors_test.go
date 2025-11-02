@@ -105,19 +105,19 @@ func TestConsistentGenericConstructorsRule(t *testing.T) {
 			},
 		},
 		{
-			Code:    "const a: Foo<string> = new Foo();",
+			Code: "const a: Foo<string> = new Foo();",
 			Errors: []rule_tester.InvalidTestCaseError{
 				{MessageId: "preferConstructor"},
 			},
 		},
 		{
-			Code:    "const a: /* comment */ Foo /* another */ <string> = new Foo();",
+			Code: "const a: /* comment */ Foo /* another */ <string> = new Foo();",
 			Errors: []rule_tester.InvalidTestCaseError{
 				{MessageId: "preferConstructor"},
 			},
 		},
 		{
-			Code:    "const a: Foo<number> = new Foo;",
+			Code: "const a: Foo<number> = new Foo;",
 			Errors: []rule_tester.InvalidTestCaseError{
 				{MessageId: "preferConstructor"},
 			},

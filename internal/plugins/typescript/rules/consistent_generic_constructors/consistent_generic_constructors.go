@@ -67,20 +67,16 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Handle case where there's no type annotation
 		if typeAnnotation == nil {
-			// Binding elements (destructuring) cannot have type annotations
-			// on individual elements, so they are always valid
-			if isBindingElement {
-				return
-			}
-
-			// For non-binding elements, if style is "type-annotation" and there are
-			// type args on the constructor, report an error
-			if opts.Style == "type-annotation" && hasTypeArgsOnConstructor {
+			// In type-annotation mode with type arguments on constructor,
+			// we should suggest adding a type annotation
+			// UNLESS it's a binding element (like array destructuring), where we can't add a type annotation
+			if opts.Style == "type-annotation" && hasTypeArgsOnConstructor && !isBindingElement {
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "preferTypeAnnotation",
 					Description: "The generic type arguments should be specified as part of the type annotation.",
 				})
 			}
+			// For constructor mode or no type args, no violation
 			return
 		}
 
@@ -288,4 +284,3 @@ func createTypeAnnotationFixes(ctx rule.RuleContext, node *ast.Node, typeAnnotat
 		rule.RuleFixReplaceRange(core.NewTextRange(typeArgsStart, typeArgsEnd), ""),
 	}
 }
-
