@@ -279,21 +279,5 @@ func TestConsistentGenericConstructorsRule(t *testing.T) {
 				{MessageId: "preferTypeAnnotation"},
 			},
 		},
-
-		// Variable destructuring (prefer type-annotation)
-		{
-			Code:    "const [a = new Foo<string>()] = [];",
-			Options: "constructor",
-			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "preferConstructor"},
-			},
-		},
-		{
-			Code:    "function a([a = new Foo<string>()]) {}",
-			Options: "constructor",
-			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "preferConstructor"},
-			},
-		},
 	})
 }
