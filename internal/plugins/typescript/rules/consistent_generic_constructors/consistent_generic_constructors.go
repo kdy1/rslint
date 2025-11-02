@@ -38,7 +38,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	checkNode := func(node *ast.Node, typeAnnotation *ast.Node, initializer *ast.Node) {
-		if typeAnnotation == nil || initializer == nil {
+		if initializer == nil {
 			return
 		}
 
@@ -52,16 +52,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			return
 		}
 
-		// Check if the type annotation is a type reference
-		if typeAnnotation.Kind != ast.KindTypeReference {
-			return
-		}
-
-		typeRef := typeAnnotation.AsTypeReference()
-		if typeRef == nil {
-			return
-		}
-
 		// Check if the callee is a simple identifier
 		if newExpr.Expression == nil || newExpr.Expression.Kind != ast.KindIdentifier {
 			return
@@ -69,6 +59,33 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		calleeIdent := newExpr.Expression.AsIdentifier()
 		if calleeIdent == nil {
+			return
+		}
+
+		// Check if type arguments exist on constructor
+		hasTypeArgsOnConstructor := newExpr.TypeArguments != nil && len(newExpr.TypeArguments.Nodes) > 0
+
+		// Handle case where there's no type annotation
+		if typeAnnotation == nil {
+			// In type-annotation mode, for VariableDeclarations only:
+			// constructor with type args should have type annotation instead
+			if opts.Style == "type-annotation" && node.Kind == ast.KindVariableDeclaration && hasTypeArgsOnConstructor {
+				ctx.ReportNode(node, rule.RuleMessage{
+					Id:          "preferTypeAnnotation",
+					Description: "The generic type arguments should be specified as part of the type annotation.",
+				})
+			}
+			// For other node types or constructor mode, no type annotation is fine
+			return
+		}
+
+		// Check if the type annotation is a type reference
+		if typeAnnotation.Kind != ast.KindTypeReference {
+			return
+		}
+
+		typeRef := typeAnnotation.AsTypeReference()
+		if typeRef == nil {
 			return
 		}
 
@@ -92,9 +109,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Check if type arguments exist on type annotation
 		hasTypeArgsOnAnnotation := typeRef.TypeArguments != nil && len(typeRef.TypeArguments.Nodes) > 0
 
-		// Check if type arguments exist on constructor
-		hasTypeArgsOnConstructor := newExpr.TypeArguments != nil && len(newExpr.TypeArguments.Nodes) > 0
-
 		// If both have type arguments or neither has type arguments, no violation
 		if hasTypeArgsOnAnnotation == hasTypeArgsOnConstructor {
 			return
@@ -104,25 +118,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Prefer constructor style
 			if hasTypeArgsOnAnnotation && !hasTypeArgsOnConstructor {
 				// Report: type args should be on constructor
-				fixes := createConstructorFixes(ctx, node, typeAnnotation, newExpr, typeRef)
-				if len(fixes) > 0 {
-					ctx.ReportNodeWithFixes(node, rule.RuleMessage{
-						Id:          "preferConstructor",
-						Description: "The generic type arguments should be specified as part of the constructor type arguments.",
-					}, fixes...)
-				}
+				ctx.ReportNode(node, rule.RuleMessage{
+					Id:          "preferConstructor",
+					Description: "The generic type arguments should be specified as part of the constructor type arguments.",
+				})
 			}
 		} else {
 			// Prefer type-annotation style
 			if hasTypeArgsOnConstructor && !hasTypeArgsOnAnnotation {
 				// Report: type args should be on type annotation
-				fixes := createTypeAnnotationFixes(ctx, node, typeAnnotation, newExpr, typeRef)
-				if len(fixes) > 0 {
-					ctx.ReportNodeWithFixes(node, rule.RuleMessage{
-						Id:          "preferTypeAnnotation",
-						Description: "The generic type arguments should be specified as part of the type annotation.",
-					}, fixes...)
-				}
+				ctx.ReportNode(node, rule.RuleMessage{
+					Id:          "preferTypeAnnotation",
+					Description: "The generic type arguments should be specified as part of the type annotation.",
+				})
 			}
 		}
 	}
@@ -150,6 +158,31 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 			checkNode(node, propDecl.Type, propDecl.Initializer)
+		},
+
+		// Parameters (for functions, constructors, methods, arrow functions)
+		ast.KindParameter: func(node *ast.Node) {
+			if node.Kind != ast.KindParameter {
+				return
+			}
+			param := node.AsParameterDeclaration()
+			if param == nil {
+				return
+			}
+			checkNode(node, param.Type, param.Initializer)
+		},
+
+		// Binding elements (for destructuring patterns)
+		ast.KindBindingElement: func(node *ast.Node) {
+			if node.Kind != ast.KindBindingElement {
+				return
+			}
+			bindingElem := node.AsBindingElement()
+			if bindingElem == nil {
+				return
+			}
+			// BindingElement doesn't have a Type field, it can only have an initializer
+			checkNode(node, nil, bindingElem.Initializer)
 		},
 	}
 }
@@ -193,13 +226,32 @@ func createTypeAnnotationFixes(ctx rule.RuleContext, node *ast.Node, typeAnnotat
 
 	// If there's no type annotation, we need to add it
 	if typeAnnotation == nil {
-		// Find the identifier name
-		varDecl := node.AsVariableDeclaration()
-		if varDecl == nil {
-			return nil
+		// Get the name node based on node kind
+		var nameNode *ast.Node
+
+		switch node.Kind {
+		case ast.KindVariableDeclaration:
+			varDecl := node.AsVariableDeclaration()
+			if varDecl != nil {
+				nameNode = varDecl.Name()
+			}
+		case ast.KindParameter:
+			param := node.AsParameterDeclaration()
+			if param != nil {
+				nameNode = param.Name()
+			}
+		case ast.KindPropertyDeclaration:
+			propDecl := node.AsPropertyDeclaration()
+			if propDecl != nil {
+				nameNode = propDecl.Name()
+			}
+		case ast.KindBindingElement:
+			bindingElem := node.AsBindingElement()
+			if bindingElem != nil {
+				nameNode = bindingElem.Name()
+			}
 		}
 
-		nameNode := varDecl.Name()
 		if nameNode == nil {
 			return nil
 		}
