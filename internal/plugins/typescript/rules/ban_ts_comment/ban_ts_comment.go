@@ -29,9 +29,9 @@ var (
 	singleLineDirectiveRegex = regexp.MustCompile(`^\/\/\/?\s*@ts-(expect-error|ignore|nocheck|check)\b`)
 
 	// Matches multi-line comments: /* @ts-<directive> */
-	// Only matches if the directive appears on the first line (no newline before the directive)
-	// Use [ \t]* instead of \s* to exclude newlines
-	multiLineDirectiveRegex = regexp.MustCompile(`^\/\*[ \t*]*@ts-(expect-error|ignore|nocheck|check)\b`)
+	// Matches if the directive appears anywhere in the comment (including after newlines)
+	// Uses [\s*]* to match whitespace (including newlines) and asterisks
+	multiLineDirectiveRegex = regexp.MustCompile(`^\/\*[\s*]*@ts-(expect-error|ignore|nocheck|check)\b`)
 )
 
 // BanTsCommentRule implements the ban-ts-comment rule
@@ -209,9 +209,32 @@ func checkComment(ctx rule.RuleContext, commentText string, commentStart int, co
 
 	afterDirective := commentText[idx+len(directivePattern):]
 
-	// Remove trailing */ for multi-line comments
+	// For multi-line comments, check if there's meaningful content after the directive on subsequent lines
+	// If there is, this is not a directive comment (it's just a comment that mentions the directive)
 	if isMultiLine {
-		afterDirective = strings.TrimSuffix(strings.TrimSpace(afterDirective), "*/")
+		// Remove the trailing */
+		withoutClosing := strings.TrimSuffix(afterDirective, "*/")
+
+		// Find the first newline after the directive
+		firstNewline := strings.Index(withoutClosing, "\n")
+		if firstNewline != -1 {
+			// Get content after the first newline
+			afterFirstLine := withoutClosing[firstNewline+1:]
+
+			// Check if there's any meaningful content after the directive line
+			// (excluding whitespace, asterisks, and description separators)
+			lines := strings.Split(afterFirstLine, "\n")
+			for _, line := range lines {
+				trimmed := strings.TrimLeft(line, " \t*")
+				trimmed = strings.TrimSpace(trimmed)
+				// If this line has content that's not just separators, it's not a directive comment
+				if len(trimmed) > 0 && !isOnlyDescriptionSeparator(trimmed) {
+					return
+				}
+			}
+		}
+
+		afterDirective = withoutClosing
 	}
 
 	// Check if there's a description
@@ -292,6 +315,16 @@ func checkComment(ctx rule.RuleContext, commentText string, commentStart int, co
 			}
 		}
 	}
+}
+
+// isOnlyDescriptionSeparator checks if a string contains only description separator characters
+func isOnlyDescriptionSeparator(s string) bool {
+	for _, ch := range s {
+		if ch != ':' && ch != ' ' && ch != '\t' && ch != '-' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 // graphemeLength returns the number of grapheme clusters in a string
