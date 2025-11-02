@@ -146,6 +146,20 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if varDecl == nil {
 				return
 			}
+
+			// For destructuring patterns, we need to be careful:
+			// - `const {a}: Foo<string> = new Foo()` - has type annotation, should check
+			// - `const {a} = new Foo<string>()` - the BindingElement listener handles elements inside
+			// - `const [a = new Foo<string>()] = []` - the BindingElement listener handles elements inside
+			// Since VariableDeclaration's initializer is the whole RHS (e.g., `[]`), not the BindingElement's initializer,
+			// we can check if the name is a binding pattern without type annotation and skip
+			if varDecl.Type == nil && varDecl.Name() != nil {
+				nameKind := varDecl.Name().Kind
+				if nameKind == ast.KindArrayBindingPattern || nameKind == ast.KindObjectBindingPattern {
+					return
+				}
+			}
+
 			checkNode(node, varDecl.Type, varDecl.Initializer, false)
 		},
 
@@ -170,6 +184,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if param == nil {
 				return
 			}
+
+			// Skip if the name is a binding pattern (destructuring), there's no type annotation,
+			// AND there's no initializer on the parameter itself
+			// If there's a type annotation, we should check it (e.g., `function foo({a}: Foo<string> = new Foo()) {}`)
+			// If there's an initializer on the parameter, we should check it (e.g., `function foo({a} = new Foo<string>()) {}`)
+			// Only skip when the BindingElement listener will handle initializers inside the pattern (e.g., `function foo([a = new Foo<string>()]) {}`)
+			if param.Type == nil && param.Initializer == nil && param.Name() != nil {
+				nameKind := param.Name().Kind
+				if nameKind == ast.KindArrayBindingPattern || nameKind == ast.KindObjectBindingPattern {
+					return
+				}
+			}
+
 			checkNode(node, param.Type, param.Initializer, false)
 		},
 
