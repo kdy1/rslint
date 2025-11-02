@@ -178,6 +178,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	enterFunction := func(node *ast.Node) {
+		// Skip setters - they shouldn't have return values at all
+		if node.Kind == ast.KindSetAccessor {
+			return
+		}
+
 		info := &functionInfo{
 			node:                  node,
 			hasReturnWithValue:    false,
@@ -188,6 +193,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	exitFunction := func(node *ast.Node) {
+		// Skip setters - they shouldn't have return values at all
+		if node.Kind == ast.KindSetAccessor {
+			return
+		}
+
 		if len(functionStack) == 0 {
 			return
 		}
@@ -212,8 +222,8 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "missingReturnValue",
-				Description: "Expected to return a value at the end of " + funcName + ".",
+				Id:          "inconsistentReturn",
+				Description: "Function '" + funcName + "' has inconsistent return statements. Either all return statements should return a value, or none should.",
 			})
 		}
 	}
@@ -233,6 +243,9 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		ast.KindGetAccessor:                      enterFunction,
 		rule.ListenerOnExit(ast.KindGetAccessor): exitFunction,
+
+		ast.KindConstructor:                      enterFunction,
+		rule.ListenerOnExit(ast.KindConstructor): exitFunction,
 
 		ast.KindSetAccessor:                      enterFunction,
 		rule.ListenerOnExit(ast.KindSetAccessor): exitFunction,
