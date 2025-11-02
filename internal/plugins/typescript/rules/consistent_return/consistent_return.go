@@ -56,7 +56,35 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		return nil
 	}
 
-	// Helper to check if a function returns void or Promise<void>
+	// Helper to check if type is Promise<void>
+	var isPromiseVoid func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool
+	isPromiseVoid = func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool {
+		if typeToCheck == nil {
+			return false
+		}
+
+		// Check if it's a thenable type
+		if !utils.IsThenableType(typeChecker, node, typeToCheck) {
+			return false
+		}
+
+		// Check if it's an object type (Promise<T>)
+		if utils.IsObjectType(typeToCheck) {
+			typeArgs := checker.Checker_getTypeArguments(typeChecker, typeToCheck)
+			if typeArgs != nil && len(typeArgs) > 0 {
+				awaitedType := typeArgs[0]
+				if utils.IsIntrinsicVoidType(awaitedType) {
+					return true
+				}
+				// Recursively check for nested Promise<void>
+				return isPromiseVoid(typeChecker, node, awaitedType)
+			}
+		}
+
+		return false
+	}
+
+	// Helper to check if a function returns void, undefined, or Promise<void>
 	isReturnVoidOrPromiseVoid := func(node *ast.Node) bool {
 		if ctx.TypeChecker == nil {
 			return false
@@ -85,13 +113,40 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return true
 			}
 
+			// Check if return type is undefined (for explicit : undefined type annotation)
+			if utils.IsTypeFlagSet(returnType, checker.TypeFlagsUndefined) && !utils.IsTypeFlagSet(returnType, checker.TypeFlagsUnion) {
+				// Only return type that is purely undefined (not a union)
+				return true
+			}
+
+			// Check if return type is void | undefined
+			if utils.IsTypeFlagSet(returnType, checker.TypeFlagsUnion) {
+				// Check if it's a union that contains both void and undefined
+				unionParts := utils.UnionTypeParts(returnType)
+				if unionParts != nil {
+					hasVoid := false
+					hasUndefined := false
+					for _, t := range unionParts {
+						if utils.IsIntrinsicVoidType(t) {
+							hasVoid = true
+						}
+						if utils.IsTypeFlagSet(t, checker.TypeFlagsUndefined) {
+							hasUndefined = true
+						}
+					}
+					if hasVoid && hasUndefined && len(unionParts) == 2 {
+						return true
+					}
+				}
+			}
+
 			// Check if it's an async function returning Promise<void>
-			if node.Kind == ast.KindArrowFunction || node.Kind == ast.KindFunctionDeclaration || node.Kind == ast.KindFunctionExpression {
+			if node.Kind == ast.KindArrowFunction || node.Kind == ast.KindFunctionDeclaration || node.Kind == ast.KindFunctionExpression || node.Kind == ast.KindMethodDeclaration {
 				funcNode := node
 				modifiers := funcNode.Modifiers()
 				isAsync := false
 				if modifiers != nil {
-					for _, mod := range modifiers {
+					for _, mod := range modifiers.Nodes {
 						if mod != nil && mod.Kind == ast.KindAsyncKeyword {
 							isAsync = true
 							break
@@ -101,39 +156,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 				if isAsync && isPromiseVoid(ctx.TypeChecker, node, returnType) {
 					return true
-				}
-			}
-		}
-
-		return false
-	}
-
-	// Helper to check if type is Promise<void>
-	isPromiseVoid := func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool {
-		if typeToCheck == nil {
-			return false
-		}
-
-		// Check if it's a thenable type
-		if !utils.IsThenableType(typeChecker, node, typeToCheck) {
-			return false
-		}
-
-		// Check if it's an object type (Promise<T>)
-		if utils.IsObjectType(typeToCheck) {
-			objType := typeToCheck.AsObjectType()
-			if objType != nil {
-				typeRef := objType.AsTypeReference()
-				if typeRef != nil {
-					typeArgs := checker.TypeReference_typeArguments(typeRef)
-					if typeArgs != nil && len(typeArgs) > 0 {
-						awaitedType := typeArgs[0]
-						if utils.IsIntrinsicVoidType(awaitedType) {
-							return true
-						}
-						// Recursively check for nested Promise<void>
-						return isPromiseVoid(typeChecker, node, awaitedType)
-					}
 				}
 			}
 		}
@@ -197,26 +219,23 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	return rule.RuleListeners{
-		ast.KindFunctionDeclaration: func(node *ast.Node) {
-			enterFunction(node)
-		},
-		"FunctionDeclaration:exit": func(node *ast.Node) {
-			exitFunction(node)
-		},
+		ast.KindFunctionDeclaration:                      enterFunction,
+		rule.ListenerOnExit(ast.KindFunctionDeclaration): exitFunction,
 
-		ast.KindFunctionExpression: func(node *ast.Node) {
-			enterFunction(node)
-		},
-		"FunctionExpression:exit": func(node *ast.Node) {
-			exitFunction(node)
-		},
+		ast.KindFunctionExpression:                      enterFunction,
+		rule.ListenerOnExit(ast.KindFunctionExpression): exitFunction,
 
-		ast.KindArrowFunction: func(node *ast.Node) {
-			enterFunction(node)
-		},
-		"ArrowFunction:exit": func(node *ast.Node) {
-			exitFunction(node)
-		},
+		ast.KindArrowFunction:                      enterFunction,
+		rule.ListenerOnExit(ast.KindArrowFunction): exitFunction,
+
+		ast.KindMethodDeclaration:                      enterFunction,
+		rule.ListenerOnExit(ast.KindMethodDeclaration): exitFunction,
+
+		ast.KindGetAccessor:                      enterFunction,
+		rule.ListenerOnExit(ast.KindGetAccessor): exitFunction,
+
+		ast.KindSetAccessor:                      enterFunction,
+		rule.ListenerOnExit(ast.KindSetAccessor): exitFunction,
 
 		ast.KindReturnStatement: func(node *ast.Node) {
 			funcInfo := getCurrentFunction()
