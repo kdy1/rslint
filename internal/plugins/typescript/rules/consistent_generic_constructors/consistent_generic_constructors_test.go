@@ -65,17 +65,14 @@ func TestConsistentGenericConstructorsRule(t *testing.T) {
 
 		// Class properties (type-annotation mode)
 		{Code: "class Foo { a: Foo<string> = new Foo(); }", Options: "type-annotation"},
-		{Code: "class Foo { a = new Foo<string>(); }", Options: "type-annotation"},
 		{Code: "class Foo { a: Foo<string> = new Foo<string>(); }", Options: "type-annotation"},
 
 		// Accessor properties (type-annotation mode)
 		{Code: "class Foo { accessor a: Foo<string> = new Foo(); }", Options: "type-annotation"},
-		{Code: "class Foo { accessor a = new Foo<string>(); }", Options: "type-annotation"},
 		{Code: "class Foo { accessor a: Foo<string> = new Foo<string>(); }", Options: "type-annotation"},
 
 		// Function parameters (type-annotation mode)
 		{Code: "function foo(a: Foo<string> = new Foo()) {}", Options: "type-annotation"},
-		{Code: "function foo(a = new Foo<string>()) {}", Options: "type-annotation"},
 		{Code: "function foo(a: Foo<string> = new Foo<string>()) {}", Options: "type-annotation"},
 
 		// Destructuring patterns (type-annotation mode)

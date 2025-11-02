@@ -66,9 +66,16 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		hasTypeArgsOnConstructor := newExpr.TypeArguments != nil && len(newExpr.TypeArguments.Nodes) > 0
 
 		// Handle case where there's no type annotation
-		// In both modes, if there's no type annotation, we can't enforce anything
-		// because there's nowhere to move type arguments to/from
 		if typeAnnotation == nil {
+			// In type-annotation mode with type arguments on constructor,
+			// we should suggest adding a type annotation
+			if opts.Style == "type-annotation" && hasTypeArgsOnConstructor {
+				ctx.ReportNode(node, rule.RuleMessage{
+					Id:          "preferTypeAnnotation",
+					Description: "The generic type arguments should be specified as part of the type annotation.",
+				})
+			}
+			// For constructor mode or no type args, no violation
 			return
 		}
 
