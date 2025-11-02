@@ -1,0 +1,251 @@
+package consistent_return
+
+import (
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/web-infra-dev/rslint/internal/rule"
+	"github.com/web-infra-dev/rslint/internal/utils"
+)
+
+type ConsistentReturnOptions struct {
+	TreatUndefinedAsUnspecified bool `json:"treatUndefinedAsUnspecified"`
+}
+
+// ConsistentReturnRule enforces consistent return statements
+var ConsistentReturnRule = rule.CreateRule(rule.Rule{
+	Name: "consistent-return",
+	Run:  run,
+})
+
+// functionInfo tracks information about a function's return statements
+type functionInfo struct {
+	node                *ast.Node
+	hasReturnWithValue  bool
+	hasReturnWithoutValue bool
+	isVoidOrPromiseVoid bool
+}
+
+func run(ctx rule.RuleContext, options any) rule.RuleListeners {
+	opts := ConsistentReturnOptions{
+		TreatUndefinedAsUnspecified: false,
+	}
+
+	// Parse options
+	if options != nil {
+		if optArray, isArray := options.([]interface{}); isArray && len(optArray) > 0 {
+			if optsMap, ok := optArray[0].(map[string]interface{}); ok {
+				if v, exists := optsMap["treatUndefinedAsUnspecified"].(bool); exists {
+					opts.TreatUndefinedAsUnspecified = v
+				}
+			}
+		} else if optsMap, ok := options.(map[string]interface{}); ok {
+			if v, exists := optsMap["treatUndefinedAsUnspecified"].(bool); exists {
+				opts.TreatUndefinedAsUnspecified = v
+			}
+		}
+	}
+
+	// Stack to track nested functions
+	functionStack := make([]*functionInfo, 0)
+
+	// Helper to get current function
+	getCurrentFunction := func() *functionInfo {
+		if len(functionStack) > 0 {
+			return functionStack[len(functionStack)-1]
+		}
+		return nil
+	}
+
+	// Helper to check if a function returns void or Promise<void>
+	isReturnVoidOrPromiseVoid := func(node *ast.Node) bool {
+		if ctx.TypeChecker == nil {
+			return false
+		}
+
+		// Get the type of the function
+		funcType := ctx.TypeChecker.GetTypeAtLocation(node)
+		if funcType == nil {
+			return false
+		}
+
+		// Get call signatures
+		callSignatures := utils.GetCallSignatures(ctx.TypeChecker, funcType)
+		if len(callSignatures) == 0 {
+			return false
+		}
+
+		for _, sig := range callSignatures {
+			returnType := checker.Checker_getReturnTypeOfSignature(ctx.TypeChecker, sig)
+			if returnType == nil {
+				continue
+			}
+
+			// Check if return type is void
+			if utils.IsIntrinsicVoidType(returnType) {
+				return true
+			}
+
+			// Check if it's an async function returning Promise<void>
+			if node.Kind == ast.KindArrowFunction || node.Kind == ast.KindFunctionDeclaration || node.Kind == ast.KindFunctionExpression {
+				funcNode := node
+				modifiers := funcNode.Modifiers()
+				isAsync := false
+				if modifiers != nil {
+					for _, mod := range modifiers {
+						if mod != nil && mod.Kind == ast.KindAsyncKeyword {
+							isAsync = true
+							break
+						}
+					}
+				}
+
+				if isAsync && isPromiseVoid(ctx.TypeChecker, node, returnType) {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+
+	// Helper to check if type is Promise<void>
+	isPromiseVoid := func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool {
+		if typeToCheck == nil {
+			return false
+		}
+
+		// Check if it's a thenable type
+		if !utils.IsThenableType(typeChecker, node, typeToCheck) {
+			return false
+		}
+
+		// Check if it's an object type (Promise<T>)
+		if utils.IsObjectType(typeToCheck) {
+			objType := typeToCheck.AsObjectType()
+			if objType != nil {
+				typeRef := objType.AsTypeReference()
+				if typeRef != nil {
+					typeArgs := checker.TypeReference_typeArguments(typeRef)
+					if typeArgs != nil && len(typeArgs) > 0 {
+						awaitedType := typeArgs[0]
+						if utils.IsIntrinsicVoidType(awaitedType) {
+							return true
+						}
+						// Recursively check for nested Promise<void>
+						return isPromiseVoid(typeChecker, node, awaitedType)
+					}
+				}
+			}
+		}
+
+		return false
+	}
+
+	// Helper to check if return type is undefined
+	isUndefinedType := func(node *ast.Node) bool {
+		if ctx.TypeChecker == nil || node == nil {
+			return false
+		}
+
+		typeAtLocation := ctx.TypeChecker.GetTypeAtLocation(node)
+		if typeAtLocation == nil {
+			return false
+		}
+
+		return utils.IsTypeFlagSet(typeAtLocation, checker.TypeFlagsUndefined)
+	}
+
+	enterFunction := func(node *ast.Node) {
+		info := &functionInfo{
+			node:                  node,
+			hasReturnWithValue:    false,
+			hasReturnWithoutValue: false,
+			isVoidOrPromiseVoid:   isReturnVoidOrPromiseVoid(node),
+		}
+		functionStack = append(functionStack, info)
+	}
+
+	exitFunction := func(node *ast.Node) {
+		if len(functionStack) == 0 {
+			return
+		}
+
+		info := functionStack[len(functionStack)-1]
+		functionStack = functionStack[:len(functionStack)-1]
+
+		// Check for inconsistent returns
+		if info.hasReturnWithValue && info.hasReturnWithoutValue {
+			// Report error on the function
+			var funcName string
+			if node.Kind == ast.KindFunctionDeclaration {
+				if node.Name() != nil {
+					funcName = node.Name().Text()
+				} else {
+					funcName = "<anonymous>"
+				}
+			} else if node.Kind == ast.KindFunctionExpression {
+				funcName = "function"
+			} else {
+				funcName = "arrow function"
+			}
+
+			ctx.ReportNode(node, rule.RuleMessage{
+				Id:          "missingReturnValue",
+				Description: "Expected to return a value at the end of " + funcName + ".",
+			})
+		}
+	}
+
+	return rule.RuleListeners{
+		ast.KindFunctionDeclaration: func(node *ast.Node) {
+			enterFunction(node)
+		},
+		"FunctionDeclaration:exit": func(node *ast.Node) {
+			exitFunction(node)
+		},
+
+		ast.KindFunctionExpression: func(node *ast.Node) {
+			enterFunction(node)
+		},
+		"FunctionExpression:exit": func(node *ast.Node) {
+			exitFunction(node)
+		},
+
+		ast.KindArrowFunction: func(node *ast.Node) {
+			enterFunction(node)
+		},
+		"ArrowFunction:exit": func(node *ast.Node) {
+			exitFunction(node)
+		},
+
+		ast.KindReturnStatement: func(node *ast.Node) {
+			funcInfo := getCurrentFunction()
+			if funcInfo == nil {
+				return
+			}
+
+			returnExpr := node.Expression()
+
+			// If no return value and function returns void/Promise<void>, it's ok
+			if returnExpr == nil && funcInfo.isVoidOrPromiseVoid {
+				return
+			}
+
+			// Check if we're treating undefined as unspecified
+			if opts.TreatUndefinedAsUnspecified && returnExpr != nil {
+				if isUndefinedType(returnExpr) {
+					// Treat this as a return without value
+					funcInfo.hasReturnWithoutValue = true
+					return
+				}
+			}
+
+			// Track whether this return has a value
+			if returnExpr != nil {
+				funcInfo.hasReturnWithValue = true
+			} else {
+				funcInfo.hasReturnWithoutValue = true
+			}
+		},
+	}
+}
