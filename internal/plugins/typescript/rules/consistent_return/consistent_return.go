@@ -127,6 +127,9 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					hasVoid := false
 					hasUndefined := false
 					for _, t := range unionParts {
+						if t == nil {
+							continue
+						}
 						if utils.IsIntrinsicVoidType(t) {
 							hasVoid = true
 						}
@@ -134,7 +137,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 							hasUndefined = true
 						}
 					}
-					if hasVoid && hasUndefined && len(unionParts) == 2 {
+					if hasVoid && hasUndefined {
 						return true
 					}
 				}
@@ -142,17 +145,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 			// Check if it's an async function returning Promise<void>
 			if node.Kind == ast.KindArrowFunction || node.Kind == ast.KindFunctionDeclaration || node.Kind == ast.KindFunctionExpression || node.Kind == ast.KindMethodDeclaration {
-				funcNode := node
-				modifiers := funcNode.Modifiers()
-				isAsync := false
-				if modifiers != nil {
-					for _, mod := range modifiers.Nodes {
-						if mod != nil && mod.Kind == ast.KindAsyncKeyword {
-							isAsync = true
-							break
-						}
-					}
-				}
+				isAsync := ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync)
 
 				if isAsync && isPromiseVoid(ctx.TypeChecker, node, returnType) {
 					return true
@@ -177,12 +170,89 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		return utils.IsTypeFlagSet(typeAtLocation, checker.TypeFlagsUndefined)
 	}
 
-	enterFunction := func(node *ast.Node) {
-		// Skip setters - they shouldn't have return values at all
-		if node.Kind == ast.KindSetAccessor {
-			return
+	// Helper to get function name for better error messages
+	getFunctionName := func(node *ast.Node) string {
+		switch node.Kind {
+		case ast.KindFunctionDeclaration:
+			fn := node.AsFunctionDeclaration()
+			if fn != nil && fn.Name() != nil && fn.Name().Kind == ast.KindIdentifier {
+				ident := fn.Name().AsIdentifier()
+				if ident != nil {
+					return "function '" + ident.Text + "'"
+				}
+			}
+			return "function"
+		case ast.KindConstructor:
+			return "constructor"
+		case ast.KindMethodDeclaration:
+			method := node.AsMethodDeclaration()
+			if method != nil && method.Name() != nil {
+				name, _ := utils.GetNameFromMember(ctx.SourceFile, method.Name())
+				return "method '" + name + "'"
+			}
+			return "method"
+		case ast.KindGetAccessor:
+			accessor := node.AsGetAccessorDeclaration()
+			if accessor != nil && accessor.Name() != nil {
+				name, _ := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
+				return "getter '" + name + "'"
+			}
+			return "getter"
+		case ast.KindFunctionExpression:
+			parent := node.Parent
+			if parent != nil {
+				switch parent.Kind {
+				case ast.KindMethodDeclaration:
+					method := parent.AsMethodDeclaration()
+					if method != nil && method.Name() != nil {
+						name, _ := utils.GetNameFromMember(ctx.SourceFile, method.Name())
+						return "method '" + name + "'"
+					}
+				case ast.KindPropertyDeclaration:
+					prop := parent.AsPropertyDeclaration()
+					if prop != nil && prop.Name() != nil {
+						name, _ := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
+						if name != "" {
+							return "function '" + name + "'"
+						}
+					}
+				case ast.KindPropertyAssignment:
+					prop := parent.AsPropertyAssignment()
+					if prop != nil && prop.Name() != nil {
+						name, _ := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
+						if name != "" {
+							return "function '" + name + "'"
+						}
+					}
+				case ast.KindVariableDeclaration:
+					decl := parent.AsVariableDeclaration()
+					if decl != nil && decl.Name() != nil && decl.Name().Kind == ast.KindIdentifier {
+						ident := decl.Name().AsIdentifier()
+						if ident != nil {
+							return "function '" + ident.Text + "'"
+						}
+					}
+				}
+			}
+			return "function"
+		case ast.KindArrowFunction:
+			parent := node.Parent
+			if parent != nil && parent.Kind == ast.KindVariableDeclaration {
+				decl := parent.AsVariableDeclaration()
+				if decl != nil && decl.Name() != nil && decl.Name().Kind == ast.KindIdentifier {
+					ident := decl.Name().AsIdentifier()
+					if ident != nil {
+						return "arrow function '" + ident.Text + "'"
+					}
+				}
+			}
+			return "arrow function"
+		default:
+			return "function"
 		}
+	}
 
+	enterFunction := func(node *ast.Node) {
 		info := &functionInfo{
 			node:                  node,
 			hasReturnWithValue:    false,
@@ -193,11 +263,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	exitFunction := func(node *ast.Node) {
-		// Skip setters - they shouldn't have return values at all
-		if node.Kind == ast.KindSetAccessor {
-			return
-		}
-
 		if len(functionStack) == 0 {
 			return
 		}
@@ -208,22 +273,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Check for inconsistent returns
 		if info.hasReturnWithValue && info.hasReturnWithoutValue {
 			// Report error on the function
-			var funcName string
-			if node.Kind == ast.KindFunctionDeclaration {
-				if node.Name() != nil {
-					funcName = node.Name().Text()
-				} else {
-					funcName = "<anonymous>"
-				}
-			} else if node.Kind == ast.KindFunctionExpression {
-				funcName = "function"
-			} else {
-				funcName = "arrow function"
-			}
+			funcName := getFunctionName(node)
 
 			ctx.ReportNode(node, rule.RuleMessage{
 				Id:          "missingReturnValue",
-				Description: "Function '" + funcName + "' has inconsistent return statements. Either all return statements should return a value, or none should.",
+				Description: funcName + " has inconsistent return statements. Either all return statements should return a value, or none should.",
 			})
 		}
 	}
@@ -243,12 +297,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		ast.KindGetAccessor:                      enterFunction,
 		rule.ListenerOnExit(ast.KindGetAccessor): exitFunction,
-
-		ast.KindConstructor:                      enterFunction,
-		rule.ListenerOnExit(ast.KindConstructor): exitFunction,
-
-		ast.KindSetAccessor:                      enterFunction,
-		rule.ListenerOnExit(ast.KindSetAccessor): exitFunction,
 
 		ast.KindReturnStatement: func(node *ast.Node) {
 			funcInfo := getCurrentFunction()
