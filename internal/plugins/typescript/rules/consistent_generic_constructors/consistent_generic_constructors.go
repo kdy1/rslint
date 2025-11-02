@@ -37,7 +37,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 	}
 
-	checkNode := func(node *ast.Node, typeAnnotation *ast.Node, initializer *ast.Node) {
+	checkNode := func(node *ast.Node, typeAnnotation *ast.Node, initializer *ast.Node, isBindingElement bool) {
 		if initializer == nil {
 			return
 		}
@@ -67,15 +67,20 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Handle case where there's no type annotation
 		if typeAnnotation == nil {
-			// In type-annotation mode with type arguments on constructor,
-			// we should suggest adding a type annotation
+			// Binding elements (destructuring) cannot have type annotations
+			// on individual elements, so they are always valid
+			if isBindingElement {
+				return
+			}
+
+			// For non-binding elements, if style is "type-annotation" and there are
+			// type args on the constructor, report an error
 			if opts.Style == "type-annotation" && hasTypeArgsOnConstructor {
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "preferTypeAnnotation",
 					Description: "The generic type arguments should be specified as part of the type annotation.",
 				})
 			}
-			// For constructor mode or no type args, no violation
 			return
 		}
 
@@ -145,7 +150,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if varDecl == nil {
 				return
 			}
-			checkNode(node, varDecl.Type, varDecl.Initializer)
+			checkNode(node, varDecl.Type, varDecl.Initializer, false)
 		},
 
 		// Property declarations (class properties, including accessor properties)
@@ -157,7 +162,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if propDecl == nil {
 				return
 			}
-			checkNode(node, propDecl.Type, propDecl.Initializer)
+			checkNode(node, propDecl.Type, propDecl.Initializer, false)
 		},
 
 		// Parameters (for functions, constructors, methods, arrow functions)
@@ -169,7 +174,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if param == nil {
 				return
 			}
-			checkNode(node, param.Type, param.Initializer)
+			checkNode(node, param.Type, param.Initializer, false)
 		},
 
 		// Binding elements (for destructuring patterns)
@@ -182,7 +187,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 			// BindingElement doesn't have a Type field, it can only have an initializer
-			checkNode(node, nil, bindingElem.Initializer)
+			checkNode(node, nil, bindingElem.Initializer, true)
 		},
 	}
 }
