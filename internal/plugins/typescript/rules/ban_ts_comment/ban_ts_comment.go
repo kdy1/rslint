@@ -29,7 +29,9 @@ var (
 	singleLineDirectiveRegex = regexp.MustCompile(`^\/\/\/?\s*@ts-(expect-error|ignore|nocheck|check)\b`)
 
 	// Matches multi-line comments: /* @ts-<directive> */
-	multiLineDirectiveRegex = regexp.MustCompile(`^\/\*\s*@ts-(expect-error|ignore|nocheck|check)\b`)
+	// Only matches if the directive appears on the first line (no newline before the directive)
+	// Use [ \t]* instead of \s* to exclude newlines
+	multiLineDirectiveRegex = regexp.MustCompile(`^\/\*[ \t*]*@ts-(expect-error|ignore|nocheck|check)\b`)
 )
 
 // BanTsCommentRule implements the ban-ts-comment rule
@@ -219,8 +221,8 @@ func checkComment(ctx rule.RuleContext, commentText string, commentStart int, co
 	description = strings.TrimLeft(description, ": \t-")
 	description = strings.TrimSpace(description)
 
-	// Special case: for ts-ignore, suggest ts-expect-error
-	if directiveType == "ignore" {
+	// Special case: for ts-ignore with no description allowed, suggest ts-expect-error
+	if directiveType == "ignore" && !config.AllowWithDescription {
 		ctx.ReportRange(
 			core.NewTextRange(commentStart, commentStart+len(commentText)),
 			rule.RuleMessage{
