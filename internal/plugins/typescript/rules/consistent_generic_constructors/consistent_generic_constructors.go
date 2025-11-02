@@ -67,15 +67,15 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Handle case where there's no type annotation
 		if typeAnnotation == nil {
-			// In type-annotation mode, for VariableDeclarations only:
+			// In type-annotation mode:
 			// constructor with type args should have type annotation instead
-			if opts.Style == "type-annotation" && node.Kind == ast.KindVariableDeclaration && hasTypeArgsOnConstructor {
+			if opts.Style == "type-annotation" && hasTypeArgsOnConstructor {
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "preferTypeAnnotation",
 					Description: "The generic type arguments should be specified as part of the type annotation.",
 				})
 			}
-			// For other node types or constructor mode, no type annotation is fine
+			// For constructor mode, no type annotation is fine
 			return
 		}
 

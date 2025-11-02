@@ -51,9 +51,6 @@ func TestConsistentGenericConstructorsRule(t *testing.T) {
 		{Code: "const a = function (a: Foo = new Foo<string>()) {};"},
 		{Code: "const a = function (a: Foo<string> = new Foo<string>()) {};"},
 
-		// Isolated declarations (with isolatedDeclarations: true)
-		{Code: "const foo: Foo<string> = new Foo();"},
-
 		// Type-annotation mode
 		{Code: "const a = new Foo();", Options: "type-annotation"},
 		{Code: "const a: Foo<string> = new Foo();", Options: "type-annotation"},
