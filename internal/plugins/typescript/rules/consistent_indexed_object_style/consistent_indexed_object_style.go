@@ -235,7 +235,12 @@ func canConvertMappedTypeToRecord(mappedType *ast.MappedTypeNode) bool {
 		return false
 	}
 
-	typeParam := mappedType.TypeParameter.AsTypeParameterDeclaration()
+	// TypeParameter is already a *Node, check if it's a valid type parameter
+	if mappedType.TypeParameter.Kind != ast.KindTypeParameter {
+		return false
+	}
+
+	typeParam := mappedType.TypeParameter.AsTypeParameter()
 	if typeParam == nil {
 		return false
 	}
@@ -400,13 +405,13 @@ func checkMemberReference(targetName string, member *ast.Node) bool {
 
 	switch member.Kind {
 	case ast.KindPropertySignature:
-		propSig := member.AsPropertySignature()
+		propSig := member.AsPropertySignatureDeclaration()
 		if propSig != nil && propSig.Type != nil {
 			return checkTypeReference(targetName, propSig.Type)
 		}
 
 	case ast.KindMethodSignature:
-		methodSig := member.AsMethodSignature()
+		methodSig := member.AsMethodSignatureDeclaration()
 		if methodSig != nil && methodSig.Type != nil {
 			return checkTypeReference(targetName, methodSig.Type)
 		}
