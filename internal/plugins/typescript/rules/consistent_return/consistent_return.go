@@ -222,7 +222,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "inconsistentReturn",
+				Id:          "missingReturnValue",
 				Description: "Function '" + funcName + "' has inconsistent return statements. Either all return statements should return a value, or none should.",
 			})
 		}
