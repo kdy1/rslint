@@ -36,29 +36,39 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	}
 
 	// Helper to check if a symbol is type-only
-	isSymbolTypeBased := func(symbol *ast.Symbol) bool {
+	// Returns: true = type-only, false = value-based, nil = unknown/unresolved
+	isSymbolTypeBased := func(symbol *ast.Symbol) *bool {
 		if symbol == nil {
-			return false
+			return nil
 		}
 
-		// Check if symbol has any value declarations
-		// Type-only symbols will only have type-related flags
-		flags := symbol.Flags
+		// Follow alias chain
+		for symbol != nil && (symbol.Flags&ast.SymbolFlagsAlias) != 0 {
+			symbol = ctx.TypeChecker.GetAliasedSymbol(symbol)
+			if symbol == nil {
+				return nil
+			}
 
-		// If it has value flags, it's not type-only
-		valueFlags := ast.SymbolFlagsValue | ast.SymbolFlagsEnum | ast.SymbolFlagsModule |
-			ast.SymbolFlagsFunction | ast.SymbolFlagsClass | ast.SymbolFlagsVariable |
-			ast.SymbolFlagsValueModule
-
-		if (flags & valueFlags) != 0 {
-			return false
+			// Check if any declaration in the chain is type-only
+			declarations := symbol.Declarations
+			for _, decl := range declarations {
+				// Use the Node's IsTypeOnly() method which handles all type-only checks
+				if decl.IsTypeOnly() {
+					trueVal := true
+					return &trueVal
+				}
+			}
 		}
 
-		// If it only has type flags, it's type-only
-		typeFlags := ast.SymbolFlagsType | ast.SymbolFlagsInterface | ast.SymbolFlagsTypeAlias |
-			ast.SymbolFlagsTypeParameter
+		// Check if the symbol is unknown
+		if symbol == nil || ctx.TypeChecker.IsUnknownSymbol(symbol) {
+			return nil
+		}
 
-		return (flags & typeFlags) != 0
+		// Check if symbol has Value flag - if not, it's type-only
+		hasValue := (symbol.Flags & ast.SymbolFlagsValue) != 0
+		isType := !hasValue
+		return &isType
 	}
 
 	checkExportDeclaration := func(node *ast.Node) {
@@ -78,9 +88,33 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			moduleSpecifier := exportDecl.ModuleSpecifier
 			moduleSymbol := ctx.TypeChecker.GetSymbolAtLocation(moduleSpecifier)
 
-			// For now, we skip checking export * from module
-			// This requires more complex analysis of the module's exports
-			_ = moduleSymbol
+			if moduleSymbol != nil {
+				// Get the exports of the module symbol
+				if moduleSymbol.Exports != nil {
+					hasValueExport := false
+					hasAnyExport := false
+
+					// Check each export from the module
+					for _, exportSymbol := range moduleSymbol.Exports {
+						hasAnyExport = true
+						// Use our helper function to determine if this export is type-only
+						isType := isSymbolTypeBased(exportSymbol)
+						if isType != nil && !*isType {
+							// This export is a value
+							hasValueExport = true
+							break
+						}
+					}
+
+					// If all exports are type-only, report it
+					if hasAnyExport && !hasValueExport {
+						ctx.ReportNode(node, rule.RuleMessage{
+							Id:          "typeOverValue",
+							Description: "All exports in the declaration are only used as types. Use `export type`.",
+						})
+					}
+				}
+			}
 			return
 		}
 
@@ -117,7 +151,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					symbol = ctx.TypeChecker.GetSymbolAtLocation(exportSpecifier.Name())
 				}
 
-				if isSymbolTypeBased(symbol) {
+				isType := isSymbolTypeBased(symbol)
+				// Skip if we can't determine the type (unknown symbol)
+				if isType == nil {
+					continue
+				}
+
+				if *isType {
 					typeSpecifiers = append(typeSpecifiers, element)
 				} else {
 					valueSpecifiers = append(valueSpecifiers, element)
