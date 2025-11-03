@@ -57,13 +57,18 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			return
 		}
 
-		importClause := importDecl.ImportClause
+		importClauseNode := importDecl.ImportClause
+		if importClauseNode == nil {
+			return
+		}
+
+		importClause := importClauseNode.AsImportClause()
 		if importClause == nil {
 			return
 		}
 
 		// Skip if entire import is already type-only
-		if importClause.IsTypeOnly() {
+		if importClause.IsTypeOnly {
 			// If prefer is 'no-type-imports', report error
 			if opts.Prefer == "no-type-imports" {
 				ctx.ReportNode(node, rule.RuleMessage{
@@ -80,7 +85,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// tracking all references to imported symbols throughout the file
 
 		// Check if there are any named bindings
-		if importClause.Name != nil || importClause.NamedBindings != nil {
+		if importClause.Name() != nil || importClause.NamedBindings != nil {
 			// For 'type-imports' preference, we would need to check if imports
 			// are only used in type positions
 			// This is complex and requires symbol resolution and reference tracking
