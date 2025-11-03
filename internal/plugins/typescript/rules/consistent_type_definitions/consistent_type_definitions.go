@@ -38,12 +38,29 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 	}
 
-	// Helper to check if a type is an object type literal
+	// Helper to check if a type is an object type literal (without index signatures or mapped types)
 	isObjectTypeLiteral := func(typeNode *ast.Node) bool {
 		if typeNode == nil {
 			return false
 		}
-		return typeNode.Kind == ast.KindTypeLiteral
+		if typeNode.Kind != ast.KindTypeLiteral {
+			return false
+		}
+
+		// Check if type literal contains index signatures or mapped types
+		typeLiteral := typeNode.AsTypeLiteralNode()
+		if typeLiteral == nil || typeLiteral.Members == nil {
+			return true
+		}
+
+		// If any member is an index signature, this is not a simple object type
+		for _, member := range typeLiteral.Members.Nodes {
+			if member.Kind == ast.KindIndexSignature {
+				return false
+			}
+		}
+
+		return true
 	}
 
 	// Helper to check if a type alias is a simple object type (not a union, intersection, etc.)
@@ -54,7 +71,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Check if it's a parenthesized type wrapping an object type
 		if typeNode.Kind == ast.KindParenthesizedType {
-			parenthesized := typeNode.AsParenthesizedType()
+			parenthesized := typeNode.AsParenthesizedTypeNode()
 			if parenthesized != nil {
 				return isObjectTypeLiteral(parenthesized.Type)
 			}
@@ -69,10 +86,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		for current != nil {
 			if current.Kind == ast.KindModuleDeclaration {
 				moduleDecl := current.AsModuleDeclaration()
-				if moduleDecl != nil && moduleDecl.Name != nil {
+				if moduleDecl != nil && moduleDecl.Name() != nil {
 					// Check if module name is 'global'
-					if moduleDecl.Name.Kind == ast.KindIdentifier {
-						ident := moduleDecl.Name.AsIdentifier()
+					if ast.IsIdentifier(moduleDecl.Name()) {
+						ident := moduleDecl.Name().AsIdentifier()
 						if ident != nil && ident.Text == "global" {
 							return true
 						}
