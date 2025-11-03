@@ -166,22 +166,22 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 			// All specifiers are type-only
 			if len(typeSpecifiers) > 0 && len(valueSpecifiers) == 0 && len(inlineTypeSpecifiers) == 0 {
-				if len(typeSpecifiers) == 1 {
-					ctx.ReportNode(node, rule.RuleMessage{
-						Id:          "typeOverValue",
-						Description: "All exports in the declaration are only used as types. Use `export type`.",
-					})
-				} else {
-					ctx.ReportNode(node, rule.RuleMessage{
-						Id:          "typeOverValue",
-						Description: "All exports in the declaration are only used as types. Use `export type`.",
-					})
-				}
+				ctx.ReportNode(node, rule.RuleMessage{
+					Id:          "typeOverValue",
+					Description: "All exports in the declaration are only used as types. Use `export type`.",
+				})
 				return
 			}
 
 			// Mixed: some types, some values
 			if len(typeSpecifiers) > 0 && len(valueSpecifiers) > 0 {
+				// If fixMixedExportsWithInlineTypeSpecifier is enabled and there are already
+				// inline type specifiers, don't report an error (the code is already following
+				// the preferred inline style)
+				if opts.FixMixedExportsWithInlineTypeSpecifier && len(inlineTypeSpecifiers) > 0 {
+					return
+				}
+
 				if len(typeSpecifiers) == 1 {
 					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "singleExportIsType",
