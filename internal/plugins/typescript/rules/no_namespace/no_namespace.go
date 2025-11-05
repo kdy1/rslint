@@ -65,8 +65,9 @@ var NoNamespaceRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				// Check if this is a namespace declaration (keyword is KindNamespaceKeyword)
-				if moduleDecl.Keyword != ast.KindNamespaceKeyword {
+				// Check if this is a namespace or module declaration
+				// (keyword is KindNamespaceKeyword or KindModuleKeyword)
+				if moduleDecl.Keyword != ast.KindNamespaceKeyword && moduleDecl.Keyword != ast.KindModuleKeyword {
 					return
 				}
 
