@@ -3,16 +3,16 @@ import { createTestCases } from './createTestCases';
 createTestCases([
   {
     code: [
-      'function ignored(%) {}',
+      'function foo(%) {}',
       '(function (%) {});',
-      'declare function ignored(%);',
-      'function ignored({%}) {}',
-      'function ignored(...%) {}',
-      'function ignored({% = 1}) {}',
-      'function ignored({...%}) {}',
-      'function ignored([%]) {}',
-      'function ignored([% = 1]) {}',
-      'function ignored([...%]) {}',
+      'declare function foo(%);',
+      'function foo({%}) {}',
+      'function foo(...%) {}',
+      'function foo({% = 1}) {}',
+      'function foo({...%}) {}',
+      'function foo([%]) {}',
+      'function foo([% = 1]) {}',
+      'function foo([...%]) {}',
     ],
     options: {
       selector: 'parameter',
