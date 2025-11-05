@@ -22,11 +22,9 @@ type Options struct {
 
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 	// Parse options
-	opts := Options{}
-	if options != nil {
-		if err := rule.ParseOptions(options, &opts); err == nil {
-			// Use parsed options
-		}
+	opts, ok := options.(Options)
+	if !ok {
+		opts = Options{}
 	}
 
 	// Determine the maximum number of parameters
@@ -59,7 +57,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		name := param.Name()
 		if name.Kind == ast.KindIdentifier {
 			ident := name.AsIdentifier()
-			if ident != nil && ident.Text() == "this" {
+			if ident != nil && ident.Text == "this" {
 				return true
 			}
 		}
