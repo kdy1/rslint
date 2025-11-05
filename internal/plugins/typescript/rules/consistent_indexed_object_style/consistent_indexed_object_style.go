@@ -147,6 +147,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 
+			// Check for circular references in mapped types
+			if isCircularMappedTypeReference(node, mappedType.Type) {
+				return
+			}
+
 			ctx.ReportNode(node, rule.RuleMessage{
 				Id:          "preferRecord",
 				Description: "A record is preferred over an index signature.",
@@ -444,6 +449,29 @@ func isCircularTypeReference(typeLiteralNode *ast.Node, valueType *ast.Node) boo
 
 	// Walk up the AST to find the type alias declaration
 	parent := typeLiteralNode.Parent
+	for parent != nil {
+		if parent.Kind == ast.KindTypeAliasDeclaration {
+			typeAlias := parent.AsTypeAliasDeclaration()
+			if typeAlias != nil && typeAlias.Name() != nil {
+				// Check if the value type references the type alias name
+				return isDeeplyReferencingType(typeAlias.Name(), valueType)
+			}
+			break
+		}
+		parent = parent.Parent
+	}
+
+	return false
+}
+
+// isCircularMappedTypeReference checks if a mapped type in a type alias has a circular reference
+func isCircularMappedTypeReference(mappedTypeNode *ast.Node, valueType *ast.Node) bool {
+	if mappedTypeNode == nil || valueType == nil {
+		return false
+	}
+
+	// Walk up the AST to find the type alias declaration
+	parent := mappedTypeNode.Parent
 	for parent != nil {
 		if parent.Kind == ast.KindTypeAliasDeclaration {
 			typeAlias := parent.AsTypeAliasDeclaration()
