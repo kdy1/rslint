@@ -155,7 +155,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					isOptional := isOptionalParam(param)
 
 					if isDefaultParam || isOptional {
-						ctx.ReportNode(current, rule.RuleMessage{
+						ctx.ReportNode(param, rule.RuleMessage{
 							Id:          "shouldBeLast",
 							Description: "Default parameters should be last.",
 						})
