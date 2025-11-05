@@ -28,9 +28,69 @@
       "failing_case": []
     },
     {
+      "name": "ban-ts-comment",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "ban-types",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
       "name": "class-literal-property-style",
       "group": "@typescript-eslint",
       "status": "full",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-generic-constructors",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-indexed-object-style",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-return",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-type-assertions",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-type-definitions",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-type-exports",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "consistent-type-imports",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "default-param-last",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
       "failing_case": []
     },
     {
@@ -49,6 +109,12 @@
       "name": "no-confusing-void-expression",
       "group": "@typescript-eslint",
       "status": "full",
+      "failing_case": []
+    },
+    {
+      "name": "no-duplicate-enum-values",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
       "failing_case": []
     },
     {
@@ -76,9 +142,15 @@
       "failing_case": []
     },
     {
-      "name": "no-floating-promises",
+      "name": "no-extraneous-class",
       "group": "@typescript-eslint",
       "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "no-floating-promises",
+      "group": "@typescript-eslint",
+      "status": "full",
       "failing_case": []
     },
     {
@@ -91,6 +163,12 @@
       "name": "no-implied-eval",
       "group": "@typescript-eslint",
       "status": "full",
+      "failing_case": []
+    },
+    {
+      "name": "no-invalid-void-type",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
       "failing_case": []
     },
     {
@@ -139,6 +217,12 @@
       "name": "no-self-import",
       "group": "eslint-plugin-import",
       "status": "full",
+      "failing_case": []
+    },
+    {
+      "name": "no-this-alias",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
       "failing_case": []
     },
     {
@@ -232,6 +316,12 @@
       "failing_case": []
     },
     {
+      "name": "no-webpack-loader-syntax",
+      "group": "eslint-plugin-import",
+      "status": "full",
+      "failing_case": []
+    },
+    {
       "name": "non-nullable-type-assertion-style",
       "group": "@typescript-eslint",
       "status": "partial-test",
@@ -251,6 +341,12 @@
     },
     {
       "name": "prefer-promise-reject-errors",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "prefer-readonly-parameter-types",
       "group": "@typescript-eslint",
       "status": "partial-test",
       "failing_case": []
@@ -316,7 +412,19 @@
       "failing_case": []
     },
     {
+      "name": "triple-slash-reference",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
       "name": "unbound-method",
+      "group": "@typescript-eslint",
+      "status": "partial-test",
+      "failing_case": []
+    },
+    {
+      "name": "unified-signatures",
       "group": "@typescript-eslint",
       "status": "partial-test",
       "failing_case": []
