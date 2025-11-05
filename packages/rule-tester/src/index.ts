@@ -33,8 +33,8 @@ function checkDiagnosticEqual(
     const tsDiag = tsDiagnostic[i];
     // check rule match
     assert(
-      rslintDiag.messageId === tsDiag.messageId,
-      `Message mismatch: ${rslintDiag.messageId} !== ${tsDiag.messageId}`,
+      rslintDiag.messageId === toCamelCase(tsDiag.messageId),
+      `Message mismatch: ${rslintDiag.messageId} !== ${toCamelCase(tsDiag.messageId)}`,
     );
 
     // check range match
