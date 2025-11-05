@@ -370,7 +370,7 @@ func TestConsistentTypeAssertionsRule(t *testing.T) {
 		{
 			Code: `const x = <string | number>value;`,
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "angle-bracket"},
+				{MessageId: "as"},
 			},
 		},
 
