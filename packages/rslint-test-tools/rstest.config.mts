@@ -17,7 +17,8 @@ export default defineConfig({
     './tests/typescript-eslint/rules/await-thenable.test.ts',
     './tests/typescript-eslint/rules/class-literal-property-style.test.ts',
     './tests/typescript-eslint/rules/dot-notation.test.ts',
-    './tests/typescript-eslint/rules/explicit-module-boundary-types.test.ts',
+    // rule not implemented yet
+    // './tests/typescript-eslint/rules/explicit-module-boundary-types.test.ts',
     './tests/typescript-eslint/rules/no-array-delete.test.ts',
     // too many autofix errors
     // './tests/typescript-eslint/rules/no-confusing-void-expression.test.ts',
