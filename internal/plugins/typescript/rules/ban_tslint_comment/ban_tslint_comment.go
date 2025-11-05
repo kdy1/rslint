@@ -49,8 +49,15 @@ func processComments(ctx rule.RuleContext, text string) {
 				for lineEnd < length && text[lineEnd] != '\n' && text[lineEnd] != '\r' {
 					lineEnd++
 				}
+
+				// Find the start of the line
+				lineStart := commentStart
+				for lineStart > 0 && text[lineStart-1] != '\n' && text[lineStart-1] != '\r' {
+					lineStart--
+				}
+
 				commentText := text[commentStart:lineEnd]
-				checkComment(ctx, commentText, commentStart, false)
+				checkComment(ctx, text, commentText, commentStart, lineStart, lineEnd, false)
 				pos = lineEnd
 			} else if text[pos] == '/' && text[pos+1] == '*' {
 				// Multi-line comment
@@ -65,7 +72,7 @@ func processComments(ctx rule.RuleContext, text string) {
 					commentEnd++
 				}
 				commentText := text[commentStart:commentEnd]
-				checkComment(ctx, commentText, commentStart, true)
+				checkComment(ctx, text, commentText, commentStart, commentStart, commentEnd, true)
 				pos = commentEnd
 			} else {
 				pos++
@@ -77,7 +84,7 @@ func processComments(ctx rule.RuleContext, text string) {
 }
 
 // checkComment checks a single comment for tslint directives
-func checkComment(ctx rule.RuleContext, commentText string, commentStart int, isMultiLine bool) {
+func checkComment(ctx rule.RuleContext, fullText string, commentText string, commentStart int, lineStart int, commentEnd int, isMultiLine bool) {
 	var matches []string
 
 	if isMultiLine {
@@ -96,15 +103,47 @@ func checkComment(ctx rule.RuleContext, commentText string, commentStart int, is
 		return
 	}
 
-	// Calculate the end position
-	commentEnd := commentStart + len(commentText)
+	// Determine what to remove
+	// Check if there's code before the comment on the same line
+	lineBeforeComment := fullText[lineStart:commentStart]
+	hasCodeBefore := false
+	for _, ch := range lineBeforeComment {
+		if ch != ' ' && ch != '\t' {
+			hasCodeBefore = true
+			break
+		}
+	}
 
-	// Create the diagnostic
-	ctx.ReportRange(
+	var fix rule.RuleFix
+	if hasCodeBefore {
+		// For inline comments, only remove the comment (starting with optional space before comment)
+		// Find the last non-whitespace character before the comment
+		removeStart := commentStart
+		for removeStart > lineStart && (fullText[removeStart-1] == ' ' || fullText[removeStart-1] == '\t') {
+			removeStart--
+		}
+		fix = rule.RuleFixRemoveRange(core.NewTextRange(removeStart, commentEnd))
+	} else {
+		// For standalone comments, remove the whole line including newline
+		removeEnd := commentEnd
+		// Include trailing newlines
+		if removeEnd < len(fullText) && (fullText[removeEnd] == '\n' || fullText[removeEnd] == '\r') {
+			removeEnd++
+			// Handle \r\n
+			if removeEnd < len(fullText) && fullText[removeEnd-1] == '\r' && fullText[removeEnd] == '\n' {
+				removeEnd++
+			}
+		}
+		fix = rule.RuleFixRemoveRange(core.NewTextRange(lineStart, removeEnd))
+	}
+
+	// Create the diagnostic with fix
+	ctx.ReportRangeWithFixes(
 		core.NewTextRange(commentStart, commentEnd),
 		rule.RuleMessage{
 			Id:          "commentDetected",
 			Description: "tslint is deprecated. Please remove this comment.",
 		},
+		fix,
 	)
 }
