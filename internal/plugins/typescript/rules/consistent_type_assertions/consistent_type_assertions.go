@@ -157,6 +157,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			if propAssignment != nil && propAssignment.Initializer == node {
 				return isAsParameter(parent)
 			}
+		case ast.KindJsxExpression:
+			// JSX expressions can contain assertions in JSX attributes
+			// Check if the parent is a JSX attribute
+			return isAsParameter(parent)
+		case ast.KindJsxAttribute:
+			// JSX attributes are considered parameter contexts
+			return true
 		}
 
 		return false
@@ -218,7 +225,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		if opts.AssertionStyle == AssertionStyleAngleBracket {
 			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "as",
+				Id:          "angle-bracket",
 				Description: "Use angle-bracket type assertions instead of 'as' assertions.",
 			})
 			return
