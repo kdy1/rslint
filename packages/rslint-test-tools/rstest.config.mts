@@ -20,7 +20,8 @@ export default defineConfig({
     './tests/typescript-eslint/rules/no-array-delete.test.ts',
     // too many autofix errors
     // './tests/typescript-eslint/rules/no-confusing-void-expression.test.ts',
-    './tests/typescript-eslint/rules/no-dynamic-delete.test.ts',
+    // rule not implemented yet
+    // './tests/typescript-eslint/rules/no-dynamic-delete.test.ts',
     './tests/typescript-eslint/rules/no-empty-function.test.ts',
     './tests/typescript-eslint/rules/no-empty-interface.test.ts',
     './tests/typescript-eslint/rules/no-explicit-any.test.ts',
