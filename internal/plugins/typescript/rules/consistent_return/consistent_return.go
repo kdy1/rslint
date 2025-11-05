@@ -56,9 +56,9 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		return nil
 	}
 
-	// Helper to check if type is Promise<void>
-	var isPromiseVoid func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool
-	isPromiseVoid = func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool {
+	// Helper to check if type is Promise<void> or Promise<void | T>
+	var isPromiseVoidOrUnion func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool
+	isPromiseVoidOrUnion = func(typeChecker *checker.Checker, node *ast.Node, typeToCheck *checker.Type) bool {
 		if typeToCheck == nil {
 			return false
 		}
@@ -76,8 +76,19 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				if utils.IsIntrinsicVoidType(awaitedType) {
 					return true
 				}
+				// Check if it's a union with void (e.g., Promise<void | number>)
+				if utils.IsTypeFlagSet(awaitedType, checker.TypeFlagsUnion) {
+					unionParts := utils.UnionTypeParts(awaitedType)
+					if unionParts != nil {
+						for _, t := range unionParts {
+							if t != nil && utils.IsIntrinsicVoidType(t) {
+								return true
+							}
+						}
+					}
+				}
 				// Recursively check for nested Promise<void>
-				return isPromiseVoid(typeChecker, node, awaitedType)
+				return isPromiseVoidOrUnion(typeChecker, node, awaitedType)
 			}
 		}
 
@@ -119,35 +130,42 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return true
 			}
 
-			// Check if return type is void | undefined
+			// Check if return type is a union containing void (e.g., number | void)
 			if utils.IsTypeFlagSet(returnType, checker.TypeFlagsUnion) {
-				// Check if it's a union that contains both void and undefined
 				unionParts := utils.UnionTypeParts(returnType)
 				if unionParts != nil {
 					hasVoid := false
 					hasUndefined := false
+					hasOther := false
 					for _, t := range unionParts {
 						if t == nil {
 							continue
 						}
 						if utils.IsIntrinsicVoidType(t) {
 							hasVoid = true
-						}
-						if utils.IsTypeFlagSet(t, checker.TypeFlagsUndefined) {
+						} else if utils.IsTypeFlagSet(t, checker.TypeFlagsUndefined) {
 							hasUndefined = true
+						} else {
+							hasOther = true
 						}
 					}
-					if hasVoid && hasUndefined {
+					// If the union contains void and other types (e.g., number | void),
+					// the function is allowed to have inconsistent returns
+					if hasVoid && hasOther {
+						return true
+					}
+					// If it's just void | undefined
+					if hasVoid && hasUndefined && !hasOther {
 						return true
 					}
 				}
 			}
 
-			// Check if it's an async function returning Promise<void>
+			// Check if it's an async function returning Promise<void> or Promise with void in union
 			if node.Kind == ast.KindArrowFunction || node.Kind == ast.KindFunctionDeclaration || node.Kind == ast.KindFunctionExpression || node.Kind == ast.KindMethodDeclaration {
 				isAsync := ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync)
 
-				if isAsync && isPromiseVoid(ctx.TypeChecker, node, returnType) {
+				if isAsync && isPromiseVoidOrUnion(ctx.TypeChecker, node, returnType) {
 					return true
 				}
 			}
