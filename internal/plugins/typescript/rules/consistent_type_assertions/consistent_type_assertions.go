@@ -398,7 +398,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Check assertion style (after literal checks)
 		if opts.AssertionStyle == AssertionStyleAs {
 			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "angle-bracket",
+				Id:          "as",
 				Description: "Use 'as' assertions instead of angle-bracket type assertions.",
 			})
 			return
