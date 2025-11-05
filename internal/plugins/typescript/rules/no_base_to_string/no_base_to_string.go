@@ -15,9 +15,9 @@ func certaintyToString(certainty usefulness) string {
 	case usefulnessAlways:
 		return "always"
 	case usefulnessNever:
-		return "always"
+		return "will"
 	case usefulnessSometimes:
-		return "always"
+		return "may"
 	default:
 		panic("unknown certainty")
 	}
@@ -38,6 +38,7 @@ func buildBaseToStringMessage(name string, certainty usefulness) rule.RuleMessag
 
 type NoBaseToStringOptions struct {
 	IgnoredTypeNames []string
+	CheckUnknown     bool
 }
 
 type usefulness uint32
@@ -202,6 +203,9 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 					return collectToStringCertainty(constraint, visited)
 				}
 				// unconstrained generic means `unknown`
+				if opts.CheckUnknown {
+					return usefulnessSometimes
+				}
 				return usefulnessAlways
 			}
 
@@ -240,6 +244,9 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 			}
 			if toString == nil {
 				// e.g. any/unknown
+				if opts.CheckUnknown {
+					return usefulnessSometimes
+				}
 				return usefulnessAlways
 			}
 
