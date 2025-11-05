@@ -15,6 +15,7 @@ export default defineConfig({
     './tests/typescript-eslint/rules/adjacent-overload-signatures.test.ts',
     './tests/typescript-eslint/rules/array-type.test.ts',
     './tests/typescript-eslint/rules/await-thenable.test.ts',
+    './tests/typescript-eslint/rules/ban-tslint-comment.test.ts',
     './tests/typescript-eslint/rules/class-literal-property-style.test.ts',
     './tests/typescript-eslint/rules/dot-notation.test.ts',
     './tests/typescript-eslint/rules/no-array-delete.test.ts',
