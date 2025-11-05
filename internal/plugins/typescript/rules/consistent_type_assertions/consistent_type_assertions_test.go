@@ -116,25 +116,25 @@ func TestConsistentTypeAssertionsRule(t *testing.T) {
 		{
 			Code: `const x = <A>b;`,
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "angle-bracket"},
+				{MessageId: "as"},
 			},
 		},
 		{
 			Code: `const x = <readonly number[]>[1];`,
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "angle-bracket"},
+				{MessageId: "as"},
 			},
 		},
 		{
 			Code: `const x = <Foo>{ bar: 5 };`,
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "angle-bracket"},
+				{MessageId: "as"},
 			},
 		},
 		{
 			Code: `const x = <Foo>[];`,
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "angle-bracket"},
+				{MessageId: "as"},
 			},
 		},
 
@@ -143,21 +143,21 @@ func TestConsistentTypeAssertionsRule(t *testing.T) {
 			Code:    `const x = b as A;`,
 			Options: []interface{}{map[string]interface{}{"assertionStyle": "angle-bracket"}},
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "as"},
+				{MessageId: "angle-bracket"},
 			},
 		},
 		{
 			Code:    `const x = [1] as readonly number[];`,
 			Options: []interface{}{map[string]interface{}{"assertionStyle": "angle-bracket"}},
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "as"},
+				{MessageId: "angle-bracket"},
 			},
 		},
 		{
 			Code:    `const x = { bar: 5 } as Foo;`,
 			Options: []interface{}{map[string]interface{}{"assertionStyle": "angle-bracket"}},
 			Errors: []rule_tester.InvalidTestCaseError{
-				{MessageId: "as"},
+				{MessageId: "angle-bracket"},
 			},
 		},
 
