@@ -1,0 +1,27 @@
+// Rstest Snapshot v1
+
+exports[`default-param-last > invalid 1`] = `
+{
+  "code": "function foo(a = 1, b: number) {}",
+  "diagnostics": [
+    {
+      "message": "Default parameters should be last.",
+      "messageId": "shouldBeLast",
+      "range": {
+        "end": {
+          "column": 19,
+          "line": 1,
+        },
+        "start": {
+          "column": 14,
+          "line": 1,
+        },
+      },
+      "ruleName": "@typescript-eslint/default-param-last",
+    },
+  ],
+  "errorCount": 1,
+  "fileCount": 1,
+  "ruleCount": 1,
+}
+`;
