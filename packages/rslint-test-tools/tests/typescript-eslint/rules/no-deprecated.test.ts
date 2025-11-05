@@ -286,12 +286,16 @@ ruleTester.run('no-deprecated', {
         }
       }
     `,
-    `
+    {
+      code: `
       declare namespace JSX {}
 
       <foo bar={1} />;
     `,
-    `
+      filename: 'react.tsx',
+    },
+    {
+      code: `
       declare namespace JSX {
         interface IntrinsicElements {
           foo: any;
@@ -300,7 +304,10 @@ ruleTester.run('no-deprecated', {
 
       <foo bar={1} />;
     `,
-    `
+      filename: 'react.tsx',
+    },
+    {
+      code: `
       declare namespace JSX {
         interface IntrinsicElements {
           foo: unknown;
@@ -309,7 +316,10 @@ ruleTester.run('no-deprecated', {
 
       <foo bar={1} />;
     `,
-    `
+      filename: 'react.tsx',
+    },
+    {
+      code: `
       declare namespace JSX {
         interface IntrinsicElements {
           foo: {
@@ -319,7 +329,10 @@ ruleTester.run('no-deprecated', {
       }
       <foo bar={1} />;
     `,
-    `
+      filename: 'react.tsx',
+    },
+    {
+      code: `
       declare namespace JSX {
         interface IntrinsicElements {
           foo: {
@@ -329,6 +342,8 @@ ruleTester.run('no-deprecated', {
       }
       <foo bar={1} />;
     `,
+      filename: 'react.tsx',
+    },
     {
       code: `
 /** @deprecated */
@@ -570,6 +585,7 @@ exists('/foo');
 
         const a = <A b="" />;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 22,
@@ -1847,6 +1863,7 @@ exists('/foo');
 
         const a = <A />;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 20,
@@ -1865,6 +1882,7 @@ exists('/foo');
 
         const a = <A></A>;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 20,
@@ -1885,6 +1903,7 @@ exists('/foo');
 
         const a = <A />;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 20,
@@ -1905,6 +1924,7 @@ exists('/foo');
 
         const a = <A></A>;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 20,
@@ -2915,6 +2935,7 @@ class B extends A {
     },
     {
       code: 'const a = <div aria-grabbed></div>;',
+      filename: 'react.tsx',
       errors: [
         {
           column: 16,
@@ -2942,6 +2963,7 @@ class B extends A {
 
         const componentDashed = <foo-bar:baz-bam name="e" deprecatedProp="oh no" />;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 59,
@@ -2974,6 +2996,7 @@ class B extends A {
 
         const anotherExample = <Tab.List deprecatedProp="oh no" />;
       `,
+      filename: 'react.tsx',
       errors: [
         {
           column: 42,
