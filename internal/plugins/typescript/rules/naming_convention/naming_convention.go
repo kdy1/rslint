@@ -311,9 +311,21 @@ func isCamelCase(name string) bool {
 	if !unicode.IsLower(rune(name[0])) {
 		return false
 	}
-	// Must not contain underscores (except in acronyms like camelCaseUNSTRICT)
-	// Allow mixed case
-	return !startsWithUpperCase(name)
+	// camelCase allows mixed case (like camelCaseUNSTRICT) but not underscores in non-uppercase parts
+	// Reject names with underscore not followed by uppercase
+	for i := 0; i < len(name); i++ {
+		if name[i] == '_' {
+			// Check if we're in an all-uppercase sequence (like UNSTRICT in camelCaseUNSTRICT)
+			// This is allowed, otherwise underscore is not allowed
+			if i > 0 && !unicode.IsUpper(rune(name[i-1])) {
+				return false
+			}
+			if i+1 < len(name) && !unicode.IsUpper(rune(name[i+1])) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func isStrictCamelCase(name string) bool {
