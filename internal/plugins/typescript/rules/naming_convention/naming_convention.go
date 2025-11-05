@@ -192,7 +192,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			return
 		}
 
-		name := enumDecl.Name().Text()
+		name := getNodeText(enumDecl.Name())
+		if name == "" {
+			return
+		}
 
 		// Find applicable configs
 		for _, config := range configs {
