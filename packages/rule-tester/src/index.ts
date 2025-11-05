@@ -33,7 +33,7 @@ function checkDiagnosticEqual(
     const tsDiag = tsDiagnostic[i];
     // check rule match
     assert(
-      toCamelCase(rslintDiag.messageId) === tsDiag.messageId,
+      rslintDiag.messageId === tsDiag.messageId,
       `Message mismatch: ${rslintDiag.messageId} !== ${tsDiag.messageId}`,
     );
 
