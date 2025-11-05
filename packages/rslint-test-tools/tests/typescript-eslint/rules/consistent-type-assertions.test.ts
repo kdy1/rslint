@@ -244,6 +244,15 @@ ruleTester.run('consistent-type-assertions', {
       ],
     },
     {
+      code: "const x = { key: 'value' } as const;",
+      options: [
+        {
+          assertionStyle: 'angle-bracket',
+          objectLiteralTypeAssertions: 'allow',
+        },
+      ],
+    },
+    {
       code: 'const x = {} as Foo<int>;',
       options: [{ assertionStyle: 'as', objectLiteralTypeAssertions: 'allow' }],
     },
@@ -834,16 +843,6 @@ const x = { key: 'value' } as unknown;
     },
     {
       code: "const x = bar<string>`${'baz'}` as Foo;",
-      errors: [
-        {
-          line: 1,
-          messageId: 'angle-bracket',
-        },
-      ],
-      options: [{ assertionStyle: 'angle-bracket' }],
-    },
-    {
-      code: "const x = { key: 'value' } as const;",
       errors: [
         {
           line: 1,
