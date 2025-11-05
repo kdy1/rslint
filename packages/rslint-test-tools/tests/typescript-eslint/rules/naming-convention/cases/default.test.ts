@@ -25,7 +25,6 @@ createTestCases([
       'interface Ignored<%> extends Ignored<string> {}',
     ],
     options: {
-      filter: '[iI]gnored',
       selector: 'default',
     },
   },
