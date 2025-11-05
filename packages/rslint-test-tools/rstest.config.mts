@@ -18,6 +18,7 @@ export default defineConfig({
     './tests/typescript-eslint/rules/class-literal-property-style.test.ts',
     './tests/typescript-eslint/rules/dot-notation.test.ts',
     './tests/typescript-eslint/rules/no-array-delete.test.ts',
+    './tests/typescript-eslint/rules/no-dupe-class-members.test.ts',
     // too many autofix errors
     // './tests/typescript-eslint/rules/no-confusing-void-expression.test.ts',
     './tests/typescript-eslint/rules/no-empty-function.test.ts',
