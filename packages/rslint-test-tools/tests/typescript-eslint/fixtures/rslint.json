@@ -8,7 +8,9 @@
         "project": ["./tsconfig.json"]
       }
     },
-    "rules": {},
+    "rules": {
+      "@typescript-eslint/max-params": "error"
+    },
     "plugins": []
   }
 ]
