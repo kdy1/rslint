@@ -75,7 +75,8 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 
 			// Check for circular references
-			if isDeeplyReferencingType(interfaceDecl.Name(), indexSig.Type) {
+			isCircular := isDeeplyReferencingType(interfaceDecl.Name(), indexSig.Type)
+			if isCircular {
 				return
 			}
 
@@ -405,6 +406,36 @@ func checkTypeReference(targetName string, typeNode *ast.Node) bool {
 						}
 					}
 				}
+			}
+		}
+
+	case ast.KindConditionalType:
+		// For conditional types, check all parts: checkType, extendsType, trueType, and falseType
+		conditionalType := typeNode.AsConditionalTypeNode()
+		if conditionalType != nil {
+			if conditionalType.CheckType != nil && checkTypeReference(targetName, conditionalType.CheckType) {
+				return true
+			}
+			if conditionalType.ExtendsType != nil && checkTypeReference(targetName, conditionalType.ExtendsType) {
+				return true
+			}
+			if conditionalType.TrueType != nil && checkTypeReference(targetName, conditionalType.TrueType) {
+				return true
+			}
+			if conditionalType.FalseType != nil && checkTypeReference(targetName, conditionalType.FalseType) {
+				return true
+			}
+		}
+
+	case ast.KindIndexedAccessType:
+		// For indexed access types like Foo[number] or {}[Foo]
+		indexedAccessType := typeNode.AsIndexedAccessTypeNode()
+		if indexedAccessType != nil {
+			if indexedAccessType.ObjectType != nil && checkTypeReference(targetName, indexedAccessType.ObjectType) {
+				return true
+			}
+			if indexedAccessType.IndexType != nil && checkTypeReference(targetName, indexedAccessType.IndexType) {
+				return true
 			}
 		}
 	}
