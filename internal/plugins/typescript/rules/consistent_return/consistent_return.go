@@ -19,10 +19,12 @@ var ConsistentReturnRule = rule.CreateRule(rule.Rule{
 
 // functionInfo tracks information about a function's return statements
 type functionInfo struct {
-	node                *ast.Node
-	hasReturnWithValue  bool
-	hasReturnWithoutValue bool
-	isVoidOrPromiseVoid bool
+	node                   *ast.Node
+	hasReturnWithValue     bool
+	hasReturnWithoutValue  bool
+	returnsWithValue       []*ast.Node // Track return statements with values
+	returnsWithoutValue    []*ast.Node // Track return statements without values
+	isVoidOrPromiseVoid    bool
 }
 
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
@@ -124,11 +126,9 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return true
 			}
 
-			// Check if return type is undefined (for explicit : undefined type annotation)
-			if utils.IsTypeFlagSet(returnType, checker.TypeFlagsUndefined) && !utils.IsTypeFlagSet(returnType, checker.TypeFlagsUnion) {
-				// Only return type that is purely undefined (not a union)
-				return true
-			}
+			// Note: We do NOT treat pure `: undefined` the same as `: void`
+			// For `: undefined`, if any return has a value, all should have a value
+			// For `: void`, no return should have a value
 
 			// Check if return type is a union containing void (e.g., number | void)
 			if utils.IsTypeFlagSet(returnType, checker.TypeFlagsUnion) {
@@ -275,6 +275,8 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			node:                  node,
 			hasReturnWithValue:    false,
 			hasReturnWithoutValue: false,
+			returnsWithValue:      make([]*ast.Node, 0),
+			returnsWithoutValue:   make([]*ast.Node, 0),
 			isVoidOrPromiseVoid:   isReturnVoidOrPromiseVoid(node),
 		}
 		functionStack = append(functionStack, info)
@@ -290,13 +292,52 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Check for inconsistent returns
 		if info.hasReturnWithValue && info.hasReturnWithoutValue {
-			// Report error on the function
 			funcName := getFunctionName(node)
 
-			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "missingReturnValue",
-				Description: funcName + " has inconsistent return statements. Either all return statements should return a value, or none should.",
-			})
+			// Check what kind of inconsistency we have
+			isAsync := ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync)
+			funcNameForMessage := funcName
+			if isAsync && funcName != "" {
+				// Capitalize first letter and add "Async" prefix
+				if len(funcName) > 0 {
+					first := funcName[0:1]
+					rest := funcName[1:]
+					if first == "f" {
+						funcNameForMessage = "Async f" + rest
+					} else if first == "a" {
+						funcNameForMessage = "Async a" + rest
+					} else if first == "m" {
+						funcNameForMessage = "Async m" + rest
+					} else {
+						funcNameForMessage = "Async " + funcName
+					}
+				}
+			}
+
+			// Determine which returns to flag based on whether the first return has a value
+			// If the first return (in source order) has no value, then returns with values are unexpected
+			// If the first return has a value, then returns without values are missing
+			firstReturnHasValue := len(info.returnsWithValue) > 0 &&
+				(len(info.returnsWithoutValue) == 0 ||
+				 info.returnsWithValue[0].Pos() < info.returnsWithoutValue[0].Pos())
+
+			if firstReturnHasValue {
+				// First return has a value, so returns without values are missing the value
+				for _, returnNode := range info.returnsWithoutValue {
+					ctx.ReportNode(returnNode, rule.RuleMessage{
+						Id:          "missingReturnValue",
+						Description: funcNameForMessage + " expected a return value.",
+					})
+				}
+			} else {
+				// First return has no value, so returns with values are unexpected
+				for _, returnNode := range info.returnsWithValue {
+					ctx.ReportNode(returnNode, rule.RuleMessage{
+						Id:          "unexpectedReturnValue",
+						Description: funcNameForMessage + " expected no return value.",
+					})
+				}
+			}
 		}
 	}
 
@@ -334,6 +375,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				if isUndefinedType(returnExpr) {
 					// Treat this as a return without value
 					funcInfo.hasReturnWithoutValue = true
+					funcInfo.returnsWithoutValue = append(funcInfo.returnsWithoutValue, node)
 					return
 				}
 			}
@@ -341,8 +383,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Track whether this return has a value
 			if returnExpr != nil {
 				funcInfo.hasReturnWithValue = true
+				funcInfo.returnsWithValue = append(funcInfo.returnsWithValue, node)
 			} else {
 				funcInfo.hasReturnWithoutValue = true
+				funcInfo.returnsWithoutValue = append(funcInfo.returnsWithoutValue, node)
 			}
 		},
 	}
