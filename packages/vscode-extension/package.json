@@ -79,7 +79,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "watch": "node scripts/build.js --watch",
-    "package": "vsce package",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@rslint/core": "workspace:*",
