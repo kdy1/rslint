@@ -289,23 +289,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		if info.hasReturnWithValue && info.hasReturnWithoutValue && len(info.returnStatements) > 0 {
 			funcName := getFunctionName(node)
 
-			// The first return statement sets the expected pattern
-			firstReturn := info.returnStatements[0]
-			expectValue := firstReturn.hasValue
-
-			// Report errors on return statements that don't match the first return's pattern
+			// If there are any returns with values, all returns should have values
+			// Report "missingReturnValue" on returns without values
 			for _, ret := range info.returnStatements {
-				if expectValue && !ret.hasValue {
-					// Expected a return value (based on first return), but this one doesn't have one
+				if !ret.hasValue {
 					ctx.ReportNode(ret.node, rule.RuleMessage{
 						Id:          "missingReturnValue",
 						Description: funcName + " expected a return value.",
-					})
-				} else if !expectValue && ret.hasValue {
-					// Expected no return value (based on first return), but this one has one
-					ctx.ReportNode(ret.node, rule.RuleMessage{
-						Id:          "unexpectedReturnValue",
-						Description: funcName + " expected no return value.",
 					})
 				}
 			}
