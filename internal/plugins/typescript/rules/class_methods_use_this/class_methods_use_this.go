@@ -229,14 +229,16 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		// Enter a property declaration
-		enterProperty := func(node *ast.Node) {
-			if node.Kind != ast.KindPropertyDeclaration {
+		// Enter a property initializer (function or arrow function)
+		enterPropertyInit := func(node *ast.Node) {
+			// Only process if this is a function/arrow that's a direct child of a property declaration
+			parent := node.Parent
+			if parent == nil || parent.Kind != ast.KindPropertyDeclaration {
 				return
 			}
 
-			prop := node.AsPropertyDeclaration()
-			if prop == nil {
+			prop := parent.AsPropertyDeclaration()
+			if prop == nil || prop.Initializer != node {
 				return
 			}
 
@@ -246,12 +248,12 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Skip static properties
-			if ast.HasSyntacticModifier(node, ast.ModifierFlagsStatic) {
+			if ast.HasSyntacticModifier(parent, ast.ModifierFlagsStatic) {
 				return
 			}
 
 			// Skip if not in a class
-			if !isInClass(node) {
+			if !isInClass(parent) {
 				return
 			}
 
@@ -263,20 +265,10 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 				}
 			}
 
-			// Check if initializer is a function or arrow function
-			if prop.Initializer == nil {
-				return
-			}
-
-			init := prop.Initializer
-			if init.Kind != ast.KindFunctionExpression && init.Kind != ast.KindArrowFunction {
-				return
-			}
-
 			// Create a new scope for the initializer
 			currentScope = &scopeInfo{
 				hasThis: false,
-				node:    init,
+				node:    node,
 				upper:   currentScope,
 			}
 		}
@@ -309,12 +301,20 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		// Enter a function expression or arrow function (to create a boundary)
+		// Enter a function expression or arrow function (to create a boundary for nested functions)
 		enterNestedFunction := func(node *ast.Node) {
+			// Check if this is a property initializer - if so, skip (handled separately)
+			parent := node.Parent
+			if parent != nil && parent.Kind == ast.KindPropertyDeclaration {
+				prop := parent.AsPropertyDeclaration()
+				if prop != nil && prop.Initializer == node {
+					return
+				}
+			}
+
 			// Don't check nested regular functions for 'this'
-			// But arrow functions inherit 'this' from parent scope
+			// Create a boundary scope for nested functions
 			if node.Kind == ast.KindFunctionExpression || node.Kind == ast.KindFunctionDeclaration {
-				// Create a boundary scope for nested functions
 				currentScope = &scopeInfo{
 					hasThis: true, // Mark as having 'this' so we don't report
 					node:    node,
@@ -325,6 +325,15 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 
 		// Exit a nested function
 		exitNestedFunction := func(node *ast.Node) {
+			// Skip if this is a property initializer (handled by exitPropertyInit)
+			parent := node.Parent
+			if parent != nil && parent.Kind == ast.KindPropertyDeclaration {
+				prop := parent.AsPropertyDeclaration()
+				if prop != nil && prop.Initializer == node {
+					return
+				}
+			}
+
 			if currentScope != nil && currentScope.node == node {
 				currentScope = currentScope.upper
 			}
@@ -339,17 +348,28 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			ast.KindSetAccessor:                            enterMethod,
 			rule.ListenerOnExit(ast.KindSetAccessor):       exitMethod,
 
-			// Property declaration listeners
-			ast.KindPropertyDeclaration: enterProperty,
-
-			// Function expression/arrow function listeners (for property initializers and nested functions)
-			ast.KindFunctionExpression:                       enterNestedFunction,
-			rule.ListenerOnExit(ast.KindFunctionExpression):  exitNestedFunction,
-			ast.KindFunctionDeclaration:                      enterNestedFunction,
-			rule.ListenerOnExit(ast.KindFunctionDeclaration): exitNestedFunction,
-
-			// Arrow function listener (exits property initializer if needed)
-			rule.ListenerOnExit(ast.KindArrowFunction): exitPropertyInit,
+			// Function expression/arrow function listeners
+			// These handle both property initializers and nested functions
+			ast.KindFunctionExpression: func(node *ast.Node) {
+				enterPropertyInit(node)
+				enterNestedFunction(node)
+			},
+			rule.ListenerOnExit(ast.KindFunctionExpression): func(node *ast.Node) {
+				exitPropertyInit(node)
+				exitNestedFunction(node)
+			},
+			ast.KindFunctionDeclaration: func(node *ast.Node) {
+				enterNestedFunction(node)
+			},
+			rule.ListenerOnExit(ast.KindFunctionDeclaration): func(node *ast.Node) {
+				exitNestedFunction(node)
+			},
+			ast.KindArrowFunction: func(node *ast.Node) {
+				enterPropertyInit(node)
+			},
+			rule.ListenerOnExit(ast.KindArrowFunction): func(node *ast.Node) {
+				exitPropertyInit(node)
+			},
 
 			// This/super keyword listeners
 			ast.KindThisKeyword:  func(node *ast.Node) { markAsHasThis() },
