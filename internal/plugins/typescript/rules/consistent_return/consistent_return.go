@@ -300,18 +300,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					ctx.ReportNode(ret.node, rule.RuleMessage{
 						Id:          "missingReturnValue",
 						Description: funcName + " expected a return value.",
-						Data: map[string]interface{}{
-							"name": funcName,
-						},
 					})
 				} else if !expectValue && ret.hasValue {
 					// Expected no return value (based on first return), but this one has one
 					ctx.ReportNode(ret.node, rule.RuleMessage{
 						Id:          "unexpectedReturnValue",
 						Description: funcName + " expected no return value.",
-						Data: map[string]interface{}{
-							"name": funcName,
-						},
 					})
 				}
 			}
