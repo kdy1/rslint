@@ -23,6 +23,13 @@ type functionInfo struct {
 	hasReturnWithValue    bool
 	hasReturnWithoutValue bool
 	isVoidOrPromiseVoid   bool
+	returnStatements      []*returnInfo
+}
+
+// returnInfo tracks individual return statements
+type returnInfo struct {
+	node     *ast.Node
+	hasValue bool
 }
 
 func run(ctx rule.RuleContext, options any) rule.RuleListeners {
@@ -172,32 +179,39 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	// Helper to get function name for better error messages
 	getFunctionName := func(node *ast.Node) string {
+		// Check if function is async
+		isAsync := ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync)
+		asyncPrefix := ""
+		if isAsync {
+			asyncPrefix = "Async "
+		}
+
 		switch node.Kind {
 		case ast.KindFunctionDeclaration:
 			fn := node.AsFunctionDeclaration()
 			if fn != nil && fn.Name() != nil && fn.Name().Kind == ast.KindIdentifier {
 				ident := fn.Name().AsIdentifier()
 				if ident != nil {
-					return "function '" + ident.Text + "'"
+					return asyncPrefix + "function '" + ident.Text + "'"
 				}
 			}
-			return "function"
+			return asyncPrefix + "function"
 		case ast.KindConstructor:
 			return "constructor"
 		case ast.KindMethodDeclaration:
 			method := node.AsMethodDeclaration()
 			if method != nil && method.Name() != nil {
 				name, _ := utils.GetNameFromMember(ctx.SourceFile, method.Name())
-				return "method '" + name + "'"
+				return asyncPrefix + "method '" + name + "'"
 			}
-			return "method"
+			return asyncPrefix + "method"
 		case ast.KindGetAccessor:
 			accessor := node.AsGetAccessorDeclaration()
 			if accessor != nil && accessor.Name() != nil {
 				name, _ := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
-				return "getter '" + name + "'"
+				return asyncPrefix + "getter '" + name + "'"
 			}
-			return "getter"
+			return asyncPrefix + "getter"
 		case ast.KindFunctionExpression:
 			parent := node.Parent
 			if parent != nil {
@@ -206,14 +220,14 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					method := parent.AsMethodDeclaration()
 					if method != nil && method.Name() != nil {
 						name, _ := utils.GetNameFromMember(ctx.SourceFile, method.Name())
-						return "method '" + name + "'"
+						return asyncPrefix + "method '" + name + "'"
 					}
 				case ast.KindPropertyDeclaration:
 					prop := parent.AsPropertyDeclaration()
 					if prop != nil && prop.Name() != nil {
 						name, _ := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
 						if name != "" {
-							return "function '" + name + "'"
+							return asyncPrefix + "function '" + name + "'"
 						}
 					}
 				case ast.KindPropertyAssignment:
@@ -221,7 +235,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					if prop != nil && prop.Name() != nil {
 						name, _ := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
 						if name != "" {
-							return "function '" + name + "'"
+							return asyncPrefix + "function '" + name + "'"
 						}
 					}
 				case ast.KindVariableDeclaration:
@@ -229,12 +243,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					if decl != nil && decl.Name() != nil && decl.Name().Kind == ast.KindIdentifier {
 						ident := decl.Name().AsIdentifier()
 						if ident != nil {
-							return "function '" + ident.Text + "'"
+							return asyncPrefix + "function '" + ident.Text + "'"
 						}
 					}
 				}
 			}
-			return "function"
+			return asyncPrefix + "function"
 		case ast.KindArrowFunction:
 			parent := node.Parent
 			if parent != nil && parent.Kind == ast.KindVariableDeclaration {
@@ -242,11 +256,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				if decl != nil && decl.Name() != nil && decl.Name().Kind == ast.KindIdentifier {
 					ident := decl.Name().AsIdentifier()
 					if ident != nil {
-						return "arrow function '" + ident.Text + "'"
+						return asyncPrefix + "arrow function '" + ident.Text + "'"
 					}
 				}
 			}
-			return "arrow function"
+			return asyncPrefix + "arrow function"
 		default:
 			return "function"
 		}
@@ -258,6 +272,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			hasReturnWithValue:    false,
 			hasReturnWithoutValue: false,
 			isVoidOrPromiseVoid:   isReturnVoidOrPromiseVoid(node),
+			returnStatements:      make([]*returnInfo, 0),
 		}
 		functionStack = append(functionStack, info)
 	}
@@ -271,14 +286,35 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		functionStack = functionStack[:len(functionStack)-1]
 
 		// Check for inconsistent returns
-		if info.hasReturnWithValue && info.hasReturnWithoutValue {
-			// Report error on the function
+		if info.hasReturnWithValue && info.hasReturnWithoutValue && len(info.returnStatements) > 0 {
 			funcName := getFunctionName(node)
 
-			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "missingReturnValue",
-				Description: funcName + " has inconsistent return statements. Either all return statements should return a value, or none should.",
-			})
+			// The first return statement sets the expected pattern
+			firstReturn := info.returnStatements[0]
+			expectValue := firstReturn.hasValue
+
+			// Report errors on return statements that don't match the first return's pattern
+			for _, ret := range info.returnStatements {
+				if expectValue && !ret.hasValue {
+					// Expected a return value (based on first return), but this one doesn't have one
+					ctx.ReportNode(ret.node, rule.RuleMessage{
+						Id:          "missingReturnValue",
+						Description: funcName + " expected a return value.",
+						Data: map[string]interface{}{
+							"name": funcName,
+						},
+					})
+				} else if !expectValue && ret.hasValue {
+					// Expected no return value (based on first return), but this one has one
+					ctx.ReportNode(ret.node, rule.RuleMessage{
+						Id:          "unexpectedReturnValue",
+						Description: funcName + " expected no return value.",
+						Data: map[string]interface{}{
+							"name": funcName,
+						},
+					})
+				}
+			}
 		}
 	}
 
@@ -311,17 +347,25 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				return
 			}
 
+			// Determine if this return has a value
+			hasValue := returnExpr != nil
+
 			// Check if we're treating undefined as unspecified
 			if opts.TreatUndefinedAsUnspecified && returnExpr != nil {
 				if isUndefinedType(returnExpr) {
 					// Treat this as a return without value
-					funcInfo.hasReturnWithoutValue = true
-					return
+					hasValue = false
 				}
 			}
 
-			// Track whether this return has a value
-			if returnExpr != nil {
+			// Track this return statement
+			funcInfo.returnStatements = append(funcInfo.returnStatements, &returnInfo{
+				node:     node,
+				hasValue: hasValue,
+			})
+
+			// Track whether this return has a value at the function level
+			if hasValue {
 				funcInfo.hasReturnWithValue = true
 			} else {
 				funcInfo.hasReturnWithoutValue = true
