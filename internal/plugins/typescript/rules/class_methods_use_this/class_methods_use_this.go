@@ -11,6 +11,12 @@ type ClassMethodsUseThisOptions struct {
 	EnforceForClassFields  bool     `json:"enforceForClassFields"`
 }
 
+type scopeInfo struct {
+	hasThis bool
+	node    *ast.Node
+	upper   *scopeInfo
+}
+
 var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 	Name: "class-methods-use-this",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
@@ -54,68 +60,16 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			return false
 		}
 
-		// Check if a node uses 'this' or 'super'
-		usesThisOrSuper := func(node *ast.Node) bool {
-			found := false
-
-			// Track function boundaries to not look into nested functions
-			functionDepth := 0
-
-			ast.ForEachChild(node, func(child *ast.Node) bool {
-				// Don't descend into nested function expressions or arrow functions
-				// unless they're arrow functions (which capture 'this')
-				if child.Kind == ast.KindFunctionExpression || child.Kind == ast.KindFunctionDeclaration {
-					functionDepth++
-					if functionDepth > 0 {
-						return false // Don't descend
-					}
+		// Helper to check if node is inside a class
+		isInClass := func(node *ast.Node) bool {
+			current := node.Parent
+			for current != nil {
+				if current.Kind == ast.KindClassDeclaration || current.Kind == ast.KindClassExpression {
+					return true
 				}
-
-				// Arrow functions capture 'this', so we should check them
-				if child.Kind == ast.KindArrowFunction {
-					// Check if the arrow function uses 'this'
-					if containsThisInArrow(child) {
-						found = true
-						return false
-					}
-					return true // Continue checking
-				}
-
-				// Check for 'this' keyword
-				if child.Kind == ast.KindThisKeyword {
-					found = true
-					return false
-				}
-
-				// Check for 'super' keyword
-				if child.Kind == ast.KindSuperKeyword {
-					found = true
-					return false
-				}
-
-				return true // Continue traversal
-			})
-
-			return found
-		}
-
-		// Helper to check if an arrow function contains 'this'
-		containsThisInArrow := func(arrowFunc *ast.Node) bool {
-			found := false
-			ast.ForEachChild(arrowFunc, func(child *ast.Node) bool {
-				// Don't descend into nested regular functions
-				if child.Kind == ast.KindFunctionExpression || child.Kind == ast.KindFunctionDeclaration {
-					return false
-				}
-
-				if child.Kind == ast.KindThisKeyword || child.Kind == ast.KindSuperKeyword {
-					found = true
-					return false
-				}
-
-				return true
-			})
-			return found
+				current = current.Parent
+			}
+			return false
 		}
 
 		// Get method name for display
@@ -123,8 +77,8 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			if node.Kind == ast.KindMethodDeclaration {
 				method := node.AsMethodDeclaration()
 				if method != nil && method.Name() != nil {
-					name, isPrivate := utils.GetNameFromMember(ctx.SourceFile, method.Name())
-					if isPrivate {
+					name, nameType := utils.GetNameFromMember(ctx.SourceFile, method.Name())
+					if nameType == utils.MemberNameTypePrivate {
 						if method.Kind == ast.KindGetAccessor {
 							return "private getter " + name
 						} else if method.Kind == ast.KindSetAccessor {
@@ -136,11 +90,23 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 					}
 
 					if method.Kind == ast.KindGetAccessor {
+						if name == "" {
+							return "getter"
+						}
 						return "getter '" + name + "'"
 					} else if method.Kind == ast.KindSetAccessor {
+						if name == "" {
+							return "setter"
+						}
 						return "setter '" + name + "'"
 					} else if method.AsteriskToken != nil {
+						if name == "" {
+							return "generator method"
+						}
 						return "generator method '" + name + "'"
+					}
+					if name == "" {
+						return "method"
 					}
 					return "method '" + name + "'"
 				}
@@ -148,9 +114,12 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			} else if node.Kind == ast.KindGetAccessor {
 				accessor := node.AsGetAccessorDeclaration()
 				if accessor != nil && accessor.Name() != nil {
-					name, isPrivate := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
-					if isPrivate {
+					name, nameType := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
+					if nameType == utils.MemberNameTypePrivate {
 						return "private getter " + name
+					}
+					if name == "" {
+						return "getter"
 					}
 					return "getter '" + name + "'"
 				}
@@ -158,8 +127,8 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			} else if node.Kind == ast.KindSetAccessor {
 				accessor := node.AsSetAccessorDeclaration()
 				if accessor != nil && accessor.Name() != nil {
-					name, isPrivate := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
-					if isPrivate {
+					name, nameType := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
+					if nameType == utils.MemberNameTypePrivate {
 						return "private setter " + name
 					}
 					if name == "" {
@@ -171,9 +140,12 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			} else if node.Kind == ast.KindPropertyDeclaration {
 				prop := node.AsPropertyDeclaration()
 				if prop != nil && prop.Name() != nil {
-					name, isPrivate := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
-					if isPrivate {
+					name, nameType := utils.GetNameFromMember(ctx.SourceFile, prop.Name())
+					if nameType == utils.MemberNameTypePrivate {
 						return "private method " + name
+					}
+					if name == "" {
+						return "method"
 					}
 					return "method '" + name + "'"
 				}
@@ -182,8 +154,10 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 			return "method"
 		}
 
-		// Check method declarations
-		checkMethod := func(node *ast.Node) {
+		var currentScope *scopeInfo
+
+		// Enter a method or property
+		enterMethod := func(node *ast.Node) {
 			// Skip constructors
 			if node.Kind == ast.KindConstructor {
 				return
@@ -196,6 +170,11 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 
 			// Skip abstract methods
 			if ast.HasSyntacticModifier(node, ast.ModifierFlagsAbstract) {
+				return
+			}
+
+			// Skip if not in a class
+			if !isInClass(node) {
 				return
 			}
 
@@ -225,41 +204,33 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			// Get method body
-			var body *ast.Node
-			if node.Kind == ast.KindMethodDeclaration {
-				method := node.AsMethodDeclaration()
-				if method != nil {
-					body = method.Body
-				}
-			} else if node.Kind == ast.KindGetAccessor {
-				accessor := node.AsGetAccessorDeclaration()
-				if accessor != nil {
-					body = accessor.Body
-				}
-			} else if node.Kind == ast.KindSetAccessor {
-				accessor := node.AsSetAccessorDeclaration()
-				if accessor != nil {
-					body = accessor.Body
-				}
-			}
-
-			if body == nil {
-				return
-			}
-
-			// Check if the method uses 'this' or 'super'
-			if !usesThisOrSuper(body) {
-				displayName := getMethodName(node)
-				ctx.ReportNode(node, rule.RuleMessage{
-					Id:          "missingThis",
-					Description: "Expected 'this' to be used by class " + displayName + ".",
-				})
+			// Create a new scope
+			currentScope = &scopeInfo{
+				hasThis: false,
+				node:    node,
+				upper:   currentScope,
 			}
 		}
 
-		// Check property declarations with function values (class fields)
-		checkPropertyDeclaration := func(node *ast.Node) {
+		// Exit a method
+		exitMethod := func(node *ast.Node) {
+			if currentScope != nil && currentScope.node == node {
+				// Check if we used 'this' or 'super'
+				if !currentScope.hasThis {
+					displayName := getMethodName(node)
+					ctx.ReportNode(node, rule.RuleMessage{
+						Id:          "missingThis",
+						Description: "Expected 'this' to be used by class " + displayName + ".",
+					})
+				}
+
+				// Pop the scope
+				currentScope = currentScope.upper
+			}
+		}
+
+		// Enter a property declaration
+		enterProperty := func(node *ast.Node) {
 			if node.Kind != ast.KindPropertyDeclaration {
 				return
 			}
@@ -276,6 +247,11 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 
 			// Skip static properties
 			if ast.HasSyntacticModifier(node, ast.ModifierFlagsStatic) {
+				return
+			}
+
+			// Skip if not in a class
+			if !isInClass(node) {
 				return
 			}
 
@@ -297,39 +273,87 @@ var ClassMethodsUseThisRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			// Get function body
-			var body *ast.Node
-			if init.Kind == ast.KindFunctionExpression {
-				fn := init.AsFunctionExpression()
-				if fn != nil {
-					body = fn.Body
+			// Create a new scope for the initializer
+			currentScope = &scopeInfo{
+				hasThis: false,
+				node:    init,
+				upper:   currentScope,
+			}
+		}
+
+		// Exit a property initializer
+		exitPropertyInit := func(node *ast.Node) {
+			if currentScope != nil && currentScope.node == node {
+				// Check if we used 'this' or 'super'
+				if !currentScope.hasThis {
+					// Find the parent property declaration
+					parent := node.Parent
+					if parent != nil && parent.Kind == ast.KindPropertyDeclaration {
+						displayName := getMethodName(parent)
+						ctx.ReportNode(node, rule.RuleMessage{
+							Id:          "missingThis",
+							Description: "Expected 'this' to be used by class " + displayName + ".",
+						})
+					}
 				}
-			} else if init.Kind == ast.KindArrowFunction {
-				fn := init.AsArrowFunction()
-				if fn != nil && fn.Body != nil && fn.Body.Kind == ast.KindBlock {
-					body = fn.Body
+
+				// Pop the scope
+				currentScope = currentScope.upper
+			}
+		}
+
+		// Mark that we found 'this' or 'super'
+		markAsHasThis := func() {
+			if currentScope != nil {
+				currentScope.hasThis = true
+			}
+		}
+
+		// Enter a function expression or arrow function (to create a boundary)
+		enterNestedFunction := func(node *ast.Node) {
+			// Don't check nested regular functions for 'this'
+			// But arrow functions inherit 'this' from parent scope
+			if node.Kind == ast.KindFunctionExpression || node.Kind == ast.KindFunctionDeclaration {
+				// Create a boundary scope for nested functions
+				currentScope = &scopeInfo{
+					hasThis: true, // Mark as having 'this' so we don't report
+					node:    node,
+					upper:   currentScope,
 				}
 			}
+		}
 
-			if body == nil {
-				return
-			}
-
-			// Check if the function uses 'this' or 'super'
-			if !usesThisOrSuper(body) {
-				displayName := getMethodName(node)
-				ctx.ReportNode(init, rule.RuleMessage{
-					Id:          "missingThis",
-					Description: "Expected 'this' to be used by class " + displayName + ".",
-				})
+		// Exit a nested function
+		exitNestedFunction := func(node *ast.Node) {
+			if currentScope != nil && currentScope.node == node {
+				currentScope = currentScope.upper
 			}
 		}
 
 		return rule.RuleListeners{
-			ast.KindMethodDeclaration:   checkMethod,
-			ast.KindGetAccessor:         checkMethod,
-			ast.KindSetAccessor:         checkMethod,
-			ast.KindPropertyDeclaration: checkPropertyDeclaration,
+			// Method listeners
+			ast.KindMethodDeclaration:                      enterMethod,
+			rule.ListenerOnExit(ast.KindMethodDeclaration): exitMethod,
+			ast.KindGetAccessor:                            enterMethod,
+			rule.ListenerOnExit(ast.KindGetAccessor):       exitMethod,
+			ast.KindSetAccessor:                            enterMethod,
+			rule.ListenerOnExit(ast.KindSetAccessor):       exitMethod,
+
+			// Property declaration listeners
+			ast.KindPropertyDeclaration: enterProperty,
+
+			// Function expression/arrow function listeners (for property initializers and nested functions)
+			ast.KindFunctionExpression:                       enterNestedFunction,
+			rule.ListenerOnExit(ast.KindFunctionExpression):  exitNestedFunction,
+			ast.KindFunctionDeclaration:                      enterNestedFunction,
+			rule.ListenerOnExit(ast.KindFunctionDeclaration): exitNestedFunction,
+
+			// Arrow function listener (exits property initializer if needed)
+			rule.ListenerOnExit(ast.KindArrowFunction): exitPropertyInit,
+
+			// This/super keyword listeners
+			ast.KindThisKeyword:  func(node *ast.Node) { markAsHasThis() },
+			ast.KindSuperKeyword: func(node *ast.Node) { markAsHasThis() },
 		}
 	},
 })
