@@ -118,16 +118,13 @@ func reportTslintComment(ctx rule.RuleContext, commentText string, start, end in
 	// Create the fix
 	fix := createFix(start, end, fullText)
 
-	ctx.ReportRangeWithFix(
+	ctx.ReportRangeWithFixes(
 		core.NewTextRange(start, end),
 		rule.RuleMessage{
 			Id:          "commentDetected",
 			Description: "tslint is deprecated and you should stop using it",
-			Data: map[string]interface{}{
-				"text": commentText,
-			},
 		},
-		fix,
+		*fix,
 	)
 
 	_ = line
