@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -89,8 +90,44 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
+		getModifiersList := func(node *ast.Node) []*ast.Node {
+			switch node.Kind {
+			case ast.KindPropertyDeclaration:
+				prop := node.AsPropertyDeclaration()
+				if prop != nil && prop.Modifiers() != nil {
+					return prop.Modifiers().Nodes
+				}
+			case ast.KindMethodDeclaration:
+				method := node.AsMethodDeclaration()
+				if method != nil && method.Modifiers() != nil {
+					return method.Modifiers().Nodes
+				}
+			case ast.KindConstructor:
+				constructor := node.AsConstructorDeclaration()
+				if constructor != nil && constructor.Modifiers() != nil {
+					return constructor.Modifiers().Nodes
+				}
+			case ast.KindGetAccessor:
+				accessor := node.AsGetAccessorDeclaration()
+				if accessor != nil && accessor.Modifiers() != nil {
+					return accessor.Modifiers().Nodes
+				}
+			case ast.KindSetAccessor:
+				accessor := node.AsSetAccessorDeclaration()
+				if accessor != nil && accessor.Modifiers() != nil {
+					return accessor.Modifiers().Nodes
+				}
+			case ast.KindParameter:
+				param := node.AsParameterDeclaration()
+				if param != nil && param.Modifiers() != nil {
+					return param.Modifiers().Nodes
+				}
+			}
+			return nil
+		}
+
 		hasPublicModifier := func(node *ast.Node) bool {
-			modifiers := utils.GetModifiers(node)
+			modifiers := getModifiersList(node)
 			for _, modifier := range modifiers {
 				if modifier.Kind == ast.KindPublicKeyword {
 					return true
@@ -100,7 +137,7 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 		}
 
 		hasAccessibilityModifier := func(node *ast.Node) *ast.Node {
-			modifiers := utils.GetModifiers(node)
+			modifiers := getModifiersList(node)
 			for _, modifier := range modifiers {
 				if modifier.Kind == ast.KindPublicKeyword ||
 					modifier.Kind == ast.KindPrivateKeyword ||
@@ -141,28 +178,28 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 			switch node.Kind {
 			case ast.KindPropertyDeclaration:
 				prop := node.AsPropertyDeclaration()
-				if prop != nil && prop.Name != nil {
-					return getMemberNameFromNode(ctx, prop.Name)
+				if prop != nil && prop.Name() != nil {
+					return getMemberNameFromNode(ctx, prop.Name())
 				}
 			case ast.KindMethodDeclaration:
 				method := node.AsMethodDeclaration()
-				if method != nil && method.Name != nil {
-					return getMemberNameFromNode(ctx, method.Name)
+				if method != nil && method.Name() != nil {
+					return getMemberNameFromNode(ctx, method.Name())
 				}
 			case ast.KindGetAccessor:
 				accessor := node.AsGetAccessorDeclaration()
-				if accessor != nil && accessor.Name != nil {
-					return getMemberNameFromNode(ctx, accessor.Name)
+				if accessor != nil && accessor.Name() != nil {
+					return getMemberNameFromNode(ctx, accessor.Name())
 				}
 			case ast.KindSetAccessor:
 				accessor := node.AsSetAccessorDeclaration()
-				if accessor != nil && accessor.Name != nil {
-					return getMemberNameFromNode(ctx, accessor.Name)
+				if accessor != nil && accessor.Name() != nil {
+					return getMemberNameFromNode(ctx, accessor.Name())
 				}
 			case ast.KindParameter:
 				param := node.AsParameterDeclaration()
-				if param != nil && param.Name != nil {
-					return getMemberNameFromNode(ctx, param.Name)
+				if param != nil && param.Name() != nil {
+					return getMemberNameFromNode(ctx, param.Name())
 				}
 			}
 			return ""
@@ -190,13 +227,13 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 			// Skip private field identifiers (# prefix)
 			if node.Kind == ast.KindPropertyDeclaration {
 				prop := node.AsPropertyDeclaration()
-				if prop != nil && prop.Name != nil && prop.Name.Kind == ast.KindPrivateIdentifier {
+				if prop != nil && prop.Name() != nil && prop.Name().Kind == ast.KindPrivateIdentifier {
 					return
 				}
 			}
 			if node.Kind == ast.KindMethodDeclaration {
 				method := node.AsMethodDeclaration()
-				if method != nil && method.Name != nil && method.Name.Kind == ast.KindPrivateIdentifier {
+				if method != nil && method.Name() != nil && method.Name().Kind == ast.KindPrivateIdentifier {
 					return
 				}
 			}
@@ -222,8 +259,8 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 					reportNode := node
 					if node.Kind == ast.KindParameter {
 						param := node.AsParameterDeclaration()
-						if param != nil && param.Name != nil {
-							reportNode = param.Name
+						if param != nil && param.Name() != nil {
+							reportNode = param.Name()
 						}
 					}
 
@@ -236,10 +273,6 @@ var ExplicitMemberAccessibilityRule = rule.CreateRule(rule.Rule{
 					ctx.ReportNodeWithFixes(reportNode, rule.RuleMessage{
 						Id:          "missingAccessibility",
 						Description: fmt.Sprintf("Missing accessibility modifier on %s %s.", getMemberType(node), getMemberName(node)),
-						Data: map[string]interface{}{
-							"type": getMemberType(node),
-							"name": getMemberName(node),
-						},
 					}, suggestions...)
 				}
 			}
@@ -344,8 +377,42 @@ func createAccessibilitySuggestion(ctx rule.RuleContext, node *ast.Node, accessi
 	// Find the insertion position
 	insertPos := node.Pos()
 
+	// Get modifiers based on node type
+	var modifiers []*ast.Node
+	switch node.Kind {
+	case ast.KindPropertyDeclaration:
+		prop := node.AsPropertyDeclaration()
+		if prop != nil && prop.Modifiers() != nil {
+			modifiers = prop.Modifiers().Nodes
+		}
+	case ast.KindMethodDeclaration:
+		method := node.AsMethodDeclaration()
+		if method != nil && method.Modifiers() != nil {
+			modifiers = method.Modifiers().Nodes
+		}
+	case ast.KindConstructor:
+		constructor := node.AsConstructorDeclaration()
+		if constructor != nil && constructor.Modifiers() != nil {
+			modifiers = constructor.Modifiers().Nodes
+		}
+	case ast.KindGetAccessor:
+		accessor := node.AsGetAccessorDeclaration()
+		if accessor != nil && accessor.Modifiers() != nil {
+			modifiers = accessor.Modifiers().Nodes
+		}
+	case ast.KindSetAccessor:
+		accessor := node.AsSetAccessorDeclaration()
+		if accessor != nil && accessor.Modifiers() != nil {
+			modifiers = accessor.Modifiers().Nodes
+		}
+	case ast.KindParameter:
+		param := node.AsParameterDeclaration()
+		if param != nil && param.Modifiers() != nil {
+			modifiers = param.Modifiers().Nodes
+		}
+	}
+
 	// Skip past decorators if any
-	modifiers := utils.GetModifiers(node)
 	if len(modifiers) > 0 {
 		// Find first non-decorator modifier or use node start
 		for _, mod := range modifiers {
@@ -369,11 +436,14 @@ func createAccessibilitySuggestion(ctx rule.RuleContext, node *ast.Node, accessi
 					break
 				}
 			}
-			if !foundReadonly && param.Name != nil {
-				insertPos = param.Name.Pos()
+			if !foundReadonly && param.Name() != nil {
+				insertPos = param.Name().Pos()
 			}
 		}
 	}
 
-	return rule.RuleFixInsert(ctx.SourceFile, insertPos, accessibilityType+" ")
+	return rule.RuleFix{
+		Text:  accessibilityType + " ",
+		Range: core.NewTextRange(insertPos, insertPos),
+	}
 }
