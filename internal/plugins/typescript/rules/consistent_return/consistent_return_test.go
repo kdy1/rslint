@@ -181,5 +181,48 @@ func TestConsistentReturnRule(t *testing.T) {
 				{MessageId: "missingReturnValue"},
 			},
 		},
+
+		// unexpectedReturnValue - first return has no value, later returns have values
+		{
+			Code: `function foo() { if (true) return; return 1; }`,
+			Errors: []rule_tester.InvalidTestCaseError{
+				{MessageId: "unexpectedReturnValue"},
+			},
+		},
+		{
+			Code: `const foo = () => { if (true) return; return 1; };`,
+			Errors: []rule_tester.InvalidTestCaseError{
+				{MessageId: "unexpectedReturnValue"},
+			},
+		},
+		{
+			Code: `
+				function foo(x: number) {
+					if (x > 0) return;
+					else if (x < 0) return 1;
+					return 2;
+				}
+			`,
+			Errors: []rule_tester.InvalidTestCaseError{
+				{MessageId: "unexpectedReturnValue"},
+				{MessageId: "unexpectedReturnValue"},
+			},
+		},
+		{
+			Code: `
+				class Foo {
+					bar() { if (true) return; return 1; }
+				}
+			`,
+			Errors: []rule_tester.InvalidTestCaseError{
+				{MessageId: "unexpectedReturnValue"},
+			},
+		},
+		{
+			Code: `async function foo() { if (true) return; return Promise.resolve(1); }`,
+			Errors: []rule_tester.InvalidTestCaseError{
+				{MessageId: "unexpectedReturnValue"},
+			},
+		},
 	})
 }

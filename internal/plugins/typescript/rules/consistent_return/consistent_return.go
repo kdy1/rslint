@@ -179,10 +179,14 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	// Helper to get function name for better error messages
 	getFunctionName := func(node *ast.Node) string {
-		// Check if function is async
-		isAsync := ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync)
+		// Check if function is async (only for function types that can be async)
+		canBeAsync := node.Kind == ast.KindFunctionDeclaration ||
+			node.Kind == ast.KindFunctionExpression ||
+			node.Kind == ast.KindArrowFunction ||
+			node.Kind == ast.KindMethodDeclaration
+
 		asyncPrefix := ""
-		if isAsync {
+		if canBeAsync && ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync) {
 			asyncPrefix = "Async "
 		}
 
@@ -197,6 +201,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 			return asyncPrefix + "function"
 		case ast.KindConstructor:
+			// Constructors cannot be async
 			return "constructor"
 		case ast.KindMethodDeclaration:
 			method := node.AsMethodDeclaration()
@@ -206,12 +211,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			}
 			return asyncPrefix + "method"
 		case ast.KindGetAccessor:
+			// Getters cannot be async
 			accessor := node.AsGetAccessorDeclaration()
 			if accessor != nil && accessor.Name() != nil {
 				name, _ := utils.GetNameFromMember(ctx.SourceFile, accessor.Name())
-				return asyncPrefix + "getter '" + name + "'"
+				return "getter '" + name + "'"
 			}
-			return asyncPrefix + "getter"
+			return "getter"
 		case ast.KindFunctionExpression:
 			parent := node.Parent
 			if parent != nil {
@@ -286,17 +292,36 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		functionStack = functionStack[:len(functionStack)-1]
 
 		// Check for inconsistent returns
+		// The pattern is determined by the first return statement:
+		// - If the first return has a value, all subsequent returns should have values
+		// - If the first return has no value, all subsequent returns should have no values
 		if info.hasReturnWithValue && info.hasReturnWithoutValue && len(info.returnStatements) > 0 {
 			funcName := getFunctionName(node)
 
-			// If there are any returns with values, all returns should have values
-			// Report "missingReturnValue" on returns without values
-			for _, ret := range info.returnStatements {
-				if !ret.hasValue {
-					ctx.ReportNode(ret.node, rule.RuleMessage{
-						Id:          "missingReturnValue",
-						Description: funcName + " expected a return value.",
-					})
+			// Determine the expected pattern based on the first return statement
+			firstReturn := info.returnStatements[0]
+
+			if firstReturn.hasValue {
+				// First return has a value, so all returns should have values
+				// Report "missingReturnValue" on returns without values
+				for _, ret := range info.returnStatements {
+					if !ret.hasValue {
+						ctx.ReportNode(ret.node, rule.RuleMessage{
+							Id:          "missingReturnValue",
+							Description: funcName + " expected a return value.",
+						})
+					}
+				}
+			} else {
+				// First return has no value, so no returns should have values
+				// Report "unexpectedReturnValue" on returns with values
+				for _, ret := range info.returnStatements {
+					if ret.hasValue {
+						ctx.ReportNode(ret.node, rule.RuleMessage{
+							Id:          "unexpectedReturnValue",
+							Description: funcName + " expected no return value.",
+						})
+					}
 				}
 			}
 		}
