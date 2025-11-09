@@ -37,7 +37,7 @@ var NoDynamicDeleteRule = rule.CreateRule(rule.Rule{
 				// Skip parentheses to get the actual argument
 				arg := ast.SkipParentheses(argumentExpression)
 
-				// Allow numeric literals (e.g., obj[7], obj[-7])
+				// Allow numeric literals (e.g., obj[7])
 				if arg.Kind == ast.KindNumericLiteral {
 					return
 				}
@@ -47,11 +47,25 @@ var NoDynamicDeleteRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
+				// Allow negative numeric literals (e.g., obj[-7])
+				// This is a special case: -7 is a PrefixUnaryExpression with MinusToken
+				// and a NumericLiteral operand
+				if arg.Kind == ast.KindPrefixUnaryExpression {
+					prefixUnary := arg.AsPrefixUnaryExpression()
+					if prefixUnary.Operator == ast.MinusToken {
+						operand := ast.SkipParentheses(prefixUnary.Operand)
+						if operand.Kind == ast.KindNumericLiteral {
+							return
+						}
+					}
+				}
+
 				// Everything else is considered dynamic and should be reported
 				// This includes:
 				// - Identifiers (e.g., obj[name])
 				// - Binary expressions (e.g., obj['aa' + 'b'])
-				// - Prefix unary expressions (e.g., obj[+7], obj[-Infinity])
+				// - Prefix unary expressions with + (e.g., obj[+7])
+				// - Prefix unary expressions with - and non-numeric operands (e.g., obj[-Infinity])
 				// - Call expressions (e.g., obj[getName()])
 				// - Property access expressions (e.g., obj[name.foo.bar])
 				// - etc.
