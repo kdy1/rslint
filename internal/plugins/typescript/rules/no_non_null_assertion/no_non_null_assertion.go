@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
@@ -125,7 +126,7 @@ func tryBuildOptionalChainingSuggestion(ctx rule.RuleContext, node *ast.Node, ex
 }
 
 // tryConvertInnerExpression tries to convert inner expressions to optional chaining
-func tryConvertInnerExpression(ctx rule.RuleContext, node *ast.Node, expression *ast.Node, exclamationRange scanner.TextRange) *rule.RuleSuggestion {
+func tryConvertInnerExpression(ctx rule.RuleContext, node *ast.Node, expression *ast.Node, exclamationRange core.TextRange) *rule.RuleSuggestion {
 	// Check if the expression itself is a property access, element access, or call
 	// that we can convert to optional chaining
 	// e.g., x.y! -> x.y (but we can suggest x?.y if x might be null)
