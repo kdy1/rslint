@@ -196,7 +196,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 
 			// Handle intersection types (e.g., string & { __brand: 'Brand' })
 			// For branded types and other intersections, check each constituent
-			if flags&checker.TypeFlagsIntersection != 0 {
+			if utils.IsIntersectionType(t) {
 				// Get the constituents of the intersection
 				parts := utils.IntersectionTypeParts(t)
 				if len(parts) > 0 {
@@ -493,8 +493,8 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			// Don't check comparison expressions - they're expected to return boolean
-			if isComparisonExpression(returnNode) {
+			// Don't check if return value should be skipped (comparisons, booleans, etc.)
+			if shouldSkipConditionCheck(returnNode) {
 				return
 			}
 
@@ -520,6 +520,16 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				op := expr.AsBinaryExpression().OperatorToken.Kind
 				// Skip logical operators - they handle their own checks
 				if op == ast.KindAmpersandAmpersandToken || op == ast.KindBarBarToken {
+					return true
+				}
+			}
+			// Skip if the expression type is already boolean (not a boolean literal)
+			// Boolean types are meant to be used in conditionals
+			exprType := ctx.TypeChecker.GetTypeAtLocation(expr)
+			flags := checker.Type_flags(exprType)
+			if flags&checker.TypeFlagsBoolean != 0 {
+				// Make sure it's not a boolean literal (true/false), just generic boolean
+				if !utils.IsTrueLiteralType(ctx.TypeChecker, exprType) && !utils.IsFalseLiteralType(ctx.TypeChecker, exprType) {
 					return true
 				}
 			}
@@ -552,10 +562,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 					// Only check the left operand for truthiness
 					// Don't check comparison expressions or other binary expressions
 					left := expr.Left
-					if !ast.IsBinaryExpression(left) ||
-						(ast.IsBinaryExpression(left) &&
-							(left.AsBinaryExpression().OperatorToken.Kind == ast.KindAmpersandAmpersandToken ||
-							 left.AsBinaryExpression().OperatorToken.Kind == ast.KindBarBarToken)) {
+					if !shouldSkipConditionCheck(left) {
 						checkNode(left, false)
 					}
 				} else if op == ast.KindQuestionQuestionToken {
