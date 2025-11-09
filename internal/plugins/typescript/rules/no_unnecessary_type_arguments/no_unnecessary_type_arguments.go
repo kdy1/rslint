@@ -88,24 +88,7 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Check if the argument type is identical to the default type
-				// We use multiple methods to check equality
-				isEqual := false
-
-				// Method 1: Direct type identity check
 				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
-					isEqual = true
-				}
-
-				// Method 2: Compare type strings as fallback
-				if !isEqual {
-					argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil, 0)
-					defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil, 0)
-					if argTypeStr == defaultTypeStr {
-						isEqual = true
-					}
-				}
-
-				if isEqual {
 					unnecessaryIndex = i
 				} else {
 					// Not identical, so we can stop checking
@@ -359,24 +342,7 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					}
 
 					// Check if the argument type is identical to the default type
-					// We use multiple methods to check equality
-					isEqual := false
-
-					// Method 1: Direct type identity check
 					if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
-						isEqual = true
-					}
-
-					// Method 2: Compare type strings as fallback
-					if !isEqual {
-						argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil, 0)
-						defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil, 0)
-						if argTypeStr == defaultTypeStr {
-							isEqual = true
-						}
-					}
-
-					if isEqual {
 						unnecessaryIndex = i
 					} else {
 						// Not identical, so we can stop checking
