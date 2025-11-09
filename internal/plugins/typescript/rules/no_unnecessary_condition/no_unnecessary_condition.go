@@ -143,6 +143,22 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			return rule.RuleListeners{}
 		}
 
+		// Helper to check if node is a comparison binary expression
+		isComparisonExpression := func(node *ast.Node) bool {
+			if !ast.IsBinaryExpression(node) {
+				return false
+			}
+			op := node.AsBinaryExpression().OperatorToken.Kind
+			return op == ast.KindEqualsEqualsToken ||
+				op == ast.KindExclamationEqualsToken ||
+				op == ast.KindEqualsEqualsEqualsToken ||
+				op == ast.KindExclamationEqualsEqualsToken ||
+				op == ast.KindLessThanToken ||
+				op == ast.KindGreaterThanToken ||
+				op == ast.KindLessThanEqualsToken ||
+				op == ast.KindGreaterThanEqualsToken
+		}
+
 		// Declare checkTypeIsTruthy first so it can be used recursively
 		var checkTypeIsTruthy func(t *checker.Type) Truthiness
 
@@ -177,6 +193,15 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			flags := checker.Type_flags(t)
+
+			// Handle intersection types (e.g., string & { __brand: 'Brand' })
+			// If any part of the intersection is a maybe-truthy type, treat the whole as maybe-truthy
+			if flags&checker.TypeFlagsIntersection != 0 {
+				// For intersections, if any constituent is a base type like string/number/boolean, treat as maybe
+				if flags&(checker.TypeFlagsString|checker.TypeFlagsNumber|checker.TypeFlagsBoolean|checker.TypeFlagsBigInt) != 0 {
+					return TruthinessMaybeTruthy
+				}
+			}
 
 			// Falsy types
 			if flags&(checker.TypeFlagsVoid|checker.TypeFlagsUndefined|checker.TypeFlagsNull) != 0 {
@@ -280,7 +305,11 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			if op != ast.KindEqualsEqualsToken &&
 				op != ast.KindExclamationEqualsToken &&
 				op != ast.KindEqualsEqualsEqualsToken &&
-				op != ast.KindExclamationEqualsEqualsToken {
+				op != ast.KindExclamationEqualsEqualsToken &&
+				op != ast.KindLessThanToken &&
+				op != ast.KindGreaterThanToken &&
+				op != ast.KindLessThanEqualsToken &&
+				op != ast.KindGreaterThanEqualsToken {
 				return
 			}
 
@@ -294,15 +323,18 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			leftFlags := checker.Type_flags(leftType)
 			rightFlags := checker.Type_flags(rightType)
 
-			// Check for literal comparisons
+			// Check for literal comparisons where both are the same literal
 			if leftFlags&checker.TypeFlagsLiteral != 0 && rightFlags&checker.TypeFlagsLiteral != 0 {
 				// Get the type strings to compare
 				leftStr := ctx.TypeChecker.TypeToString(leftType)
 				rightStr := ctx.TypeChecker.TypeToString(rightType)
 
-				// If they're different literals, report
-				if leftStr != rightStr {
-					ctx.ReportNode(node, buildNoOverlapMessage())
+				// For equality/inequality, check if they're the same literal
+				if op == ast.KindEqualsEqualsEqualsToken || op == ast.KindEqualsEqualsToken {
+					// If comparing same literal with ===, always true
+					if leftStr == rightStr {
+						ctx.ReportNode(node, buildNoOverlapMessage())
+					}
 				}
 			}
 		}
@@ -400,25 +432,15 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			t := ctx.TypeChecker.GetTypeAtLocation(condition)
-
-			// Check for literal true/false
-			isLiteralTrue := utils.IsTrueLiteralType(t)
-			isLiteralFalse := utils.IsFalseLiteralType(t)
-
 			if opts.AllowConstantLoopConditions == AllowConstantLoopConditionsOnlyAllowedLiterals {
-				// Allow literal true/false but not variables containing them
-				if isLiteralTrue || isLiteralFalse {
-					// Check if it's actually a literal in the source
-					if condition.Kind == ast.KindTrueKeyword || condition.Kind == ast.KindFalseKeyword {
+				// Allow literal true/false and numeric literals 0 and 1
+				if condition.Kind == ast.KindTrueKeyword || condition.Kind == ast.KindFalseKeyword {
+					return
+				}
+				if ast.IsNumericLiteral(condition) {
+					text := condition.Text()
+					if text == "0" || text == "1" {
 						return
-					}
-					// Also allow numeric literals 0 and 1
-					if ast.IsNumericLiteral(condition) {
-						text := condition.Text()
-						if text == "0" || text == "1" {
-							return
-						}
 					}
 				}
 			}
@@ -453,6 +475,11 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
+			// Don't check comparison expressions - they're expected to return boolean
+			if isComparisonExpression(returnNode) {
+				return
+			}
+
 			returnType := ctx.TypeChecker.GetTypeAtLocation(returnNode)
 			truthiness := checkTypeIsTruthy(returnType)
 
@@ -463,15 +490,39 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
+		// Helper to check if expression should skip condition checking
+		shouldSkipConditionCheck := func(expr *ast.Node) bool {
+			if isComparisonExpression(expr) {
+				return true
+			}
+			if ast.IsPrefixUnaryExpression(expr) {
+				return true
+			}
+			if ast.IsBinaryExpression(expr) {
+				op := expr.AsBinaryExpression().OperatorToken.Kind
+				// Skip logical operators - they handle their own checks
+				if op == ast.KindAmpersandAmpersandToken || op == ast.KindBarBarToken {
+					return true
+				}
+			}
+			return false
+		}
+
 		return rule.RuleListeners{
 			// Check conditions in if statements
 			ast.KindIfStatement: func(node *ast.Node) {
-				checkNode(node.AsIfStatement().Expression, true)
+				expr := node.AsIfStatement().Expression
+				if !shouldSkipConditionCheck(expr) {
+					checkNode(expr, true)
+				}
 			},
 
 			// Check ternary conditions
 			ast.KindConditionalExpression: func(node *ast.Node) {
-				checkNode(node.AsConditionalExpression().Condition, true)
+				condition := node.AsConditionalExpression().Condition
+				if !shouldSkipConditionCheck(condition) {
+					checkNode(condition, true)
+				}
 			},
 
 			// Check logical AND/OR
@@ -480,7 +531,15 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				op := expr.OperatorToken.Kind
 
 				if op == ast.KindAmpersandAmpersandToken || op == ast.KindBarBarToken {
-					checkNode(expr.Left, false)
+					// Only check the left operand for truthiness
+					// Don't check comparison expressions or other binary expressions
+					left := expr.Left
+					if !ast.IsBinaryExpression(left) ||
+						(ast.IsBinaryExpression(left) &&
+							(left.AsBinaryExpression().OperatorToken.Kind == ast.KindAmpersandAmpersandToken ||
+							 left.AsBinaryExpression().OperatorToken.Kind == ast.KindBarBarToken)) {
+						checkNode(left, false)
+					}
 				} else if op == ast.KindQuestionQuestionToken {
 					checkNullishCoalescing(node)
 				} else {
