@@ -280,10 +280,11 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 				switch current.Kind {
 				// Check for union types first
 				case ast.KindUnionType:
-					// If this is a valid void union (void | never or void | Promise<void>), continue checking
+					// If this is a valid void union (void | never), allow it
 					if isValidVoidUnion(current) {
-						current = current.Parent
-						continue
+						// void | never is always valid as it's effectively just void
+						// (never is the bottom type and doesn't add any meaningful constraint)
+						return true, rule.RuleMessage{}
 					}
 
 					// Check if we're in a function overload signature
@@ -330,8 +331,25 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 					}
 					return false, getInvalidVoidMessage()
 
+				// Allow in call/new expression type arguments (e.g., new Promise<void>())
+				// if generic type arguments are allowed
+				case ast.KindCallExpression, ast.KindNewExpression:
+					// Check if generic type arguments are allowed
+					if allow, ok := opts.AllowInGenericTypeArguments.(bool); ok && !allow {
+						return false, getInvalidVoidMessage()
+					}
+					// Default: allow void in call/new expression type arguments
+					return true, rule.RuleMessage{}
+
+				// For type aliases, we need to check the type inside
+				case ast.KindTypeAliasDeclaration:
+					// Type aliases can contain void in specific contexts (e.g., void | never union)
+					// Don't automatically allow - let the other checks determine validity
+					current = current.Parent
+					continue
+
 				// Continue checking for other contexts
-				case ast.KindTypeAliasDeclaration, ast.KindPropertySignature,
+				case ast.KindPropertySignature,
 					ast.KindPropertyDeclaration, ast.KindVariableDeclaration,
 					ast.KindArrayType, ast.KindTypeOperator, ast.KindIntersectionType,
 					ast.KindMappedType, ast.KindConditionalType, ast.KindTypeAssertionExpression,
