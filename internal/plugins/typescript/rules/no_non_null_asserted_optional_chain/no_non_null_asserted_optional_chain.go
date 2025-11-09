@@ -78,13 +78,7 @@ var NoNonNullAssertedOptionalChainRule = rule.CreateRule(rule.Rule{
 				nonNullEnd := utils.TrimNodeTextRange(ctx.SourceFile, node).End()
 
 				// Create a fix that removes the ! token
-				fix := rule.RuleFix{
-					Range: core.TextRange{
-						Pos: exprEnd,
-						End: nonNullEnd,
-					},
-					Text: "",
-				}
+				fix := rule.RuleFixRemoveRange(core.NewTextRange(exprEnd, nonNullEnd))
 
 				ctx.ReportNodeWithSuggestions(
 					node,
