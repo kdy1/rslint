@@ -183,25 +183,81 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			// Sort declarations based on context
-			// For value contexts (extends/implements in classes), prioritize class/interface declarations
-			// For type contexts (type references), prioritize type declarations
-			sortedDecls := make([]*ast.Node, len(declarations))
-			copy(sortedDecls, declarations)
+			// Determine which declaration to use based on context
+			// When there are multiple declarations (e.g., interface and class with same name),
+			// we need to pick the right one based on how it's being used
+			var relevantDecl *ast.Node
 
-			if !isValueContext {
-				// For type references, we want type-context declarations first
-				// This means interfaces, type aliases before classes
-				for i := 0; i < len(sortedDecls); i++ {
-					for j := i + 1; j < len(sortedDecls); j++ {
-						iIsType := ast.IsInterfaceDeclaration(sortedDecls[i]) || ast.IsTypeAliasDeclaration(sortedDecls[i])
-						jIsType := ast.IsInterfaceDeclaration(sortedDecls[j]) || ast.IsTypeAliasDeclaration(sortedDecls[j])
-						if !iIsType && jIsType {
-							sortedDecls[i], sortedDecls[j] = sortedDecls[j], sortedDecls[i]
+			if isValueContext {
+				// In value context (extends/implements), determine the appropriate declaration
+				// Check if this is extends vs implements
+				isExtendsClause := false
+				if node.Parent != nil && node.Parent.Kind == ast.KindHeritageClause {
+					heritageClause := node.Parent.AsHeritageClause()
+					if heritageClause != nil {
+						isExtendsClause = (heritageClause.Token == ast.KindExtendsKeyword)
+					}
+				}
+
+				if isExtendsClause {
+					// For extends, prefer class declarations, then constructor signatures
+					for _, decl := range declarations {
+						if ast.IsClassDeclaration(decl) {
+							relevantDecl = decl
+							break
+						}
+					}
+					if relevantDecl == nil {
+						for _, decl := range declarations {
+							if decl.Kind == ast.KindConstructSignature {
+								relevantDecl = decl
+								break
+							}
+						}
+					}
+				} else {
+					// For implements, prefer interface declarations
+					for _, decl := range declarations {
+						if ast.IsInterfaceDeclaration(decl) {
+							relevantDecl = decl
+							break
 						}
 					}
 				}
 			}
+
+			// If we haven't found a relevant declaration, use the first one with type parameters
+			// Prioritize type declarations (interfaces, type aliases) over value declarations (classes)
+			if relevantDecl == nil {
+				// First try type declarations
+				for _, decl := range declarations {
+					if ast.IsInterfaceDeclaration(decl) || ast.IsTypeAliasDeclaration(decl) {
+						relevantDecl = decl
+						break
+					}
+				}
+				// Then try value declarations
+				if relevantDecl == nil {
+					for _, decl := range declarations {
+						if ast.IsClassDeclaration(decl) || decl.Kind == ast.KindConstructSignature {
+							relevantDecl = decl
+							break
+						}
+					}
+				}
+			}
+
+			// Use the relevant declaration, or fall back to the first one
+			if relevantDecl == nil && len(declarations) > 0 {
+				relevantDecl = declarations[0]
+			}
+
+			if relevantDecl == nil {
+				return
+			}
+
+			// Get type parameters from the relevant declaration
+			sortedDecls := []*ast.Node{relevantDecl}
 
 			// Find a declaration that has type parameters
 			var typeParameters []*checker.Type
