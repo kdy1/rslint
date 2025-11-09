@@ -124,7 +124,7 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 						isAbstractMember := false
 
 						// Helper to check modifiers
-						checkModifiers := func(modifiers *ast.NodeArray) {
+						checkModifiers := func(modifiers *ast.ModifierList) {
 							if modifiers != nil {
 								for _, mod := range modifiers.Nodes {
 									if mod.Kind == ast.KindStaticKeyword {
@@ -148,11 +148,15 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 							if method != nil {
 								checkModifiers(method.Modifiers())
 							}
-						case ast.KindAccessor:
-							// Handle accessor properties (auto-accessors)
-							accessor := member.AsAccessorDeclaration()
-							if accessor != nil {
-								checkModifiers(accessor.Modifiers())
+						case ast.KindGetAccessor:
+							getter := member.AsGetAccessorDeclaration()
+							if getter != nil {
+								checkModifiers(getter.Modifiers())
+							}
+						case ast.KindSetAccessor:
+							setter := member.AsSetAccessorDeclaration()
+							if setter != nil {
+								checkModifiers(setter.Modifiers())
 							}
 						default:
 							// For any other member types, treat as non-static
