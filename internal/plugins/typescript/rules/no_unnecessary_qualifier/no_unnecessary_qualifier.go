@@ -52,7 +52,7 @@ func getRightmostName(ctx rule.RuleContext, node *ast.Node) string {
 		}
 	case ast.KindPropertyAccessExpression:
 		propAccess := node.AsPropertyAccessExpression()
-		if propAccess != nil && propAccess.Name != nil {
+		if propAccess != nil {
 			// Name is a function, we need to call it
 			name := propAccess.Name()
 			if ast.IsIdentifier(name) {
