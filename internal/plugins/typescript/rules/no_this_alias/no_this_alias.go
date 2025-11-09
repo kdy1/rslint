@@ -64,7 +64,12 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			for _, decl := range varStmt.DeclarationList.Declarations.Nodes {
+			declList := varStmt.DeclarationList.AsVariableDeclarationList()
+			if declList == nil {
+				return
+			}
+
+			for _, decl := range declList.Declarations.Nodes {
 				varDecl := decl.AsVariableDeclaration()
 				if varDecl == nil {
 					continue
@@ -81,22 +86,22 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Check the pattern to determine the type of assignment
-				if varDecl.Name == nil {
+				if varDecl.Name() == nil {
 					continue
 				}
 
 				// Handle different binding patterns
-				switch varDecl.Name.Kind {
+				switch varDecl.Name().Kind {
 				case ast.KindIdentifier:
 					// Simple assignment: const foo = this
-					ident := varDecl.Name.AsIdentifier()
+					ident := varDecl.Name().AsIdentifier()
 					if ident == nil {
 						continue
 					}
-					identName := ident.EscapedText
+					identName := ident.Text
 
 					if !isNameAllowed(identName) {
-						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+						ctx.ReportNode(varDecl.Name(), rule.RuleMessage{
 							Id:          "thisAssignment",
 							Description: "Unexpected aliasing of 'this' to local variable.",
 						})
@@ -105,7 +110,7 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 				case ast.KindObjectBindingPattern:
 					// Destructuring: const { props, state } = this
 					if !opts.AllowDestructuring {
-						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+						ctx.ReportNode(varDecl.Name(), rule.RuleMessage{
 							Id:          "thisDestructure",
 							Description: "Unexpected aliasing of members of 'this' to local variables.",
 						})
@@ -114,7 +119,7 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 				case ast.KindArrayBindingPattern:
 					// Array destructuring: const [foo, bar] = this
 					if !opts.AllowDestructuring {
-						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+						ctx.ReportNode(varDecl.Name(), rule.RuleMessage{
 							Id:          "thisDestructure",
 							Description: "Unexpected aliasing of members of 'this' to local variables.",
 						})
@@ -152,7 +157,7 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 				if ident == nil {
 					return
 				}
-				identName := ident.EscapedText
+				identName := ident.Text
 
 				if !isNameAllowed(identName) {
 					ctx.ReportNode(binaryExpr.Left, rule.RuleMessage{
