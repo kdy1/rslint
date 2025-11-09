@@ -70,8 +70,11 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 				for _, clause := range heritageClauses.Nodes {
 					heritageClause := clause.AsHeritageClause()
 					if heritageClause != nil && heritageClause.Token == ast.KindExtendsKeyword {
-						// Class extends another class - always valid
-						return
+						// Check if there are actually types being extended
+						if heritageClause.Types != nil && len(heritageClause.Types.Nodes) > 0 {
+							// Class extends another class - always valid
+							return
+						}
 					}
 				}
 			}
