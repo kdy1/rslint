@@ -23,15 +23,16 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 				// Check for double non-null assertion: foo!!
 				if ast.IsNonNullExpression(expression) {
 					// Report the outer non-null assertion
-					// Get trimmed range of the inner expression to avoid extra whitespace
-					expressionRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
-					expressionText := ctx.SourceFile.Text()[expressionRange.Pos():expressionRange.End()]
+					// Get trimmed ranges for consistent replacement
+					outerRange := utils.TrimNodeTextRange(ctx.SourceFile, node)
+					innerRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
+					expressionText := ctx.SourceFile.Text()[innerRange.Pos():innerRange.End()]
 
 					ctx.ReportNodeWithFixes(
 						node,
 						buildNoExtraNonNullAssertionMessage(),
 						// Fix: replace the outer expression with the inner expression
-						rule.RuleFixReplace(ctx.SourceFile, node, expressionText),
+						rule.RuleFixReplaceRange(outerRange, expressionText),
 					)
 					return
 				}
@@ -72,15 +73,16 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 
 						if hasQuestionDot {
 							// Report the non-null assertion as unnecessary
-							// Get trimmed range of the expression to avoid extra whitespace
-							expressionRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
-							expressionText := ctx.SourceFile.Text()[expressionRange.Pos():expressionRange.End()]
+							// Get trimmed ranges for consistent replacement
+							outerRange := utils.TrimNodeTextRange(ctx.SourceFile, node)
+							innerRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
+							expressionText := ctx.SourceFile.Text()[innerRange.Pos():innerRange.End()]
 
 							ctx.ReportNodeWithFixes(
 								node,
 								buildNoExtraNonNullAssertionMessage(),
 								// Fix: remove the non-null assertion, keeping just the expression
-								rule.RuleFixReplace(ctx.SourceFile, node, expressionText),
+								rule.RuleFixReplaceRange(outerRange, expressionText),
 							)
 						}
 					}
