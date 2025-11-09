@@ -511,7 +511,12 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				for _, decl := range varStmt.DeclarationList.Declarations.Nodes {
+				declList := varStmt.DeclarationList.AsVariableDeclarationList()
+				if declList == nil {
+					return
+				}
+
+				for _, decl := range declList.Declarations.Nodes {
 					if vd := decl.AsVariableDeclaration(); vd != nil {
 						if vd.Name() != nil {
 							name := getIdentifierName(vd.Name())
@@ -538,11 +543,11 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 			// Type aliases
 			ast.KindTypeAliasDeclaration: func(node *ast.Node) {
 				typeAlias := node.AsTypeAliasDeclaration()
-				if typeAlias == nil || typeAlias.Name == nil {
+				if typeAlias == nil || typeAlias.Name() == nil {
 					return
 				}
 
-				name := getIdentifierName(typeAlias.Name)
+				name := getIdentifierName(typeAlias.Name())
 
 				// Skip if in global augmentation
 				if isInGlobalAugmentation(node) {
@@ -552,14 +557,14 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				// Skip global checks in .d.ts files with builtinGlobals
 				if isInDtsFile() && opts.BuiltinGlobals && globalVars[name] {
 					if shouldHoist(true, false) {
-						declareVariable(name, typeAlias.Name, true, false)
+						declareVariable(name, typeAlias.Name(), true, false)
 					}
 					return
 				}
 
 				if shouldHoist(true, false) {
-					checkShadowing(name, typeAlias.Name, true, false)
-					declareVariable(name, typeAlias.Name, true, false)
+					checkShadowing(name, typeAlias.Name(), true, false)
+					declareVariable(name, typeAlias.Name(), true, false)
 				}
 
 				// Create scope for type parameters
@@ -568,10 +573,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if typeAlias.TypeParameters != nil {
 					for _, tp := range typeAlias.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								tpName := getIdentifierName(typeParam.Name)
-								checkShadowing(tpName, typeParam.Name, true, false)
-								declareVariable(tpName, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								tpName := getIdentifierName(typeParam.Name())
+								checkShadowing(tpName, typeParam.Name(), true, false)
+								declareVariable(tpName, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -584,11 +589,11 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 			// Interface declarations
 			ast.KindInterfaceDeclaration: func(node *ast.Node) {
 				interfaceDecl := node.AsInterfaceDeclaration()
-				if interfaceDecl == nil || interfaceDecl.Name == nil {
+				if interfaceDecl == nil || interfaceDecl.Name() == nil {
 					return
 				}
 
-				name := getIdentifierName(interfaceDecl.Name)
+				name := getIdentifierName(interfaceDecl.Name())
 
 				// Skip if in global augmentation
 				if isInGlobalAugmentation(node) {
@@ -598,14 +603,14 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				// Skip global checks in .d.ts files with builtinGlobals
 				if isInDtsFile() && opts.BuiltinGlobals && globalVars[name] {
 					if shouldHoist(true, false) {
-						declareVariable(name, interfaceDecl.Name, true, false)
+						declareVariable(name, interfaceDecl.Name(), true, false)
 					}
 					return
 				}
 
 				if shouldHoist(true, false) {
-					checkShadowing(name, interfaceDecl.Name, true, false)
-					declareVariable(name, interfaceDecl.Name, true, false)
+					checkShadowing(name, interfaceDecl.Name(), true, false)
+					declareVariable(name, interfaceDecl.Name(), true, false)
 				}
 
 				// Create scope for type parameters
@@ -614,10 +619,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if interfaceDecl.TypeParameters != nil {
 					for _, tp := range interfaceDecl.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								tpName := getIdentifierName(typeParam.Name)
-								checkShadowing(tpName, typeParam.Name, true, false)
-								declareVariable(tpName, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								tpName := getIdentifierName(typeParam.Name())
+								checkShadowing(tpName, typeParam.Name(), true, false)
+								declareVariable(tpName, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -635,13 +640,13 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Declare class name in current scope
-				if classDecl.Name != nil && shouldHoist(false, false) {
-					name := getIdentifierName(classDecl.Name)
+				if classDecl.Name() != nil && shouldHoist(false, false) {
+					name := getIdentifierName(classDecl.Name())
 
 					// Skip if in global augmentation
 					if !isInGlobalAugmentation(node) {
-						checkShadowing(name, classDecl.Name, false, false)
-						declareVariable(name, classDecl.Name, false, false)
+						checkShadowing(name, classDecl.Name(), false, false)
+						declareVariable(name, classDecl.Name(), false, false)
 					}
 				}
 
@@ -651,10 +656,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if classDecl.TypeParameters != nil {
 					for _, tp := range classDecl.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -677,10 +682,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if funcType.TypeParameters != nil {
 					for _, tp := range funcType.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -717,10 +722,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if constructorType.TypeParameters != nil {
 					for _, tp := range constructorType.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -757,10 +762,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if callSig.TypeParameters != nil {
 					for _, tp := range callSig.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -797,10 +802,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if constructSig.TypeParameters != nil {
 					for _, tp := range constructSig.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -837,10 +842,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if methodSig.TypeParameters != nil {
 					for _, tp := range methodSig.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -942,16 +947,16 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 			// Enum declarations
 			ast.KindEnumDeclaration: func(node *ast.Node) {
 				enumDecl := node.AsEnumDeclaration()
-				if enumDecl == nil || enumDecl.Name == nil {
+				if enumDecl == nil || enumDecl.Name() == nil {
 					return
 				}
 
-				name := getIdentifierName(enumDecl.Name)
+				name := getIdentifierName(enumDecl.Name())
 
 				// Skip if in global augmentation
 				if !isInGlobalAugmentation(node) {
-					checkShadowing(name, enumDecl.Name, false, false)
-					declareVariable(name, enumDecl.Name, false, false)
+					checkShadowing(name, enumDecl.Name(), false, false)
+					declareVariable(name, enumDecl.Name(), false, false)
 				}
 
 				createScope(false)
