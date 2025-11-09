@@ -2,6 +2,7 @@ package no_non_null_asserted_optional_chain
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -78,7 +79,7 @@ var NoNonNullAssertedOptionalChainRule = rule.CreateRule(rule.Rule{
 
 				// Create a fix that removes the ! token
 				fix := rule.RuleFix{
-					Range: rule.TextRange{
+					Range: core.TextRange{
 						Pos: exprEnd,
 						End: nonNullEnd,
 					},
