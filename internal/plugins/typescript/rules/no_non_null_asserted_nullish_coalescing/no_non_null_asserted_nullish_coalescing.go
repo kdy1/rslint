@@ -2,7 +2,7 @@ package no_non_null_asserted_nullish_coalescing
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/scanner"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -48,10 +48,7 @@ var NoNonNullAssertedNullishCoalescingRule = rule.CreateRule(rule.Rule{
 
 				// Find the position of the ! token (exclamation mark)
 				// The ! is at the end of the non-null expression, right before the operator
-				exclamationRange := scanner.TextRange{
-					Pos: innerExprRange.End(),
-					End: nonNullExprRange.End(),
-				}
+				exclamationRange := core.NewTextRange(innerExprRange.End(), nonNullExprRange.End())
 
 				// Report the error with a suggestion to remove the !
 				ctx.ReportNodeWithSuggestions(expr.Left, buildNoNonNullAssertedNullishCoalescingMessage(), rule.RuleSuggestion{
