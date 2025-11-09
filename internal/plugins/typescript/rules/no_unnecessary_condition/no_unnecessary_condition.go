@@ -169,6 +169,8 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return TruthinessMaybeTruthy
 			}
 
+			flags := checker.Type_flags(t)
+
 			// Handle unions - must check all parts
 			if utils.IsUnionType(t) {
 				var hasTruthy, hasFalsy bool
@@ -191,8 +193,6 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				}
 				return TruthinessFalsy
 			}
-
-			flags := checker.Type_flags(t)
 
 			// Handle intersection types (e.g., string & { __brand: 'Brand' })
 			// For branded types and other intersections, check each constituent
@@ -218,7 +218,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Check for literal false
-			if utils.IsFalseLiteralType(t) {
+			if utils.IsFalseLiteralType(ctx.TypeChecker, t) {
 				return TruthinessFalsy
 			}
 
@@ -249,7 +249,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Check generic boolean - could be true or false
-			if flags&checker.TypeFlagsBoolean != 0 && !utils.IsTrueLiteralType(t) && !utils.IsFalseLiteralType(t) {
+			if flags&checker.TypeFlagsBoolean != 0 && !utils.IsTrueLiteralType(ctx.TypeChecker, t) && !utils.IsFalseLiteralType(ctx.TypeChecker, t) {
 				return TruthinessMaybeTruthy
 			}
 
