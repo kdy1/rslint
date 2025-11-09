@@ -115,162 +115,23 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 		}
 
 		checkTypeReference := func(node *ast.Node, typeArguments []*ast.Node, typeNode *ast.Node) {
-			if typeArguments == nil || len(typeArguments) == 0 {
-				return
-			}
-
-			// Get the type of the reference
-			typeOfRef := ctx.TypeChecker.GetTypeAtLocation(typeNode)
-			if typeOfRef == nil {
-				return
-			}
-
-			// Get the symbol of the type
-			symbol := checker.Type_symbol(typeOfRef)
-			if symbol == nil {
-				return
-			}
-
-			// Get declarations of the symbol
-			declarations := symbol.Declarations
-			if declarations == nil || len(declarations) == 0 {
-				return
-			}
-
-			// Find type parameters from the declaration
-			var typeParameters []*checker.Type
-			for _, decl := range declarations {
-				// Skip nil declarations
-				if decl == nil {
-					continue
-				}
-
-				var params []*ast.Node
-
-				// Try to get type parameters from different declaration types
-				// Use Kind to safely check node type before calling As... methods
-				kind := decl.Kind
-				switch kind {
-				case ast.KindClassDeclaration:
-					classDecl := decl.AsClassDeclaration()
-					if classDecl != nil && classDecl.TypeParameters != nil {
-						params = classDecl.TypeParameters.Nodes
-					}
-				case ast.KindInterfaceDeclaration:
-					interfaceDecl := decl.AsInterfaceDeclaration()
-					if interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
-						params = interfaceDecl.TypeParameters.Nodes
-					}
-				case ast.KindTypeAliasDeclaration:
-					typeAliasDecl := decl.AsTypeAliasDeclaration()
-					if typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
-						params = typeAliasDecl.TypeParameters.Nodes
-					}
-				default:
-					// Skip other declaration types (e.g., VariableDeclaration, TypeLiteral, etc.)
-					continue
-				}
-
-				if params != nil && len(params) > 0 {
-					// Convert AST type parameters to checker types
-					for _, param := range params {
-						paramType := ctx.TypeChecker.GetTypeFromTypeNode(param)
-						if paramType != nil {
-							typeParameters = append(typeParameters, paramType)
-						}
-					}
-					break
-				}
-			}
-
-			if typeParameters == nil || len(typeParameters) == 0 {
-				return
-			}
-
-			// Find the first unnecessary type argument from the end
-			unnecessaryIndex := -1
-
-			for i := len(typeArguments) - 1; i >= 0; i-- {
-				if i >= len(typeParameters) {
-					break
-				}
-
-				typeArg := typeArguments[i]
-				typeParam := typeParameters[i]
-
-				// Check if this is actually a type parameter
-				// The type might be an IntrinsicType or other type, not a TypeParameter
-				if (checker.Type_flags(typeParam) & checker.TypeFlagsTypeParameter) == 0 {
-					// Not a type parameter, skip
-					break
-				}
-
-				// Get the default type for this type parameter
-				defaultType := checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
-				if defaultType == nil {
-					// No default, so we can stop checking
-					break
-				}
-
-				// Get the type of the argument
-				argType := ctx.TypeChecker.GetTypeFromTypeNode(typeArg)
-				if argType == nil {
-					break
-				}
-
-				// Check if the argument type is identical to the default type
-				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
-					unnecessaryIndex = i
-				} else {
-					// Not identical, so we can stop checking
-					break
-				}
-			}
-
-			if unnecessaryIndex >= 0 {
-				// Report the first unnecessary type argument
-				unnecessaryArg := typeArguments[unnecessaryIndex]
-
-				// Build the fix by removing unnecessary type arguments from the found index
-				var newTypeArgs string
-				if unnecessaryIndex == 0 {
-					// Remove all type arguments
-					newTypeArgs = ""
-				} else {
-					// Keep only the necessary type arguments
-					newTypeArgs = "<"
-					for i := 0; i < unnecessaryIndex; i++ {
-						if i > 0 {
-							newTypeArgs += ", "
-						}
-						typeArgRange := utils.TrimNodeTextRange(ctx.SourceFile, typeArguments[i])
-						newTypeArgs += ctx.SourceFile.Text()[typeArgRange.Pos():typeArgRange.End()]
-					}
-					newTypeArgs += ">"
-				}
-
-				// Calculate the range to replace (the entire type arguments section)
-				firstTypeArg := typeArguments[0]
-				lastTypeArg := typeArguments[len(typeArguments)-1]
-				firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstTypeArg)
-				lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastTypeArg)
-
-				// The type arguments range includes the angle brackets
-				typeArgsStart := firstRange.Pos() - 1 // Include opening <
-				typeArgsEnd := lastRange.End() + 1     // Include closing >
-
-				ctx.ReportNodeWithFixes(
-					unnecessaryArg,
-					rule.RuleMessage{
-						Id:          "unnecessaryTypeParameter",
-						Description: "This is the default value for this type parameter, so it can be omitted.",
-					},
-					rule.RuleFix{
-						Text:  newTypeArgs,
-						Range: core.NewTextRange(typeArgsStart, typeArgsEnd),
-					},
-				)
-			}
+			// TODO(port): This function is disabled because getting type parameters from
+			// type references (classes, interfaces, type aliases) requires accessing internal
+			// TypeScript type system structures that are not properly exposed in typescript-go.
+			// The issue is that GetTypeFromTypeNode on a type parameter AST node returns the
+			// constraint/default type (e.g., IntrinsicType for 'number'), not the TypeParameter
+			// object itself, which causes a panic when passed to Checker_getDefaultFromTypeParameter.
+			//
+			// To properly implement this, we would need:
+			// 1. Access to InterfaceType.allTypeParameters or similar fields
+			// 2. A way to get TypeParameter objects from a generic type's symbol
+			// 3. Or, a different API that works with type references
+			//
+			// For now, this rule only works with call/new expressions and other signatures.
+			_ = node
+			_ = typeArguments
+			_ = typeNode
+			return
 		}
 
 		return rule.RuleListeners{
