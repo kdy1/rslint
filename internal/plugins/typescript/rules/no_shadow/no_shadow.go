@@ -357,10 +357,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if funcDecl.TypeParameters != nil {
 					for _, tp := range funcDecl.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -401,10 +401,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if funcExpr.TypeParameters != nil {
 					for _, tp := range funcExpr.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -439,10 +439,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if arrowFunc.TypeParameters != nil {
 					for _, tp := range arrowFunc.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
@@ -478,10 +478,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 				if methodDecl.TypeParameters != nil {
 					for _, tp := range methodDecl.TypeParameters.Nodes {
 						if typeParam := tp.AsTypeParameter(); typeParam != nil {
-							if typeParam.Name != nil {
-								name := getIdentifierName(typeParam.Name)
-								checkShadowing(name, typeParam.Name, true, false)
-								declareVariable(name, typeParam.Name, true, false)
+							if typeParam.Name() != nil {
+								name := getIdentifierName(typeParam.Name())
+								checkShadowing(name, typeParam.Name(), true, false)
+								declareVariable(name, typeParam.Name(), true, false)
 							}
 						}
 					}
