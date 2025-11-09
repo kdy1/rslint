@@ -26,7 +26,7 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 						node,
 						buildNoExtraNonNullAssertionMessage(),
 						// Fix: replace the outer expression with the inner expression
-						rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.GetText(expression)),
+						rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expression.Pos():expression.End()]),
 					)
 					return
 				}
@@ -70,7 +70,7 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 								node,
 								buildNoExtraNonNullAssertionMessage(),
 								// Fix: remove the non-null assertion, keeping just the expression
-								rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.GetText(expression)),
+								rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expression.Pos():expression.End()]),
 							)
 						}
 					}
