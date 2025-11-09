@@ -45,6 +45,11 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				typeArg := typeArguments[i]
 				typeParam := typeParameters[i]
 
+				// Skip if this is not actually a type parameter (e.g., it could be an intrinsic type)
+				if !utils.IsTypeParameter(typeParam) {
+					break
+				}
+
 				// Get the default type for this type parameter
 				defaultType := checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
 				if defaultType == nil {
