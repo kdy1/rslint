@@ -154,15 +154,171 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			// For ExpressionWithTypeArguments (extends/implements), we try to get construct signatures
-			// which have type parameters we can check against
-			constructSignatures := utils.GetConstructSignatures(ctx.TypeChecker, refType)
-			if len(constructSignatures) > 0 {
-				// Use the first construct signature
-				getSignature := func() *checker.Signature {
-					return constructSignatures[0]
+			// Get the symbol from the type
+			symbol := checker.Type_getSymbol(refType)
+			if symbol == nil {
+				return
+			}
+
+			// Get the declarations for this symbol
+			declarations := checker.Symbol_getDeclarations(symbol)
+			if len(declarations) == 0 {
+				return
+			}
+
+			// Find a declaration that has type parameters
+			var typeParameters []*checker.Type
+			for _, decl := range declarations {
+				var typeParametersNodes []*ast.Node
+
+				// Check different kinds of declarations that can have type parameters
+				if ast.IsClassDeclaration(decl) {
+					classDecl := decl.AsClassDeclaration()
+					if classDecl.TypeParameters != nil && classDecl.TypeParameters.Nodes != nil {
+						typeParametersNodes = classDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsInterfaceDeclaration(decl) {
+					interfaceDecl := decl.AsInterfaceDeclaration()
+					if interfaceDecl.TypeParameters != nil && interfaceDecl.TypeParameters.Nodes != nil {
+						typeParametersNodes = interfaceDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsTypeAliasDeclaration(decl) {
+					typeAliasDecl := decl.AsTypeAliasDeclaration()
+					if typeAliasDecl.TypeParameters != nil && typeAliasDecl.TypeParameters.Nodes != nil {
+						typeParametersNodes = typeAliasDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsConstructSignature(decl) {
+					constructSig := decl.AsConstructSignature()
+					if constructSig.TypeParameters != nil && constructSig.TypeParameters.Nodes != nil {
+						typeParametersNodes = constructSig.TypeParameters.Nodes
+					}
 				}
-				checkTypeArguments(node, typeArguments, getSignature)
+
+				if len(typeParametersNodes) > 0 {
+					// Convert AST type parameters to checker types
+					typeParameters = make([]*checker.Type, 0, len(typeParametersNodes))
+					for _, typeParamNode := range typeParametersNodes {
+						if ast.IsTypeParameterDeclaration(typeParamNode) {
+							typeParamType := ctx.TypeChecker.GetTypeAtLocation(typeParamNode)
+							if typeParamType != nil {
+								typeParameters = append(typeParameters, typeParamType)
+							}
+						}
+					}
+					if len(typeParameters) > 0 {
+						break
+					}
+				}
+			}
+
+			if len(typeParameters) > 0 {
+				// Since we can't create a signature easily, we'll check inline here
+				// This is similar to checkTypeArguments but adapted for type references
+				unnecessaryIndex := -1
+
+				for i := len(typeArguments) - 1; i >= 0; i-- {
+					if i >= len(typeParameters) {
+						break
+					}
+
+					typeArg := typeArguments[i]
+					typeParam := typeParameters[i]
+
+					// Get the default type for this type parameter
+					var defaultType *checker.Type
+
+					// Get the symbol from the type parameter
+					symbol := checker.Type_getSymbol(typeParam)
+					if symbol == nil {
+						break
+					}
+
+					// Get the declarations for this symbol
+					declarations := checker.Symbol_getDeclarations(symbol)
+					if len(declarations) == 0 {
+						break
+					}
+
+					// Find the type parameter declaration
+					var typeParamDecl *ast.TypeParameter
+					for _, decl := range declarations {
+						if ast.IsTypeParameterDeclaration(decl) {
+							typeParamDecl = decl.AsTypeParameter()
+							break
+						}
+					}
+
+					if typeParamDecl == nil || typeParamDecl.Default == nil {
+						// No default, so we can stop checking
+						break
+					}
+
+					// Get the type from the default type node
+					defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamDecl.Default)
+					if defaultType == nil {
+						break
+					}
+
+					// Get the type of the argument
+					argType := ctx.TypeChecker.GetTypeFromTypeNode(typeArg)
+					if argType == nil {
+						break
+					}
+
+					// Check if the argument type is identical to the default type
+					if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+						unnecessaryIndex = i
+					} else {
+						// Not identical, so we can stop checking
+						break
+					}
+				}
+
+				if unnecessaryIndex >= 0 {
+					// Report the first unnecessary type argument
+					unnecessaryArg := typeArguments[unnecessaryIndex]
+
+					// Build the fix by removing unnecessary type arguments from the found index
+					var newTypeArgs string
+					if unnecessaryIndex == 0 {
+						// Remove all type arguments
+						newTypeArgs = ""
+					} else {
+						// Keep only the necessary type arguments
+						newTypeArgs = "<"
+						for i := 0; i < unnecessaryIndex; i++ {
+							if i > 0 {
+								newTypeArgs += ", "
+							}
+							typeArgRange := utils.TrimNodeTextRange(ctx.SourceFile, typeArguments[i])
+							newTypeArgs += ctx.SourceFile.Text()[typeArgRange.Pos():typeArgRange.End()]
+						}
+						newTypeArgs += ">"
+					}
+
+					// Calculate the range to replace (the entire type arguments section)
+					// Find the opening < and closing >
+					firstTypeArg := typeArguments[0]
+					lastTypeArg := typeArguments[len(typeArguments)-1]
+					firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstTypeArg)
+					lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastTypeArg)
+
+					// The type arguments range includes the angle brackets
+					typeArgsStart := firstRange.Pos() - 1 // Include opening <
+					typeArgsEnd := lastRange.End() + 1     // Include closing >
+
+					ctx.ReportNodeWithFixes(
+						unnecessaryArg,
+						rule.RuleMessage{
+							Id:          "unnecessaryTypeParameter",
+							Description: "This is the default value for this type parameter, so it can be omitted.",
+						},
+						rule.RuleFix{
+							Text:  newTypeArgs,
+							Range: core.NewTextRange(typeArgsStart, typeArgsEnd),
+						},
+					)
+				}
 			}
 		}
 
