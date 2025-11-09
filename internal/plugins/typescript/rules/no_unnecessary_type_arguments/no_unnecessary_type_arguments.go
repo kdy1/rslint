@@ -140,24 +140,35 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 			// Find type parameters from the declaration
 			var typeParameters []*checker.Type
 			for _, decl := range declarations {
+				// Skip nil declarations
+				if decl == nil {
+					continue
+				}
+
 				var params []*ast.Node
 
 				// Try to get type parameters from different declaration types
-				// Use Kind() to safely check node type before calling As... methods
-				kind := decl.Kind()
+				// Use Kind to safely check node type before calling As... methods
+				kind := decl.Kind
 				switch kind {
 				case ast.KindClassDeclaration:
-					if classDecl := decl.AsClassDeclaration(); classDecl != nil && classDecl.TypeParameters != nil {
+					classDecl := decl.AsClassDeclaration()
+					if classDecl != nil && classDecl.TypeParameters != nil {
 						params = classDecl.TypeParameters.Nodes
 					}
 				case ast.KindInterfaceDeclaration:
-					if interfaceDecl := decl.AsInterfaceDeclaration(); interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
+					interfaceDecl := decl.AsInterfaceDeclaration()
+					if interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
 						params = interfaceDecl.TypeParameters.Nodes
 					}
 				case ast.KindTypeAliasDeclaration:
-					if typeAliasDecl := decl.AsTypeAliasDeclaration(); typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
+					typeAliasDecl := decl.AsTypeAliasDeclaration()
+					if typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
 						params = typeAliasDecl.TypeParameters.Nodes
 					}
+				default:
+					// Skip other declaration types (e.g., VariableDeclaration, TypeLiteral, etc.)
+					continue
 				}
 
 				if params != nil && len(params) > 0 {
