@@ -12,7 +12,89 @@ func buildNotUsedMessage() rule.RuleMessage {
 	}
 }
 
+// hasTypeParameter checks if a type parameter is referenced anywhere in a node tree
+func hasTypeParameter(node *ast.Node, typeParamName string) bool {
+	if node == nil {
+		return false
+	}
+
+	// Check if this node is a direct reference to the type parameter
+	if node.Kind == ast.KindTypeReference {
+		typeRef := node.AsTypeReference()
+		if typeRef != nil && ast.IsIdentifier(typeRef.TypeName) {
+			identifier := typeRef.TypeName.AsIdentifier()
+			if identifier != nil && identifier.Text == typeParamName {
+				return true
+			}
+		}
+
+		// Also check type arguments
+		if typeRef != nil && typeRef.TypeArguments != nil {
+			for _, arg := range typeRef.TypeArguments.Nodes {
+				if hasTypeParameter(arg, typeParamName) {
+					return true
+				}
+			}
+		}
+	}
+
+	// Check in union types (e.g., T | null)
+	if node.Kind == ast.KindUnionType {
+		unionType := node.AsUnionTypeNode()
+		if unionType != nil && unionType.Types != nil {
+			for _, t := range unionType.Types.Nodes {
+				if hasTypeParameter(t, typeParamName) {
+					return true
+				}
+			}
+		}
+	}
+
+	// Check in intersection types
+	if node.Kind == ast.KindIntersectionType {
+		intersectionType := node.AsIntersectionTypeNode()
+		if intersectionType != nil && intersectionType.Types != nil {
+			for _, t := range intersectionType.Types.Nodes {
+				if hasTypeParameter(t, typeParamName) {
+					return true
+				}
+			}
+		}
+	}
+
+	// Check in array types
+	if node.Kind == ast.KindArrayType {
+		arrayType := node.AsArrayTypeNode()
+		if arrayType != nil && arrayType.ElementType != nil {
+			return hasTypeParameter(arrayType.ElementType, typeParamName)
+		}
+	}
+
+	// Check in parenthesized types
+	if node.Kind == ast.KindParenthesizedType {
+		parenType := node.AsParenthesizedTypeNode()
+		if parenType != nil && parenType.Type != nil {
+			return hasTypeParameter(parenType.Type, typeParamName)
+		}
+	}
+
+	// Check in tuple types
+	if node.Kind == ast.KindTupleType {
+		tupleType := node.AsTupleTypeNode()
+		if tupleType != nil && tupleType.Elements != nil {
+			for _, elem := range tupleType.Elements.Nodes {
+				if hasTypeParameter(elem, typeParamName) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // countTypeParameterUsage counts how many times a type parameter is used in a node tree
+// Returns a count where usage as a type argument counts as 2+ (making it valid)
 func countTypeParameterUsage(node *ast.Node, typeParamName string) int {
 	if node == nil {
 		return 0
@@ -37,9 +119,15 @@ func countTypeParameterUsage(node *ast.Node, typeParamName string) int {
 		typeRef := node.AsTypeReference()
 		if typeRef != nil {
 			// Check type arguments
+			// If a type parameter is used as a type argument to another generic type,
+			// it's considered "reused" and should be counted as 2+ (making it valid)
+			// This handles cases like Promise<T>, Map<K, V>, Array<T>, etc.
 			if typeRef.TypeArguments != nil {
 				for _, arg := range typeRef.TypeArguments.Nodes {
-					count += countTypeParameterUsage(arg, typeParamName)
+					if hasTypeParameter(arg, typeParamName) {
+						// Type parameter found in type arguments - count as valid usage
+						return 2
+					}
 				}
 			}
 		}

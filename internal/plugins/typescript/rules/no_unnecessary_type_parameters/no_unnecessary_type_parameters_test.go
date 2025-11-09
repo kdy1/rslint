@@ -46,6 +46,9 @@ func TestNoUnnecessaryTypeParametersRule(t *testing.T) {
 			// Constrained type parameter used multiple times
 			{Code: `function lengthyIdentity<T extends { length: number }>(x: T): T { return x; }`},
 
+			// Promise return - T used as type argument
+			{Code: `function getData<T>(url: string): Promise<T | null> { return fetch(url).then(r => r.json()); }`},
+
 			// Array type used twice
 			{Code: `function arrayOfPairs<T>(): [T, T][] { return []; }`},
 
