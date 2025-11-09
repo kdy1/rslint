@@ -664,6 +664,22 @@ func matchesSelector(node *ast.Node, selector Selector, modifiers []Modifier, ct
 }
 
 // Helper functions for selector matching
+
+// isInClass checks if a node is inside a class declaration
+func isInClass(node *ast.Node) bool {
+	if node == nil {
+		return false
+	}
+	parent := node.Parent
+	for parent != nil {
+		if parent.Kind == ast.KindClassDeclaration || parent.Kind == ast.KindClassExpression {
+			return true
+		}
+		parent = parent.Parent
+	}
+	return false
+}
+
 func isVariable(node *ast.Node) bool {
 	return node.Kind == ast.KindVariableDeclaration
 }
@@ -691,7 +707,8 @@ func isParameterProperty(node *ast.Node) bool {
 		return false
 	}
 	// Check if parameter has modifiers (public, private, protected, readonly)
-	return param.Modifiers != nil && len(param.Modifiers.Nodes) > 0
+	modifiers := param.Modifiers()
+	return modifiers != nil && len(modifiers.Nodes) > 0
 }
 
 func isMethod(node *ast.Node) bool {
@@ -709,7 +726,7 @@ func isClassProperty(node *ast.Node) bool {
 		return false
 	}
 	// Check if parent is a class
-	return utils.IsInClass(node)
+	return isInClass(node)
 }
 
 func isObjectLiteralProperty(node *ast.Node) bool {
@@ -725,11 +742,11 @@ func isClassMethod(node *ast.Node) bool {
 	if node.Kind != ast.KindMethodDeclaration {
 		return false
 	}
-	return utils.IsInClass(node)
+	return isInClass(node)
 }
 
 func isObjectLiteralMethod(node *ast.Node) bool {
-	return node.Kind == ast.KindMethodDeclaration && !utils.IsInClass(node)
+	return node.Kind == ast.KindMethodDeclaration && !isInClass(node)
 }
 
 func isTypeMethod(node *ast.Node) bool {
@@ -767,7 +784,11 @@ func isAutoAccessor(node *ast.Node) bool {
 		return false
 	}
 	prop := node.AsPropertyDeclaration()
-	if prop == nil || prop.Modifiers == nil {
+	if prop == nil {
+		return false
+	}
+	modifiers := prop.Modifiers()
+	if modifiers == nil {
 		return false
 	}
 	// Check for accessor modifier (this would need AST support)
@@ -821,7 +842,7 @@ func hasModifier(node *ast.Node, modifier Modifier) bool {
 func isConst(node *ast.Node) bool {
 	if node.Kind == ast.KindVariableDeclaration {
 		// Check if parent VariableDeclarationList has const flag
-		parent := utils.GetParent(node)
+		parent := node.Parent
 		if parent != nil && parent.Kind == ast.KindVariableDeclarationList {
 			list := parent.AsVariableDeclarationList()
 			return list != nil && (list.Flags&ast.NodeFlagsConst) != 0
@@ -878,48 +899,72 @@ func hasModifierFlag(node *ast.Node, flag ast.ModifierFlags) bool {
 	switch node.Kind {
 	case ast.KindPropertyDeclaration:
 		prop := node.AsPropertyDeclaration()
-		if prop != nil && prop.Modifiers != nil {
-			return checkModifiers(prop.Modifiers, flag)
+		if prop != nil {
+			modifiers := prop.Modifiers()
+			if modifiers != nil {
+				return checkModifiers(modifiers, flag)
+			}
 		}
 	case ast.KindMethodDeclaration:
 		method := node.AsMethodDeclaration()
-		if method != nil && method.Modifiers != nil {
-			return checkModifiers(method.Modifiers, flag)
+		if method != nil {
+			modifiers := method.Modifiers()
+			if modifiers != nil {
+				return checkModifiers(modifiers, flag)
+			}
 		}
 	case ast.KindParameter:
 		param := node.AsParameterDeclaration()
-		if param != nil && param.Modifiers != nil {
-			return checkModifiers(param.Modifiers, flag)
+		if param != nil {
+			modifiers := param.Modifiers()
+			if modifiers != nil {
+				return checkModifiers(modifiers, flag)
+			}
 		}
 	case ast.KindClassDeclaration:
 		class := node.AsClassDeclaration()
-		if class != nil && class.Modifiers != nil {
-			return checkModifiers(class.Modifiers, flag)
+		if class != nil {
+			modifiers := class.Modifiers()
+			if modifiers != nil {
+				return checkModifiers(modifiers, flag)
+			}
 		}
 	case ast.KindFunctionDeclaration:
 		fn := node.AsFunctionDeclaration()
-		if fn != nil && fn.Modifiers != nil {
-			return checkModifiers(fn.Modifiers, flag)
+		if fn != nil {
+			modifiers := fn.Modifiers()
+			if modifiers != nil {
+				return checkModifiers(modifiers, flag)
+			}
 		}
 	}
 	return false
 }
 
 // checkModifiers checks if modifier list contains the specified flag
-func checkModifiers(modifiers *ast.NodeArray, flag ast.ModifierFlags) bool {
-	if modifiers == nil || modifiers.Nodes == nil {
+// The modifiers parameter is expected to have a .Nodes field containing modifier nodes
+func checkModifiers(modifiers any, flag ast.ModifierFlags) bool {
+	if modifiers == nil {
 		return false
 	}
-	for _, mod := range modifiers.Nodes {
-		if mod.Kind == getModifierKind(flag) {
-			return true
+	// Use type assertion to access the Nodes field
+	// The actual type from typescript-go has a Nodes field
+	type hasNodes interface {
+		GetNodes() []*ast.Node
+	}
+	if mn, ok := modifiers.(hasNodes); ok {
+		nodes := mn.GetNodes()
+		for _, mod := range nodes {
+			if mod.Kind == getModifierKind(flag) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// getModifierKind converts ModifierFlags to SyntaxKind
-func getModifierKind(flag ast.ModifierFlags) ast.SyntaxKind {
+// getModifierKind converts ModifierFlags to ast.Kind
+func getModifierKind(flag ast.ModifierFlags) ast.Kind {
 	switch flag {
 	case ast.ModifierFlagsPublic:
 		return ast.KindPublicKeyword
@@ -957,58 +1002,58 @@ func getIdentifierName(node *ast.Node) string {
 		}
 	case ast.KindVariableDeclaration:
 		varDecl := node.AsVariableDeclaration()
-		if varDecl != nil && varDecl.Name != nil {
-			return getIdentifierName(varDecl.Name)
+		if varDecl != nil && varDecl.Name() != nil {
+			return getIdentifierName(varDecl.Name())
 		}
 	case ast.KindParameter:
 		param := node.AsParameterDeclaration()
-		if param != nil && param.Name != nil {
-			return getIdentifierName(param.Name)
+		if param != nil && param.Name() != nil {
+			return getIdentifierName(param.Name())
 		}
 	case ast.KindPropertyDeclaration, ast.KindPropertySignature:
 		prop := node.AsPropertyDeclaration()
-		if prop != nil && prop.Name != nil {
-			return getIdentifierName(prop.Name)
+		if prop != nil && prop.Name() != nil {
+			return getIdentifierName(prop.Name())
 		}
 	case ast.KindMethodDeclaration, ast.KindMethodSignature:
 		method := node.AsMethodDeclaration()
-		if method != nil && method.Name != nil {
-			return getIdentifierName(method.Name)
+		if method != nil && method.Name() != nil {
+			return getIdentifierName(method.Name())
 		}
 	case ast.KindFunctionDeclaration:
 		fn := node.AsFunctionDeclaration()
-		if fn != nil && fn.Name != nil {
-			return getIdentifierName(fn.Name)
+		if fn != nil && fn.Name() != nil {
+			return getIdentifierName(fn.Name())
 		}
 	case ast.KindClassDeclaration:
 		class := node.AsClassDeclaration()
-		if class != nil && class.Name != nil {
-			return getIdentifierName(class.Name)
+		if class != nil && class.Name() != nil {
+			return getIdentifierName(class.Name())
 		}
 	case ast.KindInterfaceDeclaration:
 		iface := node.AsInterfaceDeclaration()
-		if iface != nil && iface.Name != nil {
-			return getIdentifierName(iface.Name)
+		if iface != nil && iface.Name() != nil {
+			return getIdentifierName(iface.Name())
 		}
 	case ast.KindTypeAliasDeclaration:
 		typeAlias := node.AsTypeAliasDeclaration()
-		if typeAlias != nil && typeAlias.Name != nil {
-			return getIdentifierName(typeAlias.Name)
+		if typeAlias != nil && typeAlias.Name() != nil {
+			return getIdentifierName(typeAlias.Name())
 		}
 	case ast.KindEnumDeclaration:
 		enumDecl := node.AsEnumDeclaration()
-		if enumDecl != nil && enumDecl.Name != nil {
-			return getIdentifierName(enumDecl.Name)
+		if enumDecl != nil && enumDecl.Name() != nil {
+			return getIdentifierName(enumDecl.Name())
 		}
 	case ast.KindEnumMember:
 		member := node.AsEnumMember()
-		if member != nil && member.Name != nil {
-			return getIdentifierName(member.Name)
+		if member != nil && member.Name() != nil {
+			return getIdentifierName(member.Name())
 		}
 	case ast.KindTypeParameter:
 		typeParam := node.AsTypeParameterDeclaration()
-		if typeParam != nil && typeParam.Name != nil {
-			return getIdentifierName(typeParam.Name)
+		if typeParam != nil && typeParam.Name() != nil {
+			return getIdentifierName(typeParam.Name())
 		}
 	}
 
