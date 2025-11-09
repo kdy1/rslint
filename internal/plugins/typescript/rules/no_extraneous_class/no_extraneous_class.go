@@ -58,6 +58,24 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 				reportNode = node
 			}
 
+			// Check if class extends another class - these are always valid
+			var heritageClauses *ast.NodeList
+			if classDecl := node.AsClassDeclaration(); classDecl != nil {
+				heritageClauses = classDecl.HeritageClauses
+			} else if classExpr := node.AsClassExpression(); classExpr != nil {
+				heritageClauses = classExpr.HeritageClauses
+			}
+
+			if heritageClauses != nil {
+				for _, clause := range heritageClauses.Nodes {
+					heritageClause := clause.AsHeritageClause()
+					if heritageClause != nil && heritageClause.Token == ast.KindExtendsKeyword {
+						// Class extends another class - always valid
+						return
+					}
+				}
+			}
+
 			// Check for decorators
 			hasDecorators := false
 			if node.Modifiers() != nil {
