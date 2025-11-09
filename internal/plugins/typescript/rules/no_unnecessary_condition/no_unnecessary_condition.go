@@ -218,11 +218,16 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Check boolean literals first (before generic boolean check)
-			if utils.IsTrueLiteralType(ctx.TypeChecker, t) {
-				return TruthinessTruthy
-			}
-			if utils.IsFalseLiteralType(ctx.TypeChecker, t) {
-				return TruthinessFalsy
+			if flags&checker.TypeFlagsBooleanLiteral != 0 {
+				if utils.IsTrueLiteralType(ctx.TypeChecker, t) {
+					return TruthinessTruthy
+				}
+				if utils.IsFalseLiteralType(ctx.TypeChecker, t) {
+					return TruthinessFalsy
+				}
+				// If we have the boolean literal flag but can't determine which one,
+				// treat as maybe truthy (shouldn't happen in practice)
+				return TruthinessMaybeTruthy
 			}
 
 			// Check generic boolean - could be true or false
