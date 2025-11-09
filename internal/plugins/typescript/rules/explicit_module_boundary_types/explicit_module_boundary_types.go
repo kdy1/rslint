@@ -80,9 +80,6 @@ func buildMissingArgTypeMessage(argName string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "missingArgType",
 		Description: "Argument '" + argName + "' should be typed.",
-		Data: map[string]interface{}{
-			"name": argName,
-		},
 	}
 }
 
@@ -90,9 +87,6 @@ func buildAnyTypedArgMessage(argName string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "anyTypedArg",
 		Description: "Argument '" + argName + "' should be typed with a non-any type.",
-		Data: map[string]interface{}{
-			"name": argName,
-		},
 	}
 }
 
@@ -393,37 +387,37 @@ func hasExportModifier(node *ast.Node) bool {
 		return false
 	}
 
-	var modifiers *ast.NodeArray
+	var modifiers []*ast.Node
 	switch node.Kind {
 	case ast.KindFunctionDeclaration:
 		fn := node.AsFunctionDeclaration()
-		if fn != nil {
-			modifiers = fn.Modifiers
+		if fn != nil && fn.Modifiers() != nil {
+			modifiers = fn.Modifiers().Nodes
 		}
 	case ast.KindClassDeclaration:
 		class := node.AsClassDeclaration()
-		if class != nil {
-			modifiers = class.Modifiers
+		if class != nil && class.Modifiers() != nil {
+			modifiers = class.Modifiers().Nodes
 		}
 	case ast.KindVariableStatement:
 		stmt := node.AsVariableStatement()
-		if stmt != nil {
-			modifiers = stmt.Modifiers
+		if stmt != nil && stmt.Modifiers() != nil {
+			modifiers = stmt.Modifiers().Nodes
 		}
 	case ast.KindMethodDeclaration:
 		method := node.AsMethodDeclaration()
-		if method != nil {
-			modifiers = method.Modifiers
+		if method != nil && method.Modifiers() != nil {
+			modifiers = method.Modifiers().Nodes
 		}
 	case ast.KindPropertyDeclaration:
 		prop := node.AsPropertyDeclaration()
-		if prop != nil {
-			modifiers = prop.Modifiers
+		if prop != nil && prop.Modifiers() != nil {
+			modifiers = prop.Modifiers().Nodes
 		}
 	}
 
-	if modifiers != nil && modifiers.Nodes != nil {
-		for _, mod := range modifiers.Nodes {
+	if modifiers != nil {
+		for _, mod := range modifiers {
 			if mod.Kind == ast.KindExportKeyword || mod.Kind == ast.KindDefaultKeyword {
 				return true
 			}
@@ -439,32 +433,38 @@ func isPublicMember(node *ast.Node) bool {
 		return false
 	}
 
-	var modifiers *ast.NodeArray
+	var modifiers []*ast.Node
 	var name *ast.Node
 
 	switch node.Kind {
 	case ast.KindMethodDeclaration:
 		method := node.AsMethodDeclaration()
 		if method != nil {
-			modifiers = method.Modifiers
+			if method.Modifiers() != nil {
+				modifiers = method.Modifiers().Nodes
+			}
 			name = method.Name()
 		}
 	case ast.KindPropertyDeclaration:
 		prop := node.AsPropertyDeclaration()
 		if prop != nil {
-			modifiers = prop.Modifiers
+			if prop.Modifiers() != nil {
+				modifiers = prop.Modifiers().Nodes
+			}
 			name = prop.Name()
 		}
 	case ast.KindGetAccessor:
 		accessor := node.AsGetAccessorDeclaration()
 		if accessor != nil {
-			modifiers = accessor.Modifiers
+			if accessor.Modifiers() != nil {
+				modifiers = accessor.Modifiers().Nodes
+			}
 			name = accessor.Name()
 		}
 	case ast.KindSetAccessor:
 		accessor := node.AsSetAccessorDeclaration()
-		if accessor != nil {
-			modifiers = accessor.Modifiers
+		if accessor != nil && accessor.Modifiers() != nil {
+			modifiers = accessor.Modifiers().Nodes
 		}
 	case ast.KindConstructorType:
 		// Constructors are always "public" in the sense that they're part of the module boundary
@@ -477,8 +477,8 @@ func isPublicMember(node *ast.Node) bool {
 	}
 
 	// Check modifiers for private/protected
-	if modifiers != nil && modifiers.Nodes != nil {
-		for _, mod := range modifiers.Nodes {
+	if modifiers != nil {
+		for _, mod := range modifiers {
 			if mod.Kind == ast.KindPrivateKeyword || mod.Kind == ast.KindProtectedKeyword {
 				return false
 			}
@@ -575,7 +575,7 @@ func getParameterName(param *ast.Node) string {
 
 	// Handle binding patterns (destructuring)
 	if param.Kind == ast.KindParameter {
-		p := param.AsParameter()
+		p := param.AsParameterDeclaration()
 		if p != nil && p.Name() != nil {
 			name := p.Name()
 			if name.Kind == ast.KindIdentifier {
@@ -601,7 +601,7 @@ func parameterHasType(param *ast.Node) bool {
 		return false
 	}
 
-	p := param.AsParameter()
+	p := param.AsParameterDeclaration()
 	return p != nil && p.Type != nil
 }
 
@@ -611,7 +611,7 @@ func parameterIsAny(param *ast.Node) bool {
 		return false
 	}
 
-	p := param.AsParameter()
+	p := param.AsParameterDeclaration()
 	if p == nil || p.Type == nil {
 		return false
 	}
@@ -620,7 +620,7 @@ func parameterIsAny(param *ast.Node) bool {
 }
 
 // Get function parameters
-func getFunctionParameters(node *ast.Node) *ast.NodeArray {
+func getFunctionParameters(node *ast.Node) *ast.NodeList {
 	switch node.Kind {
 	case ast.KindFunctionDeclaration:
 		fn := node.AsFunctionDeclaration()
@@ -674,7 +674,7 @@ func checkParameters(ctx rule.RuleContext, node *ast.Node, opts ExplicitModuleBo
 			if !opts.AllowArgumentsExplicitlyTypedAsAny && parameterIsAny(param) {
 				paramName := getParameterName(param)
 				if paramName != "" && paramName != "<destructured>" {
-					p := param.AsParameter()
+					p := param.AsParameterDeclaration()
 					if p != nil && p.Name() != nil {
 						ctx.ReportNode(p.Name(), buildAnyTypedArgMessage(paramName))
 					}
@@ -686,7 +686,7 @@ func checkParameters(ctx rule.RuleContext, node *ast.Node, opts ExplicitModuleBo
 		// Report missing type
 		paramName := getParameterName(param)
 		if paramName != "" && paramName != "<destructured>" {
-			p := param.AsParameter()
+			p := param.AsParameterDeclaration()
 			if p != nil && p.Name() != nil {
 				ctx.ReportNode(p.Name(), buildMissingArgTypeMessage(paramName))
 			}
