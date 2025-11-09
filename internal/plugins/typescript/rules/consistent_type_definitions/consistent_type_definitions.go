@@ -163,7 +163,6 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 
 		// Get the body - find the opening brace and closing brace
 		var bodyText string
-		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
 
 		// Find opening brace after the name (and type parameters if any)
 		searchStart := nameRange.End()
@@ -283,7 +282,6 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 	}
 	parts = append(parts, "type")
 
-	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
 	namePath := sourceText[nameRange.Pos():nameRange.End()]
 	parts = append(parts, namePath)
 
@@ -383,27 +381,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 
 		return isObjectTypeLiteral(typeNode)
-	}
-
-	// Helper to check if interface is in a globally-scoped module
-	isInGlobalModule := func(node *ast.Node) bool {
-		current := node.Parent
-		for current != nil {
-			if current.Kind == ast.KindModuleDeclaration {
-				moduleDecl := current.AsModuleDeclaration()
-				if moduleDecl != nil && moduleDecl.Name() != nil {
-					// Check if module name is 'global'
-					if ast.IsIdentifier(moduleDecl.Name()) {
-						ident := moduleDecl.Name().AsIdentifier()
-						if ident != nil && ident.Text == "global" {
-							return true
-						}
-					}
-				}
-			}
-			current = current.Parent
-		}
-		return false
 	}
 
 	// Helper to check if interface is inside any namespace
