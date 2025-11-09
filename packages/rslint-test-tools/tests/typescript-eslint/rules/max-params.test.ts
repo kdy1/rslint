@@ -1,10 +1,10 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../src/rules/max-params';
 
 const ruleTester = new RuleTester();
 
-ruleTester.run('max-params', {
+ruleTester.run('max-params', rule, {
   valid: [
     'function foo() {}',
     'const foo = function () {};',
