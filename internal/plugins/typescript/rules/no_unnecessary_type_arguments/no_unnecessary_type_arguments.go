@@ -46,23 +46,38 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				typeParam := typeParameters[i]
 
 				// Get the default type for this type parameter
-				// Note: In some edge cases (e.g., heritage clauses), type parameters might be
-				// resolved to their defaults/constraints, causing getDefaultFromTypeParameter to panic.
-				// We use panic recovery to safely handle these cases while allowing normal cases to work.
+				// We need to get the type parameter declaration to access its default
 				var defaultType *checker.Type
-				func() {
-					defer func() {
-						if r := recover(); r != nil {
-							// If we panic trying to get the default (e.g., type is not a TypeParameter),
-							// just skip this parameter
-							defaultType = nil
-						}
-					}()
-					defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
-				}()
 
-				if defaultType == nil {
+				// Get the symbol from the type parameter
+				symbol := checker.Type_getSymbol(typeParam)
+				if symbol == nil {
+					break
+				}
+
+				// Get the declarations for this symbol
+				declarations := checker.Symbol_getDeclarations(symbol)
+				if len(declarations) == 0 {
+					break
+				}
+
+				// Find the type parameter declaration
+				var typeParamDecl *ast.TypeParameter
+				for _, decl := range declarations {
+					if ast.IsTypeParameterDeclaration(decl) {
+						typeParamDecl = decl.AsTypeParameter()
+						break
+					}
+				}
+
+				if typeParamDecl == nil || typeParamDecl.Default == nil {
 					// No default, so we can stop checking
+					break
+				}
+
+				// Get the type from the default type node
+				defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamDecl.Default)
+				if defaultType == nil {
 					break
 				}
 
