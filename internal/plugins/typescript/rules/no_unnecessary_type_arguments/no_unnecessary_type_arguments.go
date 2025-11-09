@@ -126,13 +126,13 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Get the symbol of the type
-			symbol := checker.Type_getSymbol(typeOfRef)
+			symbol := checker.Type_symbol(typeOfRef)
 			if symbol == nil {
 				return
 			}
 
 			// Get declarations of the symbol
-			declarations := checker.Symbol_getDeclarations(symbol)
+			declarations := symbol.Declarations
 			if declarations == nil || len(declarations) == 0 {
 				return
 			}
