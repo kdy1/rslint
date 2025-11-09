@@ -45,15 +45,22 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				typeArg := typeArguments[i]
 				typeParam := typeParameters[i]
 
-				// Skip if this is not actually a type parameter (e.g., it could be an intrinsic type)
-				// We need to check this to avoid panics in getDefaultFromTypeParameter which internally
-				// calls AsTypeParameter() and will panic if the type is not a TypeParameter.
-				if !utils.IsTypeParameter(typeParam) || utils.IsIntrinsicType(typeParam) {
-					break
-				}
-
 				// Get the default type for this type parameter
-				defaultType := checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
+				// Note: In some edge cases (e.g., heritage clauses), type parameters might be
+				// resolved to their defaults/constraints, causing getDefaultFromTypeParameter to panic.
+				// We use panic recovery to safely handle these cases while allowing normal cases to work.
+				var defaultType *checker.Type
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							// If we panic trying to get the default (e.g., type is not a TypeParameter),
+							// just skip this parameter
+							defaultType = nil
+						}
+					}()
+					defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
+				}()
+
 				if defaultType == nil {
 					// No default, so we can stop checking
 					break
