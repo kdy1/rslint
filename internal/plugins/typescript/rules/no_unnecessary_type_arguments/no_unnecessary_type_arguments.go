@@ -143,12 +143,19 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				var params []*ast.Node
 
 				// Try to get type parameters from different declaration types
-				if classDecl := decl.AsClassDeclaration(); classDecl != nil && classDecl.TypeParameters != nil {
-					params = classDecl.TypeParameters.Nodes
-				} else if interfaceDecl := decl.AsInterfaceDeclaration(); interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
-					params = interfaceDecl.TypeParameters.Nodes
-				} else if typeAliasDecl := decl.AsTypeAliasDeclaration(); typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
-					params = typeAliasDecl.TypeParameters.Nodes
+				// Check the node kind before calling As... methods to avoid panics
+				if ast.IsClassDeclaration(decl) {
+					if classDecl := decl.AsClassDeclaration(); classDecl != nil && classDecl.TypeParameters != nil {
+						params = classDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsInterfaceDeclaration(decl) {
+					if interfaceDecl := decl.AsInterfaceDeclaration(); interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
+						params = interfaceDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsTypeAliasDeclaration(decl) {
+					if typeAliasDecl := decl.AsTypeAliasDeclaration(); typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
+						params = typeAliasDecl.TypeParameters.Nodes
+					}
 				}
 
 				if params != nil && len(params) > 0 {
