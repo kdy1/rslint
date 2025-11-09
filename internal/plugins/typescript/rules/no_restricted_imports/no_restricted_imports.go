@@ -59,7 +59,7 @@ func isTypeImport(node *ast.Node) bool {
 	if node.Kind == ast.KindImportDeclaration {
 		importDecl := node.AsImportDeclaration()
 		// Check if it's an import type statement
-		if importDecl.ImportClause != nil && importDecl.ImportClause.IsTypeOnly {
+		if importDecl.ImportClause != nil && importDecl.ImportClause.IsTypeOnly() {
 			return true
 		}
 	}
@@ -86,18 +86,22 @@ func getImportNames(node *ast.Node) []string {
 	if node.Kind == ast.KindImportDeclaration {
 		importDecl := node.AsImportDeclaration()
 		if importDecl.ImportClause != nil {
-			clause := importDecl.ImportClause
+			clauseNode := importDecl.ImportClause
+			clause := clauseNode.AsImportClause()
+			if clause == nil {
+				return names
+			}
 
 			// Default import
 			if clause.Name() != nil {
 				names = append(names, clause.Name().AsIdentifier().Text)
 			}
 
-			// Named imports
-			if clause.NamedBindings != nil {
-				bindings := clause.NamedBindings
-				if bindings.Kind == ast.KindNamedImports {
-					namedImports := bindings.AsNamedImports()
+			// Named imports - check if there are child nodes for named bindings
+			// We need to iterate through the clause's children to find NamedImports or NamespaceImport
+			for _, child := range clauseNode.Children() {
+				if child.Kind == ast.KindNamedImports {
+					namedImports := child.AsNamedImports()
 					for _, elem := range namedImports.Elements.Nodes {
 						importSpec := elem.AsImportSpecifier()
 						// Use the property name if it exists (for renamed imports), otherwise use the name
@@ -107,9 +111,9 @@ func getImportNames(node *ast.Node) []string {
 							names = append(names, importSpec.Name().AsIdentifier().Text)
 						}
 					}
-				} else if bindings.Kind == ast.KindNamespaceImport {
+				} else if child.Kind == ast.KindNamespaceImport {
 					// Namespace import: import * as foo
-					nsImport := bindings.AsNamespaceImport()
+					nsImport := child.AsNamespaceImport()
 					if nsImport.Name() != nil {
 						names = append(names, nsImport.Name().AsIdentifier().Text)
 					}
@@ -194,7 +198,6 @@ var NoRestrictedImportsRule = rule.CreateRule(rule.Rule{
 		// Parse options
 		if options != nil {
 			var optsArray []interface{}
-			var ok bool
 
 			// Handle array format: [{ paths: [], patterns: [] }] or ['path1', 'path2']
 			if optArray, isArray := options.([]interface{}); isArray && len(optArray) > 0 {
