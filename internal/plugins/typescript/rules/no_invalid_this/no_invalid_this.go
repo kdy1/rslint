@@ -1,13 +1,10 @@
 package no_invalid_this
 
 import (
-	"regexp"
-	"strings"
 	"unicode"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 type NoInvalidThisOptions struct {
@@ -34,37 +31,37 @@ func startsWithUpperCase(name string) bool {
 
 // Check if a function has explicit 'this' parameter (TypeScript feature)
 func hasExplicitThisParameter(node *ast.Node) bool {
-	var params *ast.NodeArray
+	var params []*ast.Node
 
 	switch node.Kind {
 	case ast.KindFunctionDeclaration:
-		if fn := node.AsFunctionDeclaration(); fn != nil {
-			params = fn.Parameters
+		if fn := node.AsFunctionDeclaration(); fn != nil && fn.Parameters != nil {
+			params = fn.Parameters.Nodes
 		}
 	case ast.KindFunctionExpression:
-		if fn := node.AsFunctionExpression(); fn != nil {
-			params = fn.Parameters
+		if fn := node.AsFunctionExpression(); fn != nil && fn.Parameters != nil {
+			params = fn.Parameters.Nodes
 		}
 	case ast.KindArrowFunction:
-		if fn := node.AsArrowFunction(); fn != nil {
-			params = fn.Parameters
+		if fn := node.AsArrowFunction(); fn != nil && fn.Parameters != nil {
+			params = fn.Parameters.Nodes
 		}
 	case ast.KindMethodDeclaration:
-		if fn := node.AsMethodDeclaration(); fn != nil {
-			params = fn.Parameters
+		if fn := node.AsMethodDeclaration(); fn != nil && fn.Parameters != nil {
+			params = fn.Parameters.Nodes
 		}
 	}
 
-	if params == nil || len(params.Nodes) == 0 {
+	if len(params) == 0 {
 		return false
 	}
 
 	// Check if first parameter is a 'this' parameter
-	firstParam := params.Nodes[0]
+	firstParam := params[0]
 	if param := firstParam.AsParameterDeclaration(); param != nil {
-		if param.Name() != nil && param.Name().Kind == ast.KindIdentifier {
+		if param.Name() != nil && ast.IsIdentifier(param.Name()) {
 			if ident := param.Name().AsIdentifier(); ident != nil {
-				return ident.EscapedText == "this"
+				return ident.Text == "this"
 			}
 		}
 	}
@@ -73,19 +70,9 @@ func hasExplicitThisParameter(node *ast.Node) bool {
 }
 
 // Check if function has JSDoc @this annotation
+// Note: Simplified implementation - full JSDoc parsing not yet available
 func hasJSDocThisAnnotation(node *ast.Node) bool {
-	// Check for JSDoc comments with @this tag
-	jsDoc := ast.GetJSDocTags(node)
-	if jsDoc == nil {
-		return false
-	}
-
-	for _, tag := range jsDoc.Nodes {
-		if tag.Kind == ast.KindJSDocThisTag {
-			return true
-		}
-	}
-
+	// TODO: Implement when JSDoc APIs are available
 	return false
 }
 
@@ -94,14 +81,18 @@ func getFunctionName(node *ast.Node) string {
 	switch node.Kind {
 	case ast.KindFunctionDeclaration:
 		if fn := node.AsFunctionDeclaration(); fn != nil && fn.Name() != nil {
-			if ident := fn.Name().AsIdentifier(); ident != nil {
-				return ident.EscapedText
+			if ast.IsIdentifier(fn.Name()) {
+				if ident := fn.Name().AsIdentifier(); ident != nil {
+					return ident.Text
+				}
 			}
 		}
 	case ast.KindFunctionExpression:
 		if fn := node.AsFunctionExpression(); fn != nil && fn.Name() != nil {
-			if ident := fn.Name().AsIdentifier(); ident != nil {
-				return ident.EscapedText
+			if ast.IsIdentifier(fn.Name()) {
+				if ident := fn.Name().AsIdentifier(); ident != nil {
+					return ident.Text
+				}
 			}
 		}
 	}
@@ -167,11 +158,13 @@ func isCallWithNonNullContext(node *ast.Node) bool {
 	if parent.Kind == ast.KindCallExpression {
 		if call := parent.AsCallExpression(); call != nil {
 			// Check if the expression is a property access (.bind, .call, .apply)
-			if call.Expression.Kind == ast.KindPropertyAccessExpression {
+			if ast.IsPropertyAccessExpression(call.Expression) {
 				if propAccess := call.Expression.AsPropertyAccessExpression(); propAccess != nil {
 					methodName := ""
-					if ident := propAccess.Name.AsIdentifier(); ident != nil {
-						methodName = ident.EscapedText
+					if ast.IsIdentifier(propAccess.Name()) {
+						if ident := propAccess.Name().AsIdentifier(); ident != nil {
+							methodName = ident.Text
+						}
 					}
 
 					// Check if it's one of the binding methods
@@ -185,9 +178,9 @@ func isCallWithNonNullContext(node *ast.Node) bool {
 								if firstArg.Kind == ast.KindNullKeyword {
 									return false
 								}
-								if firstArg.Kind == ast.KindIdentifier {
+								if ast.IsIdentifier(firstArg) {
 									if ident := firstArg.AsIdentifier(); ident != nil {
-										if ident.EscapedText == "undefined" {
+										if ident.Text == "undefined" {
 											return false
 										}
 									}
@@ -216,23 +209,25 @@ func isArrayMethodWithThisArg(node *ast.Node) bool {
 	if parent.Kind == ast.KindCallExpression {
 		if call := parent.AsCallExpression(); call != nil {
 			// Check if the expression is a property access (e.g., array.forEach)
-			if call.Expression.Kind == ast.KindPropertyAccessExpression {
+			if ast.IsPropertyAccessExpression(call.Expression) {
 				if propAccess := call.Expression.AsPropertyAccessExpression(); propAccess != nil {
 					methodName := ""
-					if ident := propAccess.Name.AsIdentifier(); ident != nil {
-						methodName = ident.EscapedText
+					if ast.IsIdentifier(propAccess.Name()) {
+						if ident := propAccess.Name().AsIdentifier(); ident != nil {
+							methodName = ident.Text
+						}
 					}
 
 					// Array methods that accept thisArg as second parameter
 					arrayMethods := map[string]bool{
-						"forEach": true,
-						"filter":  true,
-						"map":     true,
-						"every":   true,
-						"some":    true,
-						"find":    true,
+						"forEach":   true,
+						"filter":    true,
+						"map":       true,
+						"every":     true,
+						"some":      true,
+						"find":      true,
 						"findIndex": true,
-						"flatMap": true,
+						"flatMap":   true,
 					}
 
 					if arrayMethods[methodName] {
