@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -42,7 +41,7 @@ var NoArrayConstructorRule = rule.CreateRule(rule.Rule{
 			}
 
 			identifier := callee.AsIdentifier()
-			if identifier.Text() != "Array" {
+			if identifier.Text != "Array" {
 				return
 			}
 
@@ -70,7 +69,7 @@ var NoArrayConstructorRule = rule.CreateRule(rule.Rule{
 				newExpr := node.AsNewExpression()
 				args := []*ast.Node{}
 				if newExpr.Arguments != nil {
-					args = newExpr.Arguments
+					args = newExpr.Arguments.Nodes
 				}
 				checkArrayConstructor(node, args, false)
 			},
@@ -85,7 +84,7 @@ var NoArrayConstructorRule = rule.CreateRule(rule.Rule{
 
 				args := []*ast.Node{}
 				if callExpr.Arguments != nil {
-					args = callExpr.Arguments
+					args = callExpr.Arguments.Nodes
 				}
 				checkArrayConstructor(node, args, isOptionalChain)
 			},
@@ -94,7 +93,7 @@ var NoArrayConstructorRule = rule.CreateRule(rule.Rule{
 })
 
 func createArrayLiteralFix(ctx rule.RuleContext, node *ast.Node, args []*ast.Node) rule.RuleFix {
-	sourceText := ctx.SourceFile.Text
+	sourceText := ctx.SourceFile.Text()
 	nodeRange := utils.TrimNodeTextRange(ctx.SourceFile, node)
 
 	// Handle empty array case
@@ -127,78 +126,4 @@ func createArrayLiteralFix(ctx rule.RuleContext, node *ast.Node, args []*ast.Nod
 	replacement := "[" + argsContent + "]"
 
 	return rule.RuleFixReplaceRange(nodeRange, replacement)
-}
-
-func getLeadingCommentsRange(ctx rule.RuleContext, node *ast.Node) (core.TextRange, bool) {
-	sourceText := ctx.SourceFile.Text
-	nodeStart := node.Pos()
-
-	// Scan backwards to find the start of leading comments
-	startPos := nodeStart
-
-	for startPos > 0 {
-		// Skip whitespace
-		for startPos > 0 && (sourceText[startPos-1] == ' ' || sourceText[startPos-1] == '\t') {
-			startPos--
-		}
-
-		// Check if we're at a comment
-		if startPos >= 2 && sourceText[startPos-2:startPos] == "*/" {
-			// Found end of block comment, scan to find start
-			endPos := startPos
-			startPos -= 2
-			foundStart := false
-			for startPos >= 2 {
-				if sourceText[startPos-2:startPos] == "/*" {
-					startPos -= 2
-					foundStart = true
-					break
-				}
-				startPos--
-			}
-			if !foundStart {
-				break
-			}
-		} else {
-			break
-		}
-	}
-
-	if startPos < nodeStart {
-		return core.CreateTextRange(startPos, nodeStart), true
-	}
-
-	return core.CreateTextRange(0, 0), false
-}
-
-func getTrailingCommentsRange(ctx rule.RuleContext, node *ast.Node) (core.TextRange, bool) {
-	sourceText := ctx.SourceFile.Text
-	nodeEnd := node.End()
-
-	// Scan forward to find trailing comments
-	endPos := nodeEnd
-
-	// Skip whitespace
-	for endPos < len(sourceText) && (sourceText[endPos] == ' ' || sourceText[endPos] == '\t') {
-		endPos++
-	}
-
-	// Check for comments
-	if endPos+1 < len(sourceText) && sourceText[endPos:endPos+2] == "/*" {
-		// Found start of block comment, scan to find end
-		endPos += 2
-		for endPos+1 < len(sourceText) {
-			if sourceText[endPos:endPos+2] == "*/" {
-				endPos += 2
-				break
-			}
-			endPos++
-		}
-	}
-
-	if endPos > nodeEnd {
-		return core.CreateTextRange(nodeEnd, endPos), true
-	}
-
-	return core.CreateTextRange(0, 0), false
 }
