@@ -74,15 +74,10 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					break
 				}
 
-				typeParamNode := typeParamDecl.AsTypeParameter()
-				if typeParamNode == nil || typeParamNode.DefaultType == nil {
-					// No default, so we can stop checking
-					break
-				}
-
-				// Get the type from the default type node
-				defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamNode.DefaultType)
+				// Get the default type using the checker API
+				defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
 				if defaultType == nil {
+					// No default, so we can stop checking
 					break
 				}
 
@@ -257,15 +252,10 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 						break
 					}
 
-					typeParamNode := typeParamDecl.AsTypeParameter()
-					if typeParamNode == nil || typeParamNode.DefaultType == nil {
-						// No default, so we can stop checking
-						break
-					}
-
-					// Get the type from the default type node
-					defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamNode.DefaultType)
+					// Get the default type using the checker API
+					defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
 					if defaultType == nil {
+						// No default, so we can stop checking
 						break
 					}
 
