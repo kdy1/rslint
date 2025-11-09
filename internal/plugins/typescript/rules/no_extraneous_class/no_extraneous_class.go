@@ -119,60 +119,58 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 							continue
 						}
 
-						// Check for static members
+						// Check for static members (properties, methods, and accessors)
 						isStatic := false
-						if member.Kind == ast.KindPropertyDeclaration {
-							prop := member.AsPropertyDeclaration()
-							if prop.Modifiers() != nil {
-								for _, mod := range prop.Modifiers().Nodes {
+						isAbstractMember := false
+
+						// Helper to check modifiers
+						checkModifiers := func(modifiers *ast.NodeArray) {
+							if modifiers != nil {
+								for _, mod := range modifiers.Nodes {
 									if mod.Kind == ast.KindStaticKeyword {
 										isStatic = true
-										break
 									}
-								}
-							}
-						} else if member.Kind == ast.KindMethodDeclaration {
-							method := member.AsMethodDeclaration()
-							if method.Modifiers() != nil {
-								for _, mod := range method.Modifiers().Nodes {
-									if mod.Kind == ast.KindStaticKeyword {
-										isStatic = true
-										break
+									if mod.Kind == ast.KindAbstractKeyword {
+										isAbstractMember = true
 									}
 								}
 							}
 						}
 
-						if isStatic {
+						switch member.Kind {
+						case ast.KindPropertyDeclaration:
+							prop := member.AsPropertyDeclaration()
+							if prop != nil {
+								checkModifiers(prop.Modifiers())
+							}
+						case ast.KindMethodDeclaration:
+							method := member.AsMethodDeclaration()
+							if method != nil {
+								checkModifiers(method.Modifiers())
+							}
+						case ast.KindAccessor:
+							// Handle accessor properties (auto-accessors)
+							accessor := member.AsAccessorDeclaration()
+							if accessor != nil {
+								checkModifiers(accessor.Modifiers())
+							}
+						default:
+							// For any other member types, treat as non-static
+							hasNonStaticMember = true
+							isEmpty = false
+							continue
+						}
+
+						// Abstract members (non-static) make the class valid
+						if isAbstractMember && !isStatic {
+							hasNonStaticMember = true
+							isEmpty = false
+						} else if isStatic {
 							hasStaticMember = true
 							isEmpty = false
 						} else {
 							hasNonStaticMember = true
 							isEmpty = false
-						}
-					}
-				}
-
-				// Check for abstract class with abstract members
-				isAbstract := false
-				if classDecl.Modifiers() != nil {
-					for _, modifier := range classDecl.Modifiers().Nodes {
-						if modifier.Kind == ast.KindAbstractKeyword {
-							isAbstract = true
-							break
-						}
-					}
-				}
-
-				if isAbstract && classDecl.Members != nil {
-					for _, member := range classDecl.Members.Nodes {
-						if member.Modifiers() != nil {
-							for _, mod := range member.Modifiers().Nodes {
-								if mod.Kind == ast.KindAbstractKeyword {
-									// Has abstract member, so it's a valid abstract class
-									return
-								}
-							}
 						}
 					}
 				}

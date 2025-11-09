@@ -83,7 +83,7 @@ export default defineConfig({
     // './tests/typescript-eslint/rules/no-dynamic-delete.test.ts',
     // './tests/typescript-eslint/rules/no-empty-object-type.test.ts',
     // './tests/typescript-eslint/rules/no-extra-non-null-assertion.test.ts',
-    // './tests/typescript-eslint/rules/no-extraneous-class.test.ts',
+    './tests/typescript-eslint/rules/no-extraneous-class.test.ts',
     // './tests/typescript-eslint/rules/no-for-in-array.test.ts',
     // './tests/typescript-eslint/rules/no-import-type-side-effects.test.ts',
     // './tests/typescript-eslint/rules/no-inferrable-types.test.ts',
