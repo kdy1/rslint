@@ -81,15 +81,15 @@ func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, member
 			continue
 		}
 
-		if methodSig.Name == nil {
+		if methodSig.Name() == nil {
 			continue
 		}
 
 		var methodName string
-		if methodSig.Name.Kind == ast.KindIdentifier {
-			identifier := methodSig.Name.AsIdentifier()
+		if methodSig.Name().Kind == ast.KindIdentifier {
+			identifier := methodSig.Name().AsIdentifier()
 			if identifier != nil {
-				methodName = identifier.Text()
+				methodName = identifier.Text
 			}
 		}
 
@@ -135,15 +135,15 @@ func checkClassMembers(ctx rule.RuleContext, classNode *ast.Node) {
 			continue
 		}
 
-		if methodDecl.Name == nil {
+		if methodDecl.Name() == nil {
 			continue
 		}
 
 		var methodName string
-		if methodDecl.Name.Kind == ast.KindIdentifier {
-			identifier := methodDecl.Name.AsIdentifier()
+		if methodDecl.Name().Kind == ast.KindIdentifier {
+			identifier := methodDecl.Name().AsIdentifier()
 			if identifier != nil {
-				methodName = identifier.Text()
+				methodName = identifier.Text
 			}
 		}
 
@@ -161,8 +161,47 @@ func checkClassMembers(ctx rule.RuleContext, classNode *ast.Node) {
 
 // shouldReportConstructorInInterface checks if a constructor signature should be reported
 func shouldReportConstructorInInterface(ctx rule.RuleContext, constructSig *ast.ConstructSignatureDeclaration, interfaceName *ast.Node) bool {
-	// Constructor signatures in interfaces are always wrong
-	return true
+	// Construct signatures (new (): Type) are valid in interfaces
+	// We only report them if they return the same interface type
+
+	// If we don't have an interface name (type literal), we can't check the return type
+	if interfaceName == nil {
+		return false
+	}
+
+	var interfaceNameText string
+	if interfaceName.Kind == ast.KindIdentifier {
+		identifier := interfaceName.AsIdentifier()
+		if identifier != nil {
+			interfaceNameText = identifier.Text
+		}
+	}
+
+	if interfaceNameText == "" {
+		return false
+	}
+
+	// Check the return type
+	returnType := constructSig.Type
+	if returnType == nil {
+		return false
+	}
+
+	// Check if return type is a type reference to the interface itself
+	if returnType.Kind == ast.KindTypeReference {
+		typeRef := returnType.AsTypeReferenceNode()
+		if typeRef == nil {
+			return false
+		}
+
+		// Get the type name
+		typeName := getTypeReferenceName(typeRef)
+
+		// Check if it matches the interface name
+		return typeName == interfaceNameText
+	}
+
+	return false
 }
 
 // shouldReportNewInInterface checks if a 'new' method should be reported in an interface
@@ -176,7 +215,7 @@ func shouldReportNewInInterface(ctx rule.RuleContext, methodSig *ast.MethodSigna
 	if interfaceName.Kind == ast.KindIdentifier {
 		identifier := interfaceName.AsIdentifier()
 		if identifier != nil {
-			interfaceNameText = identifier.Text()
+			interfaceNameText = identifier.Text
 		}
 	}
 
@@ -246,10 +285,15 @@ func shouldReportNewInClass(ctx rule.RuleContext, methodDecl *ast.MethodDeclarat
 func getClassName(classNode *ast.Node) string {
 	var name *ast.Node
 
-	if classDecl := classNode.AsClassDeclaration(); classDecl != nil {
-		name = classDecl.Name
-	} else if classExpr := classNode.AsClassExpression(); classExpr != nil {
-		name = classExpr.Name
+	// Check the node kind first to avoid type assertion panics
+	if classNode.Kind == ast.KindClassDeclaration {
+		if classDecl := classNode.AsClassDeclaration(); classDecl != nil {
+			name = classDecl.Name()
+		}
+	} else if classNode.Kind == ast.KindClassExpression {
+		if classExpr := classNode.AsClassExpression(); classExpr != nil {
+			name = classExpr.Name()
+		}
 	}
 
 	if name == nil {
@@ -259,7 +303,7 @@ func getClassName(classNode *ast.Node) string {
 	if name.Kind == ast.KindIdentifier {
 		identifier := name.AsIdentifier()
 		if identifier != nil {
-			return identifier.Text()
+			return identifier.Text
 		}
 	}
 
@@ -277,7 +321,7 @@ func getTypeReferenceName(typeRef *ast.TypeReferenceNode) string {
 	if typeName.Kind == ast.KindIdentifier {
 		identifier := typeName.AsIdentifier()
 		if identifier != nil {
-			return identifier.Text()
+			return identifier.Text
 		}
 	}
 
@@ -288,7 +332,7 @@ func getTypeReferenceName(typeRef *ast.TypeReferenceNode) string {
 			if qualifiedName.Right.Kind == ast.KindIdentifier {
 				identifier := qualifiedName.Right.AsIdentifier()
 				if identifier != nil {
-					return identifier.Text()
+					return identifier.Text
 				}
 			}
 		}
