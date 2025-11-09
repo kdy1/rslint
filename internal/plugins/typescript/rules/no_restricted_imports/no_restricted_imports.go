@@ -179,7 +179,8 @@ func matchesPatterns(path string, patterns []string) bool {
 	// Then check negation patterns
 	for _, pattern := range patterns {
 		if strings.HasPrefix(pattern, "!") {
-			if matchesPattern(path, pattern) {
+			// Remove the ! prefix before matching
+			if matchesPattern(path, pattern[1:]) {
 				return false
 			}
 		}
