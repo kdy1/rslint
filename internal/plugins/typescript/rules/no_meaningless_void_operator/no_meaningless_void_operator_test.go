@@ -63,7 +63,7 @@ function bar(x: never) {
   void x;
 }
       `,
-			Options: NoMeaninglessVoidOperatorOptions{CheckNever: utils.Ref(true)},
+			Options: NoMeaninglessVoidOperatorOptions{CheckNever: true},
 			Errors: []rule_tester.InvalidTestCaseError{
 				{
 					MessageId: "meaninglessVoidOperator",
