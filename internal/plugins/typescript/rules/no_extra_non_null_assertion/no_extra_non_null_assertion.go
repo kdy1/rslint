@@ -3,7 +3,6 @@ package no_extra_non_null_assertion
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 func buildNoExtraNonNullAssertionMessage() rule.RuleMessage {
@@ -23,12 +22,12 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 				// Check for double non-null assertion: foo!!
 				if ast.IsNonNullExpression(expression) {
 					// Report the outer non-null assertion
-					expressionRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
+					// Use the actual node range without trimming to preserve exact text
 					ctx.ReportNodeWithFixes(
 						node,
 						buildNoExtraNonNullAssertionMessage(),
 						// Fix: replace the outer expression with the inner expression
-						rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expressionRange.Pos():expressionRange.End()]),
+						rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expression.Pos():expression.End()]),
 					)
 					return
 				}
@@ -69,12 +68,12 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 
 						if hasQuestionDot {
 							// Report the non-null assertion as unnecessary
-							expressionRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
+							// Use the actual node range without trimming to preserve exact text
 							ctx.ReportNodeWithFixes(
 								node,
 								buildNoExtraNonNullAssertionMessage(),
 								// Fix: remove the non-null assertion, keeping just the expression
-								rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expressionRange.Pos():expressionRange.End()]),
+								rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[expression.Pos():expression.End()]),
 							)
 						}
 					}
