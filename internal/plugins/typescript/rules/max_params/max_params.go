@@ -61,7 +61,7 @@ var MaxParamsRule = rule.CreateRule(rule.Rule{
 			if param.Kind != ast.KindParameter {
 				return false
 			}
-			p := param.AsParameter()
+			p := param.AsParameterDeclaration()
 			if p == nil || p.Name() == nil {
 				return false
 			}
@@ -147,7 +147,7 @@ var MaxParamsRule = rule.CreateRule(rule.Rule{
 					return sig.Parameters.Nodes
 				}
 			case ast.KindMethodSignature:
-				sig := node.AsMethodSignature()
+				sig := node.AsMethodSignatureDeclaration()
 				if sig != nil && sig.Parameters != nil {
 					return sig.Parameters.Nodes
 				}
