@@ -27,7 +27,8 @@
       "getWidenedType",
       "isTypeAssignableTo",
       "isTypeStrictSubtypeOf",
-      "isTypeIdenticalTo"
+      "isTypeIdenticalTo",
+      "getDefaultFromTypeParameter"
     ]
   },
   "ExtraFields": {

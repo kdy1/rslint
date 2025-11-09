@@ -35,13 +35,37 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 
 			// Find the first unnecessary type argument from the end
 			// We check from the end because trailing defaults can be omitted
-			//
-			// NOTE: This implementation is currently incomplete.
-			// TODO: Add proper default type parameter checking once shim supports accessing
-			// the TypeParameterDeclaration.Default field through an accessor function.
-			// For now, the rule is registered but doesn't report any errors.
 			unnecessaryIndex := -1
-			_ = typeParameters // Prevent unused variable warning
+
+			for i := len(typeArguments) - 1; i >= 0; i-- {
+				if i >= len(typeParameters) {
+					break
+				}
+
+				typeArg := typeArguments[i]
+				typeParam := typeParameters[i]
+
+				// Get the default type for this type parameter
+				defaultType := checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
+				if defaultType == nil {
+					// No default, so we can stop checking
+					break
+				}
+
+				// Get the type of the argument
+				argType := ctx.TypeChecker.GetTypeFromTypeNode(typeArg)
+				if argType == nil {
+					break
+				}
+
+				// Check if the argument type is identical to the default type
+				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+					unnecessaryIndex = i
+				} else {
+					// Not identical, so we can stop checking
+					break
+				}
+			}
 
 			if unnecessaryIndex >= 0 {
 				// Report the first unnecessary type argument
@@ -118,12 +142,16 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				checkTypeArguments(node, newExpr.TypeArguments.Nodes, getSignature)
 			},
 
-			// Note: TypeReference and ExpressionWithTypeArguments are commented out for now
-			// because they require handling type parameter defaults which needs more
-			// complex shim support. These can be added in a future enhancement.
+			// TODO: TypeReference and ExpressionWithTypeArguments need special handling
+			// These node types don't have signatures, so we need to extract type parameters
+			// from their declarations instead. This requires additional implementation.
 			//
-			// ast.KindTypeReference: func(node *ast.Node) { ... },
-			// ast.KindExpressionWithTypeArguments: func(node *ast.Node) { ... },
+			// Examples that need these handlers:
+			// - Type aliases: type B = A<number> where A has T = number
+			// - Class extends: class Foo extends Bar<number> where Bar has T = number
+			// - Interface implements: class Foo implements Bar<number> where Bar has T = number
+			//
+			// For now, these cases are not supported and will not trigger the rule.
 
 			ast.KindJsxOpeningElement: func(node *ast.Node) {
 				jsxOpening := node.AsJsxOpeningElement()
