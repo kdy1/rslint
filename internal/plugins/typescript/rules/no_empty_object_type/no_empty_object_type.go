@@ -216,9 +216,11 @@ var NoEmptyObjectTypeRule = rule.CreateRule(rule.Rule{
 					} else {
 						ctx.ReportNodeWithSuggestions(interfaceDecl.Name(), message,
 							rule.RuleSuggestion{
-								MessageId:   "replaceEmptyInterfaceWithSuper",
-								Description: "Replace empty interface with a type alias.",
-								Fix:         rule.RuleFixReplace(ctx.SourceFile, node, replacement),
+								Message: rule.RuleMessage{
+									Id:          "replaceEmptyInterfaceWithSuper",
+									Description: "Replace empty interface with a type alias.",
+								},
+								FixesArr: []rule.RuleFix{rule.RuleFixReplace(ctx.SourceFile, node, replacement)},
 							})
 					}
 					return
@@ -232,28 +234,23 @@ var NoEmptyObjectTypeRule = rule.CreateRule(rule.Rule{
 				message := rule.RuleMessage{
 					Id:          "noEmptyInterface",
 					Description: fmt.Sprintf("The %s type (empty interface type) allows any non-nullish value. If this is intentional, use `object` instead. Otherwise, use `unknown`.", "{}"),
-					Data: map[string]string{
-						"option": "allowInterfaces",
-					},
 				}
 
 				// Create suggestions for object and unknown
 				suggestions := []rule.RuleSuggestion{
 					{
-						MessageId:   "replaceEmptyInterface",
-						Description: fmt.Sprintf("Replace empty interface with %s.", "`object`"),
-						Data: map[string]string{
-							"replacement": "object",
+						Message: rule.RuleMessage{
+							Id:          "replaceEmptyInterface",
+							Description: fmt.Sprintf("Replace empty interface with %s.", "`object`"),
 						},
-						Fix: rule.RuleFixReplace(ctx.SourceFile, node, fmt.Sprintf("type %s = object", nameText)),
+						FixesArr: []rule.RuleFix{rule.RuleFixReplace(ctx.SourceFile, node, fmt.Sprintf("type %s = object", nameText))},
 					},
 					{
-						MessageId:   "replaceEmptyInterface",
-						Description: fmt.Sprintf("Replace empty interface with %s.", "`unknown`"),
-						Data: map[string]string{
-							"replacement": "unknown",
+						Message: rule.RuleMessage{
+							Id:          "replaceEmptyInterface",
+							Description: fmt.Sprintf("Replace empty interface with %s.", "`unknown`"),
 						},
-						Fix: rule.RuleFixReplace(ctx.SourceFile, node, fmt.Sprintf("type %s = unknown", nameText)),
+						FixesArr: []rule.RuleFix{rule.RuleFixReplace(ctx.SourceFile, node, fmt.Sprintf("type %s = unknown", nameText))},
 					},
 				}
 
@@ -292,27 +289,22 @@ var NoEmptyObjectTypeRule = rule.CreateRule(rule.Rule{
 				message := rule.RuleMessage{
 					Id:          "noEmptyObject",
 					Description: fmt.Sprintf("The %s type (empty object type) allows any non-nullish value. If this is intentional, use `object` instead. Otherwise, use `unknown`.", "{}"),
-					Data: map[string]string{
-						"option": "allowObjectTypes",
-					},
 				}
 
 				suggestions := []rule.RuleSuggestion{
 					{
-						MessageId:   "replaceEmptyObjectType",
-						Description: fmt.Sprintf("Replace %s with %s.", "{}", "`object`"),
-						Data: map[string]string{
-							"replacement": "object",
+						Message: rule.RuleMessage{
+							Id:          "replaceEmptyObjectType",
+							Description: fmt.Sprintf("Replace %s with %s.", "{}", "`object`"),
 						},
-						Fix: rule.RuleFixReplace(ctx.SourceFile, node, "object"),
+						FixesArr: []rule.RuleFix{rule.RuleFixReplace(ctx.SourceFile, node, "object")},
 					},
 					{
-						MessageId:   "replaceEmptyObjectType",
-						Description: fmt.Sprintf("Replace %s with %s.", "{}", "`unknown`"),
-						Data: map[string]string{
-							"replacement": "unknown",
+						Message: rule.RuleMessage{
+							Id:          "replaceEmptyObjectType",
+							Description: fmt.Sprintf("Replace %s with %s.", "{}", "`unknown`"),
 						},
-						Fix: rule.RuleFixReplace(ctx.SourceFile, node, "unknown"),
+						FixesArr: []rule.RuleFix{rule.RuleFixReplace(ctx.SourceFile, node, "unknown")},
 					},
 				}
 
