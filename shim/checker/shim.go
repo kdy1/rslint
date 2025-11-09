@@ -129,6 +129,8 @@ func Checker_getPropertyNameForKnownSymbolName(recv *checker.Checker, symbolName
 func Checker_isTypeAssignableTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
 //go:linkname Checker_isTypeStrictSubtypeOf github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeStrictSubtypeOf
 func Checker_isTypeStrictSubtypeOf(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
+//go:linkname Checker_isTypeIdenticalTo github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeIdenticalTo
+func Checker_isTypeIdenticalTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
 type extra_Checker struct {
   id uint32
   program checker.Program
@@ -853,6 +855,9 @@ func Signature_parameters(v *checker.Signature) []*ast.Symbol {
 }
 func Signature_declaration(v *checker.Signature) *ast.Node {
   return ((*extra_Signature)(unsafe.Pointer(v))).declaration
+}
+func Signature_typeParameters(v *checker.Signature) []*checker.Type {
+  return ((*extra_Signature)(unsafe.Pointer(v))).typeParameters
 }
 type SignatureCheckMode = checker.SignatureCheckMode
 const SignatureCheckModeBivariantCallback = checker.SignatureCheckModeBivariantCallback
