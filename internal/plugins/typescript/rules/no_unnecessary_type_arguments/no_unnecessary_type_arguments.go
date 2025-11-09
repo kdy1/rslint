@@ -4,6 +4,8 @@
 package no_unnecessary_type_arguments
 
 import (
+	"unsafe"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/core"
@@ -74,8 +76,18 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					break
 				}
 
-				// Get the default type using the checker API
+				// First try getting the default from the checker
 				defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
+
+				// If that didn't work, try getting it from the AST node
+				if defaultType == nil && ast.IsTypeParameterDeclaration(typeParamDecl) {
+					// Cast to TypeParameterDeclaration using unsafe pointer
+					tpDecl := (*ast.TypeParameterDeclaration)(unsafe.Pointer(typeParamDecl))
+					if tpDecl.DefaultType != nil {
+						defaultType = ctx.TypeChecker.GetTypeFromTypeNode(tpDecl.DefaultType)
+					}
+				}
+
 				if defaultType == nil {
 					// No default, so we can stop checking
 					break
@@ -88,7 +100,24 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Check if the argument type is identical to the default type
+				// We use multiple methods to check equality
+				isEqual := false
+
+				// Method 1: Direct type identity check
 				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+					isEqual = true
+				}
+
+				// Method 2: Compare type strings as fallback
+				if !isEqual {
+					argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil)
+					defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil)
+					if argTypeStr == defaultTypeStr {
+						isEqual = true
+					}
+				}
+
+				if isEqual {
 					unnecessaryIndex = i
 				} else {
 					// Not identical, so we can stop checking
@@ -287,49 +316,62 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				}
 			}
 
-			if len(typeParameters) > 0 {
+			// Also store the AST nodes for type parameters so we can check defaults correctly
+			var typeParameterNodes []*ast.Node
+			for _, decl := range sortedDecls {
+				// Check different kinds of declarations that can have type parameters
+				if ast.IsClassDeclaration(decl) {
+					classDecl := decl.AsClassDeclaration()
+					if classDecl.TypeParameters != nil && classDecl.TypeParameters.Nodes != nil {
+						typeParameterNodes = classDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsInterfaceDeclaration(decl) {
+					interfaceDecl := decl.AsInterfaceDeclaration()
+					if interfaceDecl.TypeParameters != nil && interfaceDecl.TypeParameters.Nodes != nil {
+						typeParameterNodes = interfaceDecl.TypeParameters.Nodes
+					}
+				} else if ast.IsTypeAliasDeclaration(decl) {
+					typeAliasDecl := decl.AsTypeAliasDeclaration()
+					if typeAliasDecl.TypeParameters != nil && typeAliasDecl.TypeParameters.Nodes != nil {
+						typeParameterNodes = typeAliasDecl.TypeParameters.Nodes
+					}
+				} else if decl.Kind == ast.KindConstructSignature {
+					constructSig := decl.AsConstructSignatureDeclaration()
+					if constructSig != nil && constructSig.TypeParameters != nil && constructSig.TypeParameters.Nodes != nil {
+						typeParameterNodes = constructSig.TypeParameters.Nodes
+					}
+				}
+
+				if len(typeParameterNodes) > 0 {
+					break
+				}
+			}
+
+			if len(typeParameters) > 0 && len(typeParameterNodes) > 0 {
 				// Since we can't create a signature easily, we'll check inline here
 				// This is similar to checkTypeArguments but adapted for type references
 				unnecessaryIndex := -1
 
 				for i := len(typeArguments) - 1; i >= 0; i-- {
-					if i >= len(typeParameters) {
+					if i >= len(typeParameters) || i >= len(typeParameterNodes) {
 						break
 					}
 
 					typeArg := typeArguments[i]
-					typeParam := typeParameters[i]
+					typeParamNode := typeParameterNodes[i]
 
-					// Get the default type for this type parameter
+					// Get the default type for this type parameter directly from the AST node
 					var defaultType *checker.Type
 
-					// Get the symbol from the type parameter
-					symbol := checker.Type_symbol(typeParam)
-					if symbol == nil {
-						break
-					}
-
-					// Get the declarations for this symbol
-					declarations := symbol.Declarations
-					if len(declarations) == 0 {
-						break
-					}
-
-					// Find the type parameter declaration
-					var typeParamDecl *ast.Node
-					for _, decl := range declarations {
-						if ast.IsTypeParameterDeclaration(decl) {
-							typeParamDecl = decl
-							break
+					if ast.IsTypeParameterDeclaration(typeParamNode) {
+						// Cast to TypeParameterDeclaration using unsafe pointer
+						tpDecl := (*ast.TypeParameterDeclaration)(unsafe.Pointer(typeParamNode))
+						if tpDecl.DefaultType != nil {
+							// Get the type from the default type node
+							defaultType = ctx.TypeChecker.GetTypeFromTypeNode(tpDecl.DefaultType)
 						}
 					}
 
-					if typeParamDecl == nil {
-						break
-					}
-
-					// Get the default type using the checker API
-					defaultType = checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
 					if defaultType == nil {
 						// No default, so we can stop checking
 						break
@@ -342,7 +384,24 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					}
 
 					// Check if the argument type is identical to the default type
+					// We use multiple methods to check equality
+					isEqual := false
+
+					// Method 1: Direct type identity check
 					if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+						isEqual = true
+					}
+
+					// Method 2: Compare type strings as fallback
+					if !isEqual {
+						argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil)
+						defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil)
+						if argTypeStr == defaultTypeStr {
+							isEqual = true
+						}
+					}
+
+					if isEqual {
 						unnecessaryIndex = i
 					} else {
 						// Not identical, so we can stop checking

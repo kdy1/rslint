@@ -129,6 +129,8 @@ func Checker_getAccessedPropertyName(recv *checker.Checker, access *ast.Node) (s
 func Checker_getPropertyNameForKnownSymbolName(recv *checker.Checker, symbolName string) string
 //go:linkname Checker_isTypeIdenticalTo github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeIdenticalTo
 func Checker_isTypeIdenticalTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
+//go:linkname Checker_typeToString github.com/microsoft/typescript-go/internal/checker.(*Checker).typeToString
+func Checker_typeToString(recv *checker.Checker, t *checker.Type, enclosingDeclaration *ast.Node) string
 //go:linkname Checker_isTypeAssignableTo github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeAssignableTo
 func Checker_isTypeAssignableTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
 //go:linkname Checker_isTypeStrictSubtypeOf github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeStrictSubtypeOf
