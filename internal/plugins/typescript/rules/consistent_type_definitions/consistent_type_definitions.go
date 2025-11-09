@@ -116,22 +116,21 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node, typeAlias *ast
 	}
 
 	// Build the interface declaration
-	var parts []string
+	var result string
 	if len(modifiers) > 0 {
-		parts = append(parts, strings.Join(modifiers, " "))
+		result = strings.Join(modifiers, " ") + " "
 	}
-	parts = append(parts, "interface")
+	result += "interface "
 
 	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
 	namePath := sourceText[nameRange.Pos():nameRange.End()]
-	parts = append(parts, namePath)
+	result += namePath
 
 	if typeParamsText != "" {
-		parts = append(parts, typeParamsText)
+		result += typeParamsText
 	}
 
-	// Join and add body - remove the trailing semicolon if present
-	result := strings.Join(parts, " ") + " " + bodyText
+	result += " " + bodyText
 
 	return rule.RuleFixReplace(ctx.SourceFile, node, result)
 }
@@ -162,19 +161,45 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 			typeParamsText = sourceText[typeParamsRange.Pos():typeParamsRange.End()]
 		}
 
-		// Get the body
+		// Get the body - find the opening brace and closing brace
 		var bodyText string
-		if interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) > 0 {
-			firstMember := interfaceDecl.Members.Nodes[0]
-			lastMember := interfaceDecl.Members.Nodes[len(interfaceDecl.Members.Nodes)-1]
-			firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstMember)
-			lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastMember)
-			bodyRange := firstRange.WithEnd(lastRange.End())
-			// Include the braces
-			bodyRange = bodyRange.WithPos(bodyRange.Pos() - 1).WithEnd(bodyRange.End() + 1)
-			bodyText = sourceText[bodyRange.Pos():bodyRange.End()]
+		nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
+
+		// Find opening brace after the name (and type parameters if any)
+		searchStart := nameRange.End()
+		if typeParamsText != "" {
+			searchStart += len(typeParamsText)
+		}
+
+		// Search for the opening brace
+		openBracePos := -1
+		for i := searchStart; i < len(sourceText); i++ {
+			if sourceText[i] == '{' {
+				openBracePos = i
+				break
+			}
+		}
+
+		// Find the matching closing brace
+		closeBracePos := -1
+		if openBracePos >= 0 {
+			braceCount := 1
+			for i := openBracePos + 1; i < len(sourceText); i++ {
+				if sourceText[i] == '{' {
+					braceCount++
+				} else if sourceText[i] == '}' {
+					braceCount--
+					if braceCount == 0 {
+						closeBracePos = i
+						break
+					}
+				}
+			}
+		}
+
+		if openBracePos >= 0 && closeBracePos >= 0 {
+			bodyText = sourceText[openBracePos : closeBracePos+1]
 		} else {
-			// Empty interface body
 			bodyText = "{}"
 		}
 
@@ -197,19 +222,45 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 		typeParamsText = sourceText[typeParamsRange.Pos():typeParamsRange.End()]
 	}
 
-	// Get the body text
+	// Get the body text - find the opening brace and closing brace
 	var bodyText string
-	if interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) > 0 {
-		firstMember := interfaceDecl.Members.Nodes[0]
-		lastMember := interfaceDecl.Members.Nodes[len(interfaceDecl.Members.Nodes)-1]
-		firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstMember)
-		lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastMember)
-		bodyRange := firstRange.WithEnd(lastRange.End())
-		// Include the braces
-		bodyRange = bodyRange.WithPos(bodyRange.Pos() - 1).WithEnd(bodyRange.End() + 1)
-		bodyText = sourceText[bodyRange.Pos():bodyRange.End()]
+	nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
+
+	// Find opening brace after the name (and type parameters if any)
+	searchStart := nameRange.End()
+	if typeParamsText != "" {
+		searchStart += len(typeParamsText)
+	}
+
+	// Search for the opening brace
+	openBracePos := -1
+	for i := searchStart; i < len(sourceText); i++ {
+		if sourceText[i] == '{' {
+			openBracePos = i
+			break
+		}
+	}
+
+	// Find the matching closing brace
+	closeBracePos := -1
+	if openBracePos >= 0 {
+		braceCount := 1
+		for i := openBracePos + 1; i < len(sourceText); i++ {
+			if sourceText[i] == '{' {
+				braceCount++
+			} else if sourceText[i] == '}' {
+				braceCount--
+				if braceCount == 0 {
+					closeBracePos = i
+					break
+				}
+			}
+		}
+	}
+
+	if openBracePos >= 0 && closeBracePos >= 0 {
+		bodyText = sourceText[openBracePos : closeBracePos+1]
 	} else {
-		// Empty interface body
 		bodyText = "{}"
 	}
 
@@ -355,6 +406,18 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		return false
 	}
 
+	// Helper to check if interface is inside any namespace
+	isInNamespace := func(node *ast.Node) bool {
+		current := node.Parent
+		for current != nil {
+			if current.Kind == ast.KindModuleDeclaration {
+				return true
+			}
+			current = current.Parent
+		}
+		return false
+	}
+
 	checkTypeAlias := func(node *ast.Node) {
 		if opts.Style != DefinitionStyleInterface {
 			return
@@ -390,7 +453,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 
 		// Check if we can provide an auto-fix
-		canFix := !isInGlobalModule(node) && !isInDeclareGlobal(node) && !isDefaultExport(node)
+		// Do not fix if:
+		// - Interface is in a namespace (module declaration)
+		// - Interface is a default export
+		canFix := !isInNamespace(node) && !isDefaultExport(node)
 
 		if canFix {
 			// Generate auto-fix: convert interface to type
