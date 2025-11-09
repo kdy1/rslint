@@ -46,7 +46,9 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				typeParam := typeParameters[i]
 
 				// Skip if this is not actually a type parameter (e.g., it could be an intrinsic type)
-				if !utils.IsTypeParameter(typeParam) {
+				// We need to check this to avoid panics in getDefaultFromTypeParameter which internally
+				// calls AsTypeParameter() and will panic if the type is not a TypeParameter.
+				if !utils.IsTypeParameter(typeParam) || utils.IsIntrinsicType(typeParam) {
 					break
 				}
 
