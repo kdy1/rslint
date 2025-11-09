@@ -232,25 +232,45 @@ func symbolsAreEqual(ctx rule.RuleContext, accessed *ast.Symbol, inScope *ast.Sy
 	return false
 }
 
+// isPartOfLargerQualifiedNameOrPropertyAccess checks if this node is part of a larger qualified name chain
+// For example, in "A.B.C", the node "A.B" is part of a larger chain
+func isPartOfLargerQualifiedNameOrPropertyAccess(node *ast.Node) bool {
+	if node == nil || node.Parent == nil {
+		return false
+	}
+
+	parent := node.Parent
+
+	// Check if parent is a QualifiedName and this node is its left side
+	if ast.IsQualifiedName(parent) {
+		qn := parent.AsQualifiedName()
+		if qn != nil && qn.Left == node {
+			return true
+		}
+	}
+
+	// Check if parent is a PropertyAccessExpression and this node is its expression
+	if ast.IsPropertyAccessExpression(parent) {
+		pa := parent.AsPropertyAccessExpression()
+		if pa != nil && pa.Expression == node {
+			return true
+		}
+	}
+
+	return false
+}
+
 var NoUnnecessaryQualifierRule = rule.CreateRule(rule.Rule{
 	Name: "no-unnecessary-qualifier",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		var currentFailedNode *ast.Node
-
 		checkNode := func(node *ast.Node, qualifier *ast.Node) {
-			// Don't check if this is a nested part of a node we already reported
-			if currentFailedNode != nil {
-				current := node
-				for current != nil {
-					if current == currentFailedNode {
-						return
-					}
-					current = current.Parent
-				}
+			// Skip if this node is part of a larger qualified name/property access chain
+			// We only want to check the outermost/complete qualified name
+			if isPartOfLargerQualifiedNameOrPropertyAccess(node) {
+				return
 			}
 
 			if checkIfQualifierIsUnnecessary(ctx, node, qualifier) {
-				currentFailedNode = node
 				replacement := getRightmostName(ctx, node)
 				if replacement == "" {
 					ctx.ReportNode(node, buildUnnecessaryQualifierMessage())
