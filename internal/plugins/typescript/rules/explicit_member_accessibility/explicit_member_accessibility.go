@@ -151,37 +151,37 @@ func hasPublicModifier(node *ast.Node) bool {
 }
 
 // Get modifiers from a node
-func getModifiers(node *ast.Node) *ast.NodeArray {
+func getModifiers(node *ast.Node) *ast.ModifierList {
 	switch node.Kind {
 	case ast.KindPropertyDeclaration:
 		prop := node.AsPropertyDeclaration()
 		if prop != nil {
-			return prop.Modifiers
+			return prop.Modifiers()
 		}
 	case ast.KindMethodDeclaration:
 		method := node.AsMethodDeclaration()
 		if method != nil {
-			return method.Modifiers
+			return method.Modifiers()
 		}
 	case ast.KindConstructor:
 		constructor := node.AsConstructorDeclaration()
 		if constructor != nil {
-			return constructor.Modifiers
+			return constructor.Modifiers()
 		}
 	case ast.KindGetAccessor:
 		accessor := node.AsGetAccessorDeclaration()
 		if accessor != nil {
-			return accessor.Modifiers
+			return accessor.Modifiers()
 		}
 	case ast.KindSetAccessor:
 		accessor := node.AsSetAccessorDeclaration()
 		if accessor != nil {
-			return accessor.Modifiers
+			return accessor.Modifiers()
 		}
 	case ast.KindParameter:
 		param := node.AsParameterDeclaration()
 		if param != nil {
-			return param.Modifiers
+			return param.Modifiers()
 		}
 	}
 	return nil
@@ -194,12 +194,12 @@ func isParameterProperty(node *ast.Node) bool {
 	}
 
 	param := node.AsParameterDeclaration()
-	if param == nil || param.Modifiers == nil {
+	if param == nil || param.Modifiers() == nil {
 		return false
 	}
 
 	// Parameter properties have public, private, protected, or readonly modifiers
-	for _, mod := range param.Modifiers.Nodes {
+	for _, mod := range param.Modifiers().Nodes {
 		if mod.Kind == ast.KindPublicKeyword ||
 		   mod.Kind == ast.KindPrivateKeyword ||
 		   mod.Kind == ast.KindProtectedKeyword ||
