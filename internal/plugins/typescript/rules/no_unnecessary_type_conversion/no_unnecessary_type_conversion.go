@@ -81,7 +81,7 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 				return false
 			}
 			identifier := callExpr.Expression.AsIdentifier()
-			if identifier.Text() != name {
+			if identifier.Text != name {
 				return false
 			}
 
@@ -93,7 +93,7 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 
 			// Global functions don't have a parent (or their parent is the global scope)
 			// Check if there's a value declaration
-			valueDeclaration := symbol.ValueDeclaration()
+			valueDeclaration := symbol.ValueDeclaration
 			if valueDeclaration != nil {
 				// If there's a local declaration, it's not the global function
 				return false
@@ -105,11 +105,11 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 		// Check String() conversions
 		checkStringConversion := func(node *ast.Node) {
 			callExpr := node.AsCallExpression()
-			if len(callExpr.Arguments) != 1 {
+			if len(callExpr.Arguments.Nodes) != 1 {
 				return
 			}
 
-			arg := callExpr.Arguments[0]
+			arg := callExpr.Arguments.Nodes[0]
 			argType := ctx.TypeChecker.GetTypeAtLocation(arg)
 
 			// If the argument is already a string (not a boxed String), it's unnecessary
@@ -121,11 +121,11 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 		// Check Number() conversions
 		checkNumberConversion := func(node *ast.Node) {
 			callExpr := node.AsCallExpression()
-			if len(callExpr.Arguments) != 1 {
+			if len(callExpr.Arguments.Nodes) != 1 {
 				return
 			}
 
-			arg := callExpr.Arguments[0]
+			arg := callExpr.Arguments.Nodes[0]
 			argType := ctx.TypeChecker.GetTypeAtLocation(arg)
 
 			// If the argument is already a number (not a boxed Number), it's unnecessary
@@ -137,11 +137,11 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 		// Check Boolean() conversions
 		checkBooleanConversion := func(node *ast.Node) {
 			callExpr := node.AsCallExpression()
-			if len(callExpr.Arguments) != 1 {
+			if len(callExpr.Arguments.Nodes) != 1 {
 				return
 			}
 
-			arg := callExpr.Arguments[0]
+			arg := callExpr.Arguments.Nodes[0]
 			argType := ctx.TypeChecker.GetTypeAtLocation(arg)
 
 			// If the argument is already a boolean (not a boxed Boolean), it's unnecessary
@@ -153,11 +153,11 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 		// Check BigInt() conversions
 		checkBigIntConversion := func(node *ast.Node) {
 			callExpr := node.AsCallExpression()
-			if len(callExpr.Arguments) != 1 {
+			if len(callExpr.Arguments.Nodes) != 1 {
 				return
 			}
 
-			arg := callExpr.Arguments[0]
+			arg := callExpr.Arguments.Nodes[0]
 			argType := ctx.TypeChecker.GetTypeAtLocation(arg)
 
 			// If the argument is already a bigint, it's unnecessary
@@ -179,7 +179,7 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 			}
 
 			name := propAccess.Name.AsIdentifier()
-			if name.Text() != "toString" {
+			if name.Text != "toString" {
 				return
 			}
 
