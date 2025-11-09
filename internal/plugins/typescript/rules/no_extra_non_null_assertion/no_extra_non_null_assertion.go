@@ -28,8 +28,11 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 					innerRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
 					expressionText := ctx.SourceFile.Text()[innerRange.Pos():innerRange.End()]
 
-					ctx.ReportNodeWithFixes(
-						node,
+					// Create error range that includes the full expression including both ! characters
+					errorRange := outerRange.WithEnd(node.End())
+
+					ctx.ReportRangeWithFixes(
+						errorRange,
 						buildNoExtraNonNullAssertionMessage(),
 						// Fix: replace the outer expression with the inner expression
 						rule.RuleFixReplaceRange(outerRange, expressionText),
@@ -78,8 +81,11 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 							innerRange := utils.TrimNodeTextRange(ctx.SourceFile, expression)
 							expressionText := ctx.SourceFile.Text()[innerRange.Pos():innerRange.End()]
 
-							ctx.ReportNodeWithFixes(
-								node,
+							// Create error range that includes the full expression including the ! character
+							errorRange := outerRange.WithEnd(node.End())
+
+							ctx.ReportRangeWithFixes(
+								errorRange,
 								buildNoExtraNonNullAssertionMessage(),
 								// Fix: remove the non-null assertion, keeping just the expression
 								rule.RuleFixReplaceRange(outerRange, expressionText),
