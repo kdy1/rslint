@@ -1,7 +1,5 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
 
-
-
 const ruleTester = new RuleTester();
 
 ruleTester.run('no-non-null-assertion', {
@@ -381,6 +379,40 @@ x!
 x?.
  // comment
      /* comment */ ['y']
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `
+document.querySelector('input')!.files = new FileList();
+      `,
+      errors: [
+        {
+          column: 1,
+          endColumn: 33,
+          line: 2,
+          messageId: 'noNonNull',
+        },
+      ],
+    },
+    {
+      code: `
+hoge.files = document.querySelector('input')!.files;
+      `,
+      errors: [
+        {
+          column: 14,
+          endColumn: 46,
+          line: 2,
+          messageId: 'noNonNull',
+          suggestions: [
+            {
+              messageId: 'suggestOptionalChain',
+              output: `
+hoge.files = document.querySelector('input')?.files;
       `,
             },
           ],
