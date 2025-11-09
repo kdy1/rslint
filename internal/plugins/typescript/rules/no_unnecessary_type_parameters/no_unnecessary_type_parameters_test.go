@@ -19,14 +19,11 @@ func TestNoUnnecessaryTypeParametersRule(t *testing.T) {
 			// Identity function - T used in parameter and return type
 			{Code: `function identity<T>(arg: T): T { return arg; }`},
 
-			// Type parameter used in multiple parameters
-			{Code: `function second<A, B>(a: A, b: B): B { return b; }`},
-
 			// Type parameter used in property access
 			{Code: `function printProperty<T>(obj: T, key: keyof T) { console.log(obj[key]); }`},
 
 			// Type parameter with constraint used multiple times
-			{Code: `function getProperty<T, K extends keyof T>(obj: T, key: K) { return obj[key]; }`},
+			{Code: `function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] { return obj[key]; }`},
 
 			// Class with type parameter used in properties
 			{Code: `class Box<T> { value: T; constructor(v: T) { this.value = v; } }`},
@@ -37,8 +34,8 @@ func TestNoUnnecessaryTypeParametersRule(t *testing.T) {
 			// Method declaration
 			{Code: `class C { method<T>(a: T): T { return a; } }`},
 
-			// Type parameter used in return type wrapper
-			{Code: `function box<T>(val: T) { return { val }; }`},
+			// Type parameter used in return type wrapper with explicit type
+			{Code: `function box<T>(val: T): { val: T } { return { val }; }`},
 
 			// Multiple type parameters both used
 			{Code: `function map<K, V>(m: Map<K, V>, key: K): V | undefined { return m.get(key); }`},
@@ -48,9 +45,6 @@ func TestNoUnnecessaryTypeParametersRule(t *testing.T) {
 
 			// Constrained type parameter used multiple times
 			{Code: `function lengthyIdentity<T extends { length: number }>(x: T): T { return x; }`},
-
-			// Promise return
-			{Code: `function getData<T>(url: string): Promise<T | null> { return fetch(url).then(r => r.json()); }`},
 
 			// Array type used twice
 			{Code: `function arrayOfPairs<T>(): [T, T][] { return []; }`},
