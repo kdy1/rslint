@@ -51,167 +51,185 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		return rule.RuleListeners{
-			ast.KindClassDeclaration: func(node *ast.Node) {
-				classDecl := node.AsClassDeclaration()
-				if classDecl == nil {
-					return
+		checkClass := func(node *ast.Node) {
+			// Try to get class as declaration or expression
+			var classLike *ast.ClassDeclaration
+			if node.Kind == ast.KindClassDeclaration {
+				classLike = node.AsClassDeclaration()
+			} else if node.Kind == ast.KindClassExpression {
+				expr := node.AsClassExpression()
+				if expr != nil {
+					// ClassExpression embeds ClassDeclaration
+					classLike = (*ast.ClassDeclaration)(expr)
 				}
+			}
 
-				// Get the node to report on (prefer name, fallback to class node)
-				reportNode := classDecl.Name()
-				if reportNode == nil {
-					reportNode = node
-				}
+			if classLike == nil {
+				return
+			}
 
-				// Check for decorators
-				hasDecorators := false
-				if classDecl.Modifiers() != nil {
-					for _, modifier := range classDecl.Modifiers().Nodes {
-						if modifier.Kind == ast.KindDecorator {
-							hasDecorators = true
-							break
-						}
+			classDecl := classLike
+
+			// Get the node to report on (prefer name, fallback to class node)
+			reportNode := classDecl.Name()
+			if reportNode == nil {
+				reportNode = node
+			}
+
+			// Check for decorators
+			hasDecorators := false
+			if classDecl.Modifiers() != nil {
+				for _, modifier := range classDecl.Modifiers().Nodes {
+					if modifier.Kind == ast.KindDecorator {
+						hasDecorators = true
+						break
 					}
 				}
+			}
 
-				if hasDecorators && opts.AllowWithDecorator {
-					return
-				}
+			if hasDecorators && opts.AllowWithDecorator {
+				return
+			}
 
-				// Check class members
-				hasNonStaticMember := false
-				hasConstructor := false
-				hasStaticMember := false
-				isEmpty := true
+			// Check class members
+			hasNonStaticMember := false
+			hasConstructor := false
+			hasStaticMember := false
+			isEmpty := true
 
-				if classDecl.Members != nil {
-					isEmpty = len(classDecl.Members.Nodes) == 0
+			if classDecl.Members != nil {
+				isEmpty = len(classDecl.Members.Nodes) == 0
 
-					for _, member := range classDecl.Members.Nodes {
-						// Check if it's a constructor
-						if member.Kind == ast.KindConstructor {
-							hasConstructor = true
-							isEmpty = false
+				for _, member := range classDecl.Members.Nodes {
+					// Check if it's a constructor
+					if member.Kind == ast.KindConstructor {
+						hasConstructor = true
+						isEmpty = false
 
-							// Check if constructor has parameter properties (public, private, protected params)
-							// These act as class members
-							constructor := member.AsConstructorDeclaration()
-							if constructor != nil && constructor.Parameters != nil {
-								for _, param := range constructor.Parameters.Nodes {
-									if param.Kind == ast.KindParameter {
-										paramDecl := param.AsParameterDeclaration()
-										if paramDecl != nil && paramDecl.Modifiers() != nil {
-											for _, mod := range paramDecl.Modifiers().Nodes {
-												if mod.Kind == ast.KindPublicKeyword ||
-													mod.Kind == ast.KindPrivateKeyword ||
-													mod.Kind == ast.KindProtectedKeyword ||
-													mod.Kind == ast.KindReadonlyKeyword {
-													// This is a parameter property, counts as a non-static member
-													hasNonStaticMember = true
-													break
-												}
+						// Check if constructor has parameter properties (public, private, protected params)
+						// These act as class members
+						constructor := member.AsConstructorDeclaration()
+						if constructor != nil && constructor.Parameters != nil {
+							for _, param := range constructor.Parameters.Nodes {
+								if param.Kind == ast.KindParameter {
+									paramDecl := param.AsParameterDeclaration()
+									if paramDecl != nil && paramDecl.Modifiers() != nil {
+										for _, mod := range paramDecl.Modifiers().Nodes {
+											if mod.Kind == ast.KindPublicKeyword ||
+												mod.Kind == ast.KindPrivateKeyword ||
+												mod.Kind == ast.KindProtectedKeyword ||
+												mod.Kind == ast.KindReadonlyKeyword {
+												// This is a parameter property, counts as a non-static member
+												hasNonStaticMember = true
+												break
 											}
 										}
 									}
 								}
 							}
-							continue
 						}
+						continue
+					}
 
-						// Check for static members (properties, methods, and accessors)
-						isStatic := false
-						isAbstractMember := false
+					// Check for static members (properties, methods, and accessors)
+					isStatic := false
+					isAbstractMember := false
 
-						// Helper to check modifiers
-						checkModifiers := func(modifiers *ast.ModifierList) {
-							if modifiers != nil {
-								for _, mod := range modifiers.Nodes {
-									if mod.Kind == ast.KindStaticKeyword {
-										isStatic = true
-									}
-									if mod.Kind == ast.KindAbstractKeyword {
-										isAbstractMember = true
-									}
+					// Helper to check modifiers
+					checkModifiers := func(modifiers *ast.ModifierList) {
+						if modifiers != nil {
+							for _, mod := range modifiers.Nodes {
+								if mod.Kind == ast.KindStaticKeyword {
+									isStatic = true
+								}
+								if mod.Kind == ast.KindAbstractKeyword {
+									isAbstractMember = true
 								}
 							}
 						}
+					}
 
-						switch member.Kind {
-						case ast.KindPropertyDeclaration:
-							prop := member.AsPropertyDeclaration()
-							if prop != nil {
-								checkModifiers(prop.Modifiers())
-							}
-						case ast.KindMethodDeclaration:
-							method := member.AsMethodDeclaration()
-							if method != nil {
-								checkModifiers(method.Modifiers())
-							}
-						case ast.KindGetAccessor:
-							getter := member.AsGetAccessorDeclaration()
-							if getter != nil {
-								checkModifiers(getter.Modifiers())
-							}
-						case ast.KindSetAccessor:
-							setter := member.AsSetAccessorDeclaration()
-							if setter != nil {
-								checkModifiers(setter.Modifiers())
-							}
-						default:
-							// For any other member types, treat as non-static
-							hasNonStaticMember = true
-							isEmpty = false
-							continue
+					switch member.Kind {
+					case ast.KindPropertyDeclaration:
+						prop := member.AsPropertyDeclaration()
+						if prop != nil {
+							checkModifiers(prop.Modifiers())
 						}
-
-						// Abstract members (non-static) make the class valid
-						if isAbstractMember && !isStatic {
-							hasNonStaticMember = true
-							isEmpty = false
-						} else if isStatic {
-							hasStaticMember = true
-							isEmpty = false
-						} else {
-							hasNonStaticMember = true
-							isEmpty = false
+					case ast.KindMethodDeclaration:
+						method := member.AsMethodDeclaration()
+						if method != nil {
+							checkModifiers(method.Modifiers())
 						}
+					case ast.KindGetAccessor:
+						getter := member.AsGetAccessorDeclaration()
+						if getter != nil {
+							checkModifiers(getter.Modifiers())
+						}
+					case ast.KindSetAccessor:
+						setter := member.AsSetAccessorDeclaration()
+						if setter != nil {
+							checkModifiers(setter.Modifiers())
+						}
+					default:
+						// For any other member types, treat as non-static
+						hasNonStaticMember = true
+						isEmpty = false
+						continue
 					}
-				}
 
-				// Report empty class
-				if isEmpty {
-					if !opts.AllowEmpty {
-						ctx.ReportNode(reportNode, rule.RuleMessage{
-							Id:          "empty",
-							Description: "Unexpected empty class.",
-						})
+					// Abstract members (non-static) make the class valid
+					if isAbstractMember && !isStatic {
+						hasNonStaticMember = true
+						isEmpty = false
+					} else if isStatic {
+						hasStaticMember = true
+						isEmpty = false
+					} else {
+						hasNonStaticMember = true
+						isEmpty = false
 					}
-					return
 				}
+			}
 
-				// Report constructor-only class
-				if hasConstructor && !hasNonStaticMember && !hasStaticMember {
-					if !opts.AllowConstructorOnly {
-						ctx.ReportNode(reportNode, rule.RuleMessage{
-							Id:          "onlyConstructor",
-							Description: "Unexpected class with only a constructor.",
-						})
-					}
-					return
+			// Report empty class
+			if isEmpty {
+				if !opts.AllowEmpty {
+					ctx.ReportNode(reportNode, rule.RuleMessage{
+						Id:          "empty",
+						Description: "Unexpected empty class.",
+					})
 				}
+				return
+			}
 
-				// Report static-only class
-				if hasStaticMember && !hasNonStaticMember && !hasConstructor {
-					if !opts.AllowStaticOnly {
-						ctx.ReportNode(reportNode, rule.RuleMessage{
-							Id:          "onlyStatic",
-							Description: "Unexpected class with only static properties.",
-						})
-					}
-					return
+			// Report constructor-only class
+			if hasConstructor && !hasNonStaticMember && !hasStaticMember {
+				if !opts.AllowConstructorOnly {
+					ctx.ReportNode(reportNode, rule.RuleMessage{
+						Id:          "onlyConstructor",
+						Description: "Unexpected class with only a constructor.",
+					})
 				}
-			},
+				return
+			}
+
+			// Report static-only class
+			// A class is static-only if it has static members but no non-static members
+			// (constructor without parameter properties doesn't count as non-static)
+			if hasStaticMember && !hasNonStaticMember {
+				if !opts.AllowStaticOnly {
+					ctx.ReportNode(reportNode, rule.RuleMessage{
+						Id:          "onlyStatic",
+						Description: "Unexpected class with only static properties.",
+					})
+				}
+				return
+			}
+		}
+
+		return rule.RuleListeners{
+			ast.KindClassDeclaration: checkClass,
+			ast.KindClassExpression:  checkClass,
 		}
 	},
 })
