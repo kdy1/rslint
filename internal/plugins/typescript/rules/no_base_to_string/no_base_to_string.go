@@ -271,8 +271,20 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 				return usefulnessAlways
 			}
 
+			// Check if type name is in ignored list
 			if slices.Contains(opts.IgnoredTypeNames, utils.GetTypeName(ctx.TypeChecker, t)) {
 				return usefulnessAlways
+			}
+
+			// Check if the type alias symbol name is in ignored list
+			// This allows type aliases like "type Foo = { a: string } | { b: string }"
+			// to be properly ignored when "Foo" is in ignoredTypeNames
+			alias := checker.Type_alias(t)
+			if alias != nil {
+				symbol := alias.Symbol()
+				if symbol != nil && slices.Contains(opts.IgnoredTypeNames, symbol.Name) {
+					return usefulnessAlways
+				}
 			}
 
 			if utils.IsIntersectionType(t) {
