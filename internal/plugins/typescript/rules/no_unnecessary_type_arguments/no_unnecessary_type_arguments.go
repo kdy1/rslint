@@ -88,7 +88,24 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Check if the argument type is identical to the default type
+				// We use multiple methods to check equality
+				isEqual := false
+
+				// Method 1: Direct type identity check
 				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+					isEqual = true
+				}
+
+				// Method 2: Compare type strings as fallback
+				if !isEqual {
+					argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil, 0)
+					defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil, 0)
+					if argTypeStr == defaultTypeStr {
+						isEqual = true
+					}
+				}
+
+				if isEqual {
 					unnecessaryIndex = i
 				} else {
 					// Not identical, so we can stop checking
@@ -143,7 +160,7 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
-		checkTypeReference := func(node *ast.Node, typeArguments []*ast.Node, typeNode *ast.Node) {
+		checkTypeReference := func(node *ast.Node, typeArguments []*ast.Node, typeNode *ast.Node, isValueContext bool) {
 			if typeArguments == nil || len(typeArguments) == 0 {
 				return
 			}
@@ -166,9 +183,29 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
+			// Sort declarations based on context
+			// For value contexts (extends/implements in classes), prioritize class/interface declarations
+			// For type contexts (type references), prioritize type declarations
+			sortedDecls := make([]*ast.Node, len(declarations))
+			copy(sortedDecls, declarations)
+
+			if !isValueContext {
+				// For type references, we want type-context declarations first
+				// This means interfaces, type aliases before classes
+				for i := 0; i < len(sortedDecls); i++ {
+					for j := i + 1; j < len(sortedDecls); j++ {
+						iIsType := ast.IsInterfaceDeclaration(sortedDecls[i]) || ast.IsTypeAliasDeclaration(sortedDecls[i])
+						jIsType := ast.IsInterfaceDeclaration(sortedDecls[j]) || ast.IsTypeAliasDeclaration(sortedDecls[j])
+						if !iIsType && jIsType {
+							sortedDecls[i], sortedDecls[j] = sortedDecls[j], sortedDecls[i]
+						}
+					}
+				}
+			}
+
 			// Find a declaration that has type parameters
 			var typeParameters []*checker.Type
-			for _, decl := range declarations {
+			for _, decl := range sortedDecls {
 				var typeParametersNodes []*ast.Node
 
 				// Check different kinds of declarations that can have type parameters
@@ -266,7 +303,24 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					}
 
 					// Check if the argument type is identical to the default type
+					// We use multiple methods to check equality
+					isEqual := false
+
+					// Method 1: Direct type identity check
 					if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+						isEqual = true
+					}
+
+					// Method 2: Compare type strings as fallback
+					if !isEqual {
+						argTypeStr := checker.Checker_typeToString(ctx.TypeChecker, argType, nil, 0)
+						defaultTypeStr := checker.Checker_typeToString(ctx.TypeChecker, defaultType, nil, 0)
+						if argTypeStr == defaultTypeStr {
+							isEqual = true
+						}
+					}
+
+					if isEqual {
 						unnecessaryIndex = i
 					} else {
 						// Not identical, so we can stop checking
@@ -356,7 +410,7 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkTypeReference(node, typeRef.TypeArguments.Nodes, typeRef.TypeName)
+				checkTypeReference(node, typeRef.TypeArguments.Nodes, typeRef.TypeName, false)
 			},
 
 			ast.KindExpressionWithTypeArguments: func(node *ast.Node) {
@@ -365,7 +419,16 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkTypeReference(node, exprWithTypeArgs.TypeArguments.Nodes, exprWithTypeArgs.Expression)
+				// Determine if this is in a value context (extends/implements)
+				// In a value context (class extends/implements), prioritize value declarations
+				isValueContext := false
+				if node.Parent != nil {
+					if node.Parent.Kind == ast.KindHeritageClause {
+						isValueContext = true
+					}
+				}
+
+				checkTypeReference(node, exprWithTypeArgs.TypeArguments.Nodes, exprWithTypeArgs.Expression, isValueContext)
 			},
 
 			ast.KindJsxOpeningElement: func(node *ast.Node) {
