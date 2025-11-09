@@ -114,6 +114,138 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 			}
 		}
 
+		checkTypeReference := func(node *ast.Node, typeArguments []*ast.Node, typeNode *ast.Node) {
+			if typeArguments == nil || len(typeArguments) == 0 {
+				return
+			}
+
+			// Get the type of the reference
+			typeOfRef := ctx.TypeChecker.GetTypeAtLocation(typeNode)
+			if typeOfRef == nil {
+				return
+			}
+
+			// Get the symbol of the type
+			symbol := checker.Type_getSymbol(typeOfRef)
+			if symbol == nil {
+				return
+			}
+
+			// Get declarations of the symbol
+			declarations := checker.Symbol_getDeclarations(symbol)
+			if declarations == nil || len(declarations) == 0 {
+				return
+			}
+
+			// Find type parameters from the declaration
+			var typeParameters []*checker.Type
+			for _, decl := range declarations {
+				var params []*ast.Node
+
+				// Try to get type parameters from different declaration types
+				if classDecl := decl.AsClassDeclaration(); classDecl != nil && classDecl.TypeParameters != nil {
+					params = classDecl.TypeParameters.Nodes
+				} else if interfaceDecl := decl.AsInterfaceDeclaration(); interfaceDecl != nil && interfaceDecl.TypeParameters != nil {
+					params = interfaceDecl.TypeParameters.Nodes
+				} else if typeAliasDecl := decl.AsTypeAliasDeclaration(); typeAliasDecl != nil && typeAliasDecl.TypeParameters != nil {
+					params = typeAliasDecl.TypeParameters.Nodes
+				}
+
+				if params != nil && len(params) > 0 {
+					// Convert AST type parameters to checker types
+					for _, param := range params {
+						paramType := ctx.TypeChecker.GetTypeFromTypeNode(param)
+						if paramType != nil {
+							typeParameters = append(typeParameters, paramType)
+						}
+					}
+					break
+				}
+			}
+
+			if typeParameters == nil || len(typeParameters) == 0 {
+				return
+			}
+
+			// Find the first unnecessary type argument from the end
+			unnecessaryIndex := -1
+
+			for i := len(typeArguments) - 1; i >= 0; i-- {
+				if i >= len(typeParameters) {
+					break
+				}
+
+				typeArg := typeArguments[i]
+				typeParam := typeParameters[i]
+
+				// Get the default type for this type parameter
+				defaultType := checker.Checker_getDefaultFromTypeParameter(ctx.TypeChecker, typeParam)
+				if defaultType == nil {
+					// No default, so we can stop checking
+					break
+				}
+
+				// Get the type of the argument
+				argType := ctx.TypeChecker.GetTypeFromTypeNode(typeArg)
+				if argType == nil {
+					break
+				}
+
+				// Check if the argument type is identical to the default type
+				if checker.Checker_isTypeIdenticalTo(ctx.TypeChecker, argType, defaultType) {
+					unnecessaryIndex = i
+				} else {
+					// Not identical, so we can stop checking
+					break
+				}
+			}
+
+			if unnecessaryIndex >= 0 {
+				// Report the first unnecessary type argument
+				unnecessaryArg := typeArguments[unnecessaryIndex]
+
+				// Build the fix by removing unnecessary type arguments from the found index
+				var newTypeArgs string
+				if unnecessaryIndex == 0 {
+					// Remove all type arguments
+					newTypeArgs = ""
+				} else {
+					// Keep only the necessary type arguments
+					newTypeArgs = "<"
+					for i := 0; i < unnecessaryIndex; i++ {
+						if i > 0 {
+							newTypeArgs += ", "
+						}
+						typeArgRange := utils.TrimNodeTextRange(ctx.SourceFile, typeArguments[i])
+						newTypeArgs += ctx.SourceFile.Text()[typeArgRange.Pos():typeArgRange.End()]
+					}
+					newTypeArgs += ">"
+				}
+
+				// Calculate the range to replace (the entire type arguments section)
+				firstTypeArg := typeArguments[0]
+				lastTypeArg := typeArguments[len(typeArguments)-1]
+				firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstTypeArg)
+				lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastTypeArg)
+
+				// The type arguments range includes the angle brackets
+				typeArgsStart := firstRange.Pos() - 1 // Include opening <
+				typeArgsEnd := lastRange.End() + 1     // Include closing >
+
+				ctx.ReportNodeWithFixes(
+					unnecessaryArg,
+					rule.RuleMessage{
+						Id:          "unnecessaryTypeParameter",
+						Description: "This is the default value for this type parameter, so it can be omitted.",
+					},
+					rule.RuleFix{
+						Text:  newTypeArgs,
+						Range: core.NewTextRange(typeArgsStart, typeArgsEnd),
+					},
+				)
+			}
+		}
+
 		return rule.RuleListeners{
 			ast.KindCallExpression: func(node *ast.Node) {
 				callExpr := node.AsCallExpression()
@@ -142,16 +274,23 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				checkTypeArguments(node, newExpr.TypeArguments.Nodes, getSignature)
 			},
 
-			// TODO: TypeReference and ExpressionWithTypeArguments need special handling
-			// These node types don't have signatures, so we need to extract type parameters
-			// from their declarations instead. This requires additional implementation.
-			//
-			// Examples that need these handlers:
-			// - Type aliases: type B = A<number> where A has T = number
-			// - Class extends: class Foo extends Bar<number> where Bar has T = number
-			// - Interface implements: class Foo implements Bar<number> where Bar has T = number
-			//
-			// For now, these cases are not supported and will not trigger the rule.
+			ast.KindTypeReference: func(node *ast.Node) {
+				typeRef := node.AsTypeReference()
+				if typeRef == nil || typeRef.TypeArguments == nil || typeRef.TypeArguments.Nodes == nil {
+					return
+				}
+
+				checkTypeReference(node, typeRef.TypeArguments.Nodes, typeRef.TypeName)
+			},
+
+			ast.KindExpressionWithTypeArguments: func(node *ast.Node) {
+				exprWithTypeArgs := node.AsExpressionWithTypeArguments()
+				if exprWithTypeArgs == nil || exprWithTypeArgs.TypeArguments == nil || exprWithTypeArgs.TypeArguments.Nodes == nil {
+					return
+				}
+
+				checkTypeReference(node, exprWithTypeArgs.TypeArguments.Nodes, exprWithTypeArgs.Expression)
+			},
 
 			ast.KindJsxOpeningElement: func(node *ast.Node) {
 				jsxOpening := node.AsJsxOpeningElement()
