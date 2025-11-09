@@ -4,6 +4,8 @@
 package no_redeclare
 
 import (
+	"fmt"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
@@ -44,24 +46,24 @@ func parseOptions(options any) NoRedeclareOptions {
 	return opts
 }
 
-func buildRedeclaredMessage() rule.RuleMessage {
+func buildRedeclaredMessage(id string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "redeclared",
-		Description: "'{{id}}' is already defined.",
+		Description: fmt.Sprintf("'%s' is already defined.", id),
 	}
 }
 
-func buildRedeclaredAsBuiltinMessage() rule.RuleMessage {
+func buildRedeclaredAsBuiltinMessage(id string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "redeclaredAsBuiltin",
-		Description: "'{{id}}' is already defined as a built-in global variable.",
+		Description: fmt.Sprintf("'%s' is already defined as a built-in global variable.", id),
 	}
 }
 
-func buildRedeclaredBySyntaxMessage() rule.RuleMessage {
+func buildRedeclaredBySyntaxMessage(id string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "redeclaredBySyntax",
-		Description: "'{{id}}' is already defined by a variable declaration.",
+		Description: fmt.Sprintf("'%s' is already defined by a variable declaration.", id),
 	}
 }
 
@@ -334,9 +336,7 @@ var NoRedeclareRule = rule.CreateRule(rule.Rule{
 			if opts.BuiltinGlobals && builtinGlobals[name] {
 				reportNode := getReportNode(node)
 				if reportNode != nil {
-					ctx.ReportNodeWithData(reportNode, buildRedeclaredAsBuiltinMessage(), map[string]string{
-						"id": name,
-					})
+					ctx.ReportNode(reportNode, buildRedeclaredAsBuiltinMessage(name))
 				}
 				return
 			}
@@ -372,9 +372,7 @@ var NoRedeclareRule = rule.CreateRule(rule.Rule{
 				if !canMergeWithAll {
 					reportNode := getReportNode(node)
 					if reportNode != nil {
-						ctx.ReportNodeWithData(reportNode, buildRedeclaredMessage(), map[string]string{
-							"id": name,
-						})
+						ctx.ReportNode(reportNode, buildRedeclaredMessage(name))
 					}
 					return
 				}
