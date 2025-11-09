@@ -27,6 +27,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/consistent_type_imports"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/default_param_last"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/explicit_function_return_type"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/explicit_member_accessibility"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_array_delete"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_base_to_string"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_confusing_void_expression"
@@ -382,6 +383,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/default-param-last", default_param_last.DefaultParamLastRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/dot-notation", dot_notation.DotNotationRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/explicit-function-return-type", explicit_function_return_type.ExplicitFunctionReturnTypeRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/explicit-member-accessibility", explicit_member_accessibility.ExplicitMemberAccessibilityRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-array-delete", no_array_delete.NoArrayDeleteRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-base-to-string", no_base_to_string.NoBaseToStringRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/no-confusing-void-expression", no_confusing_void_expression.NoConfusingVoidExpressionRule)
