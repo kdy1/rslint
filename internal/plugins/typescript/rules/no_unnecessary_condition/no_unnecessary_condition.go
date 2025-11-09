@@ -282,7 +282,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 		}
 
 		// Check if a node represents a condition
-		checkNode := func(node *ast.Node, isRoot bool, invert bool) {
+		checkNode := func(node *ast.Node, isRoot bool) {
 			t := ctx.TypeChecker.GetTypeAtLocation(node)
 			constrainedType, isTypeParam := utils.GetConstraintInfo(ctx.TypeChecker, t)
 
@@ -297,15 +297,6 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			truthiness := checkTypeIsTruthy(typeToCheck)
-
-			// Invert the truthiness if this is inside a NOT operator
-			if invert {
-				if truthiness == TruthinessTruthy {
-					truthiness = TruthinessFalsy
-				} else if truthiness == TruthinessFalsy {
-					truthiness = TruthinessTruthy
-				}
-			}
 
 			if truthiness == TruthinessTruthy {
 				ctx.ReportNode(node, buildAlwaysTruthyMessage())
@@ -463,7 +454,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				}
 			}
 
-			checkNode(condition, true, false)
+			checkNode(condition, true)
 		}
 
 		// Check array predicate callbacks
@@ -531,7 +522,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindIfStatement: func(node *ast.Node) {
 				expr := node.AsIfStatement().Expression
 				if !shouldSkipConditionCheck(expr) {
-					checkNode(expr, true, false)
+					checkNode(expr, true)
 				}
 			},
 
@@ -539,7 +530,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindConditionalExpression: func(node *ast.Node) {
 				condition := node.AsConditionalExpression().Condition
 				if !shouldSkipConditionCheck(condition) {
-					checkNode(condition, true, false)
+					checkNode(condition, true)
 				}
 			},
 
@@ -556,7 +547,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 						(ast.IsBinaryExpression(left) &&
 							(left.AsBinaryExpression().OperatorToken.Kind == ast.KindAmpersandAmpersandToken ||
 							 left.AsBinaryExpression().OperatorToken.Kind == ast.KindBarBarToken)) {
-						checkNode(left, false, false)
+						checkNode(left, false)
 					}
 				} else if op == ast.KindQuestionQuestionToken {
 					checkNullishCoalescing(node)
@@ -569,7 +560,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindPrefixUnaryExpression: func(node *ast.Node) {
 				expr := node.AsPrefixUnaryExpression()
 				if expr.Operator == ast.KindExclamationToken {
-					checkNode(expr.Operand, false, true)
+					checkNode(expr.Operand, false)
 				}
 			},
 
