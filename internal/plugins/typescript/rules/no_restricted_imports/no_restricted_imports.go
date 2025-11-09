@@ -97,11 +97,11 @@ func getImportNames(node *ast.Node) []string {
 				names = append(names, clause.Name().AsIdentifier().Text)
 			}
 
-			// Named imports - check if there are child nodes for named bindings
-			// We need to iterate through the clause's children to find NamedImports or NamespaceImport
-			for _, child := range clauseNode.Children() {
-				if child.Kind == ast.KindNamedImports {
-					namedImports := child.AsNamedImports()
+			// Named imports - access namedBindings directly
+			if clause.NamedBindings != nil {
+				namedBindingsNode := clause.NamedBindings
+				if namedBindingsNode.Kind == ast.KindNamedImports {
+					namedImports := namedBindingsNode.AsNamedImports()
 					for _, elem := range namedImports.Elements.Nodes {
 						importSpec := elem.AsImportSpecifier()
 						// Use the property name if it exists (for renamed imports), otherwise use the name
@@ -111,9 +111,9 @@ func getImportNames(node *ast.Node) []string {
 							names = append(names, importSpec.Name().AsIdentifier().Text)
 						}
 					}
-				} else if child.Kind == ast.KindNamespaceImport {
+				} else if namedBindingsNode.Kind == ast.KindNamespaceImport {
 					// Namespace import: import * as foo
-					nsImport := child.AsNamespaceImport()
+					nsImport := namedBindingsNode.AsNamespaceImport()
 					if nsImport.Name() != nil {
 						names = append(names, nsImport.Name().AsIdentifier().Text)
 					}
