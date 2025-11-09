@@ -97,26 +97,26 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		hasTypeUsage := false
 		hasValueUsage := false
 
-		var visitor func(*ast.Node)
-		visitor = func(node *ast.Node) {
+		var visitor func(*ast.Node) bool
+		visitor = func(node *ast.Node) bool {
 			if node == nil {
-				return
+				return false
 			}
 
 			// Skip import declarations themselves
 			if node.Kind == ast.KindImportDeclaration {
-				return
+				return false
 			}
 
 			// Check if this is an identifier matching our import
 			if node.Kind == ast.KindIdentifier {
 				identifier := node.AsIdentifier()
-				if identifier != nil && identifier.EscapedText == identifierName {
+				if identifier != nil && identifier.Text == identifierName {
 					// Determine if this usage is in a type position
 					parent := node.Parent
 					if parent == nil {
 						hasValueUsage = true
-						return
+						return false
 					}
 
 					switch parent.Kind {
@@ -126,7 +126,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 						ast.KindTypeAliasDeclaration,
 						ast.KindTypeParameter,
 						ast.KindTypeQuery,
-						ast.KindTypeAnnotation,
 						ast.KindParameter,
 						ast.KindPropertySignature,
 						ast.KindPropertyDeclaration,
@@ -166,6 +165,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 			// Visit children
 			node.ForEachChild(visitor)
+			return false
 		}
 
 		sourceFile.ForEachChild(visitor)
@@ -225,7 +225,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 
 		// Get the source file for usage analysis
-		sourceFile := ctx.GetSourceFile(node)
+		sourceFile := ctx.SourceFile
 		if sourceFile == nil {
 			return
 		}
@@ -239,13 +239,13 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		var inlineTypeSpecifiers []*ast.Node
 
 		// Check default import
-		if importClause.Name != nil {
-			identifier := importClause.Name.AsIdentifier()
+		if importClause.Name() != nil {
+			identifier := importClause.Name().AsIdentifier()
 			if identifier != nil {
-				name := identifier.EscapedText
+				name := identifier.Text
 
 				// Get symbol to check if it's type-based
-				symbol := ctx.TypeChecker.GetSymbolAtLocation(importClause.Name)
+				symbol := ctx.TypeChecker.GetSymbolAtLocation(importClause.Name())
 				isType := isSymbolTypeBased(symbol)
 
 				// Also check actual usage in the file
@@ -253,11 +253,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 				if isType != nil && *isType || isUsedAsTypeOnly {
 					hasTypeOnlyImports = true
-					typeOnlySpecifiers = append(typeOnlySpecifiers, importClause.Name)
+					typeOnlySpecifiers = append(typeOnlySpecifiers, importClause.Name())
 				} else {
 					allTypeOnly = false
 					hasValueImports = true
-					valueSpecifiers = append(valueSpecifiers, importClause.Name)
+					valueSpecifiers = append(valueSpecifiers, importClause.Name())
 				}
 			}
 		}
@@ -283,11 +283,11 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					var name string
 					if importSpec.PropertyName != nil {
 						if id := importSpec.PropertyName.AsIdentifier(); id != nil {
-							name = id.EscapedText
+							name = id.Text
 						}
 					} else {
 						if id := importSpec.Name().AsIdentifier(); id != nil {
-							name = id.EscapedText
+							name = id.Text
 						}
 					}
 
@@ -317,22 +317,22 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Check namespace imports
 		if importClause.NamedBindings != nil && importClause.NamedBindings.Kind == ast.KindNamespaceImport {
 			namespaceImport := importClause.NamedBindings.AsNamespaceImport()
-			if namespaceImport != nil && namespaceImport.Name != nil {
-				identifier := namespaceImport.Name.AsIdentifier()
+			if namespaceImport != nil && namespaceImport.Name() != nil {
+				identifier := namespaceImport.Name().AsIdentifier()
 				if identifier != nil {
-					name := identifier.EscapedText
+					name := identifier.Text
 
-					symbol := ctx.TypeChecker.GetSymbolAtLocation(namespaceImport.Name)
+					symbol := ctx.TypeChecker.GetSymbolAtLocation(namespaceImport.Name())
 					isType := isSymbolTypeBased(symbol)
 					isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFile)
 
 					if isType != nil && *isType || isUsedAsTypeOnly {
 						hasTypeOnlyImports = true
-						typeOnlySpecifiers = append(typeOnlySpecifiers, namespaceImport.Name)
+						typeOnlySpecifiers = append(typeOnlySpecifiers, namespaceImport.Name())
 					} else {
 						allTypeOnly = false
 						hasValueImports = true
-						valueSpecifiers = append(valueSpecifiers, namespaceImport.Name)
+						valueSpecifiers = append(valueSpecifiers, namespaceImport.Name())
 					}
 				}
 			}
