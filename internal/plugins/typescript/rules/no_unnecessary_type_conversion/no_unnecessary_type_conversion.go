@@ -174,11 +174,12 @@ var NoUnnecessaryTypeConversionRule = rule.CreateRule(rule.Rule{
 			}
 
 			propAccess := callExpr.Expression.AsPropertyAccessExpression()
-			if !ast.IsIdentifier(propAccess.Name) {
+			nameNode := propAccess.Name()
+			if !ast.IsIdentifier(nameNode) {
 				return
 			}
 
-			name := propAccess.Name.AsIdentifier()
+			name := nameNode.AsIdentifier()
 			if name.Text != "toString" {
 				return
 			}
