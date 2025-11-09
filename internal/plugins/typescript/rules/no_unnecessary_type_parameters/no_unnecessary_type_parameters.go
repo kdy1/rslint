@@ -103,6 +103,62 @@ func countTypeParameterUsage(node *ast.Node, typeParamName string) int {
 
 	case ast.KindParameter:
 		count += countTypeParameterUsageInParameter(node, typeParamName)
+
+	case ast.KindTypeOperator:
+		// Handle keyof T, readonly T, etc.
+		typeOperator := node.AsTypeOperatorNode()
+		if typeOperator != nil && typeOperator.Type != nil {
+			count += countTypeParameterUsage(typeOperator.Type, typeParamName)
+		}
+
+	case ast.KindIndexedAccessType:
+		// Handle T[K] type
+		indexedAccess := node.AsIndexedAccessTypeNode()
+		if indexedAccess != nil {
+			if indexedAccess.ObjectType != nil {
+				count += countTypeParameterUsage(indexedAccess.ObjectType, typeParamName)
+			}
+			if indexedAccess.IndexType != nil {
+				count += countTypeParameterUsage(indexedAccess.IndexType, typeParamName)
+			}
+		}
+
+	case ast.KindConditionalType:
+		// Handle T extends U ? X : Y
+		conditional := node.AsConditionalTypeNode()
+		if conditional != nil {
+			if conditional.CheckType != nil {
+				count += countTypeParameterUsage(conditional.CheckType, typeParamName)
+			}
+			if conditional.ExtendsType != nil {
+				count += countTypeParameterUsage(conditional.ExtendsType, typeParamName)
+			}
+			if conditional.TrueType != nil {
+				count += countTypeParameterUsage(conditional.TrueType, typeParamName)
+			}
+			if conditional.FalseType != nil {
+				count += countTypeParameterUsage(conditional.FalseType, typeParamName)
+			}
+		}
+
+	case ast.KindMappedType:
+		// Handle { [K in keyof T]: ... }
+		mapped := node.AsMappedTypeNode()
+		if mapped != nil {
+			if mapped.Type != nil {
+				count += countTypeParameterUsage(mapped.Type, typeParamName)
+			}
+			if mapped.NameType != nil {
+				count += countTypeParameterUsage(mapped.NameType, typeParamName)
+			}
+		}
+
+	case ast.KindTypePredicate:
+		// Handle type predicates like "x is T"
+		predicate := node.AsTypePredicateNode()
+		if predicate != nil && predicate.Type != nil {
+			count += countTypeParameterUsage(predicate.Type, typeParamName)
+		}
 	}
 
 	return count
@@ -199,6 +255,21 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 		// Count uses in the entire node (parameters, return type, etc.)
 		// We exclude the type parameter declaration itself from counting
 		usageCount := 0
+
+		// Also count usage in constraints of OTHER type parameters
+		// For example, in <T, K extends keyof T>, T is used in K's constraint
+		for _, otherParam := range typeParameters.Nodes {
+			if otherParam == typeParam {
+				continue // Skip the parameter itself
+			}
+			// Check if this type parameter is used in another parameter's constraint
+			if otherParam.Kind == ast.KindTypeParameter {
+				constraint := otherParam.Constraint()
+				if constraint != nil {
+					usageCount += countTypeParameterUsage(constraint, typeParamName)
+				}
+			}
+		}
 
 		// Count in parameters
 		if node.Kind == ast.KindFunctionDeclaration ||
