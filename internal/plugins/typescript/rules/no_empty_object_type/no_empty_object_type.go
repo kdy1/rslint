@@ -272,8 +272,9 @@ var NoEmptyObjectTypeRule = rule.CreateRule(rule.Rule{
 				parent := node.Parent
 				if parent != nil && ast.IsTypeAliasDeclaration(parent) {
 					typeAlias := parent.AsTypeAliasDeclaration()
-					if typeAlias != nil {
-						nameRange := utils.TrimNodeTextRange(ctx.SourceFile, typeAlias.Name())
+					if typeAlias != nil && typeAlias.Name != nil {
+						nameNode := (*ast.Node)(typeAlias.Name())
+						nameRange := utils.TrimNodeTextRange(ctx.SourceFile, nameNode)
 						typeAliasName = ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 					}
 				}
