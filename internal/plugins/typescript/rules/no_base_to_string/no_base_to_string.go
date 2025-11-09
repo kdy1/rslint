@@ -50,17 +50,26 @@ const (
 )
 
 func parseOptions(options any) NoBaseToStringOptions {
-	opts := NoBaseToStringOptions{
+	defaultOpts := NoBaseToStringOptions{
 		IgnoredTypeNames: []string{"Error", "RegExp", "URL", "URLSearchParams"},
 		CheckUnknown:     false,
 	}
 	if options == nil {
+		return defaultOpts
+	}
+	// Handle direct NoBaseToStringOptions struct (for Go tests)
+	if opts, ok := options.(NoBaseToStringOptions); ok {
+		// Merge with defaults - if IgnoredTypeNames is nil, use default
+		if opts.IgnoredTypeNames == nil {
+			opts.IgnoredTypeNames = defaultOpts.IgnoredTypeNames
+		}
 		return opts
 	}
 	// Handle array format: [{ option: value }]
 	if arr, ok := options.([]interface{}); ok {
 		if len(arr) > 0 {
 			if m, ok := arr[0].(map[string]interface{}); ok {
+				opts := defaultOpts
 				if v, ok := m["checkUnknown"].(bool); ok {
 					opts.CheckUnknown = v
 				}
@@ -73,12 +82,14 @@ func parseOptions(options any) NoBaseToStringOptions {
 					}
 					opts.IgnoredTypeNames = names
 				}
+				return opts
 			}
 		}
-		return opts
+		return defaultOpts
 	}
 	// Handle direct object format
 	if m, ok := options.(map[string]interface{}); ok {
+		opts := defaultOpts
 		if v, ok := m["checkUnknown"].(bool); ok {
 			opts.CheckUnknown = v
 		}
@@ -91,8 +102,9 @@ func parseOptions(options any) NoBaseToStringOptions {
 			}
 			opts.IgnoredTypeNames = names
 		}
+		return opts
 	}
-	return opts
+	return defaultOpts
 }
 
 var NoBaseToStringRule = rule.CreateRule(rule.Rule{
@@ -276,25 +288,32 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 				return usefulnessAlways
 			}
 
-			// Check if the type alias symbol name is in ignored list
+			// Check if the type alias or type symbol name is in ignored list
 			// This allows type aliases like "type Foo = { a: string } | { b: string }"
 			// to be properly ignored when "Foo" is in ignoredTypeNames
+			// This check must be done before expanding union/intersection types
+			// to preserve the alias information
+			// Following TypeScript-ESLint: const symbol = type.aliasSymbol ?? type.getSymbol()
+			var symbol *ast.Symbol
 			alias := checker.Type_alias(t)
 			if alias != nil {
-				symbol := alias.Symbol()
-				if symbol != nil && slices.Contains(opts.IgnoredTypeNames, symbol.Name) {
-					return usefulnessAlways
-				}
+				symbol = alias.Symbol()
 			}
-
-			if utils.IsIntersectionType(t) {
-				return collectIntersectionTypeCertainty(t, func(t *checker.Type) usefulness {
-					return collectToStringCertainty(t, visited)
-				})
+			if symbol == nil {
+				symbol = checker.Type_symbol(t)
+			}
+			if symbol != nil && slices.Contains(opts.IgnoredTypeNames, symbol.Name) {
+				return usefulnessAlways
 			}
 
 			if utils.IsUnionType(t) {
 				return collectUnionTypeCertainty(t, func(t *checker.Type) usefulness {
+					return collectToStringCertainty(t, visited)
+				})
+			}
+
+			if utils.IsIntersectionType(t) {
+				return collectIntersectionTypeCertainty(t, func(t *checker.Type) usefulness {
 					return collectToStringCertainty(t, visited)
 				})
 			}
