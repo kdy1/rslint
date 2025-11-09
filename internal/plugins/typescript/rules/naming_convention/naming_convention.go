@@ -4,12 +4,12 @@
 package naming_convention
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 // Format represents a naming format style
@@ -289,26 +289,26 @@ func getDefaultConfig() []NamingConventionConfig {
 }
 
 // buildDoesNotMatchFormatMessage creates the error message for format violations
-func buildDoesNotMatchFormatMessage() rule.RuleMessage {
+func buildDoesNotMatchFormatMessage(identType, name, formats string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "doesNotMatchFormat",
-		Description: "{{type}} name `{{name}}` must match one of the following formats: {{formats}}",
+		Description: fmt.Sprintf("%s name `%s` must match one of the following formats: %s", identType, name, formats),
 	}
 }
 
 // buildDoesNotMatchFormatTrimmedMessage creates the error message for format violations after trimming
-func buildDoesNotMatchFormatTrimmedMessage() rule.RuleMessage {
+func buildDoesNotMatchFormatTrimmedMessage(identType, name, formats string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "doesNotMatchFormatTrimmed",
-		Description: "{{type}} name `{{name}}` must match one of the following formats: {{formats}}",
+		Description: fmt.Sprintf("%s name `%s` must match one of the following formats: %s", identType, name, formats),
 	}
 }
 
 // buildSatisfyCustomMessage creates the error message for custom regex violations
-func buildSatisfyCustomMessage() rule.RuleMessage {
+func buildSatisfyCustomMessage(identType, name, satisfyCustom string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "satisfyCustom",
-		Description: "{{type}} name `{{name}}` must {{satisfyCustom}}",
+		Description: fmt.Sprintf("%s name `%s` must %s", identType, name, satisfyCustom),
 	}
 }
 
@@ -1051,7 +1051,7 @@ func getIdentifierName(node *ast.Node) string {
 			return getIdentifierName(member.Name())
 		}
 	case ast.KindTypeParameter:
-		typeParam := node.AsTypeParameterDeclaration()
+		typeParam := node.AsTypeParameter()
 		if typeParam != nil && typeParam.Name() != nil {
 			return getIdentifierName(typeParam.Name())
 		}
@@ -1191,17 +1191,11 @@ var NamingConventionRule = rule.CreateRule(rule.Rule{
 					formatList += string(format)
 				}
 
-				data := map[string]interface{}{
-					"type":    identType,
-					"name":    name,
-					"formats": formatList,
-				}
-
 				// Use appropriate error message
 				if trimmedName != name {
-					ctx.ReportNode(node, buildDoesNotMatchFormatTrimmedMessage(), data)
+					ctx.ReportNode(node, buildDoesNotMatchFormatTrimmedMessage(identType, name, formatList))
 				} else {
-					ctx.ReportNode(node, buildDoesNotMatchFormatMessage(), data)
+					ctx.ReportNode(node, buildDoesNotMatchFormatMessage(identType, name, formatList))
 				}
 			}
 		}
