@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -671,7 +670,7 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 			// Function type (for function type parameters)
 			ast.KindFunctionType: func(node *ast.Node) {
-				funcType := node.AsFunctionType()
+				funcType := node.AsFunctionTypeNode()
 				if funcType == nil {
 					return
 				}
@@ -711,7 +710,7 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 			// Constructor type
 			ast.KindConstructorType: func(node *ast.Node) {
-				constructorType := node.AsConstructorType()
+				constructorType := node.AsConstructorTypeNode()
 				if constructorType == nil {
 					return
 				}
@@ -751,7 +750,7 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 			// Call signature
 			ast.KindCallSignature: func(node *ast.Node) {
-				callSig := node.AsCallSignature()
+				callSig := node.AsCallSignatureDeclaration()
 				if callSig == nil {
 					return
 				}
@@ -791,7 +790,7 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 			// Constructor signature
 			ast.KindConstructSignature: func(node *ast.Node) {
-				constructSig := node.AsConstructSignature()
+				constructSig := node.AsConstructSignatureDeclaration()
 				if constructSig == nil {
 					return
 				}
@@ -831,7 +830,7 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 			// Method signature
 			ast.KindMethodSignature: func(node *ast.Node) {
-				methodSig := node.AsMethodSignature()
+				methodSig := node.AsMethodSignatureDeclaration()
 				if methodSig == nil {
 					return
 				}
@@ -876,12 +875,17 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				clause := importDecl.ImportClause
+				clauseNode := importDecl.ImportClause
+				clause := clauseNode.AsImportClause()
+				if clause == nil {
+					return
+				}
 
 				// Default import
-				if clause.Name != nil {
-					name := getIdentifierName(clause.Name)
-					declareVariable(name, clause.Name, false, false)
+				if clause.Name() != nil {
+					nameNode := clause.Name()
+					name := getIdentifierName(nameNode)
+					declareVariable(name, nameNode, false, false)
 				}
 
 				// Named imports
@@ -891,9 +895,10 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 					// Namespace import
 					if nb.Kind == ast.KindNamespaceImport {
 						if nsImport := nb.AsNamespaceImport(); nsImport != nil {
-							if nsImport.Name != nil {
-								name := getIdentifierName(nsImport.Name)
-								declareVariable(name, nsImport.Name, false, false)
+							if nsImport.Name() != nil {
+								nameNode := nsImport.Name()
+								name := getIdentifierName(nameNode)
+								declareVariable(name, nameNode, false, false)
 							}
 						}
 					}
@@ -913,15 +918,15 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 										}
 
 										// Check if parent import is type-only (import type { Foo })
-										if importDecl.ImportClause.IsTypeOnly {
+										if clause.IsTypeOnly {
 											isTypeImport = true
 										}
 
 										var nameNode *ast.Node
 										if importSpec.PropertyName != nil {
-											nameNode = importSpec.Name
+											nameNode = importSpec.Name()
 										} else {
-											nameNode = importSpec.Name
+											nameNode = importSpec.Name()
 										}
 
 										if nameNode != nil {
