@@ -1,14 +1,16 @@
 package no_dupe_class_members
 
 import (
+	"fmt"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-func buildUnexpectedMessage() rule.RuleMessage {
+func buildUnexpectedMessage(name string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "unexpected",
-		Description: "Duplicate name '{{name}}'.",
+		Description: fmt.Sprintf("Duplicate name '%s'.", name),
 	}
 }
 
@@ -165,9 +167,7 @@ var NoDupeClassMembersRule = rule.CreateRule(rule.Rule{
 			// Check against all existing members
 			for _, existingMember := range members {
 				if isDuplicate(newMember, existingMember) {
-					ctx.ReportNode(node, buildUnexpectedMessage(), rule.RuleMessageData{
-						"name": newMember.name,
-					})
+					ctx.ReportNode(node, buildUnexpectedMessage(newMember.name))
 					return
 				}
 			}
