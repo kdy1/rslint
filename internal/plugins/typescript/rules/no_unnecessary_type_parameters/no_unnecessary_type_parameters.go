@@ -31,10 +31,131 @@ func countTypeParameterUsage(node *ast.Node, typeParamName string) int {
 		}
 	}
 
-	// Recursively check children
-	ast.ForEachChild(node, func(child *ast.Node) {
-		count += countTypeParameterUsage(child, typeParamName)
-	})
+	// Recursively check different node types
+	switch node.Kind {
+	case ast.KindTypeReference:
+		typeRef := node.AsTypeReference()
+		if typeRef != nil {
+			// Check type arguments
+			if typeRef.TypeArguments != nil {
+				for _, arg := range typeRef.TypeArguments.Nodes {
+					count += countTypeParameterUsage(arg, typeParamName)
+				}
+			}
+		}
+
+	case ast.KindArrayType:
+		arrayType := node.AsArrayTypeNode()
+		if arrayType != nil && arrayType.ElementType != nil {
+			count += countTypeParameterUsage(arrayType.ElementType, typeParamName)
+		}
+
+	case ast.KindUnionType:
+		unionType := node.AsUnionTypeNode()
+		if unionType != nil && unionType.Types != nil {
+			for _, t := range unionType.Types.Nodes {
+				count += countTypeParameterUsage(t, typeParamName)
+			}
+		}
+
+	case ast.KindIntersectionType:
+		intersectionType := node.AsIntersectionTypeNode()
+		if intersectionType != nil && intersectionType.Types != nil {
+			for _, t := range intersectionType.Types.Nodes {
+				count += countTypeParameterUsage(t, typeParamName)
+			}
+		}
+
+	case ast.KindParenthesizedType:
+		parenType := node.AsParenthesizedTypeNode()
+		if parenType != nil && parenType.Type != nil {
+			count += countTypeParameterUsage(parenType.Type, typeParamName)
+		}
+
+	case ast.KindTupleType:
+		tupleType := node.AsTupleTypeNode()
+		if tupleType != nil && tupleType.Elements != nil {
+			for _, elem := range tupleType.Elements.Nodes {
+				count += countTypeParameterUsage(elem, typeParamName)
+			}
+		}
+
+	case ast.KindTypeLiteral:
+		typeLiteral := node.AsTypeLiteralNode()
+		if typeLiteral != nil && typeLiteral.Members != nil {
+			for _, member := range typeLiteral.Members.Nodes {
+				count += countTypeParameterUsageInMember(member, typeParamName)
+			}
+		}
+
+	case ast.KindFunctionType:
+		funcType := node.AsFunctionTypeNode()
+		if funcType != nil {
+			if funcType.Type != nil {
+				count += countTypeParameterUsage(funcType.Type, typeParamName)
+			}
+			if funcType.Parameters != nil {
+				for _, param := range funcType.Parameters.Nodes {
+					count += countTypeParameterUsageInParameter(param, typeParamName)
+				}
+			}
+		}
+
+	case ast.KindParameter:
+		count += countTypeParameterUsageInParameter(node, typeParamName)
+	}
+
+	return count
+}
+
+// countTypeParameterUsageInParameter counts usages in a parameter node
+func countTypeParameterUsageInParameter(param *ast.Node, typeParamName string) int {
+	if param == nil {
+		return 0
+	}
+
+	count := 0
+	paramDecl := param.AsParameterDeclaration()
+	if paramDecl != nil && paramDecl.Type != nil {
+		count += countTypeParameterUsage(paramDecl.Type, typeParamName)
+	}
+
+	return count
+}
+
+// countTypeParameterUsageInMember counts usages in a type member
+func countTypeParameterUsageInMember(member *ast.Node, typeParamName string) int {
+	if member == nil {
+		return 0
+	}
+
+	count := 0
+	switch member.Kind {
+	case ast.KindPropertySignature:
+		propSig := member.AsPropertySignatureDeclaration()
+		if propSig != nil && propSig.Type != nil {
+			count += countTypeParameterUsage(propSig.Type, typeParamName)
+		}
+
+	case ast.KindMethodSignature:
+		methodSig := member.AsMethodSignatureDeclaration()
+		if methodSig != nil {
+			if methodSig.Type != nil {
+				count += countTypeParameterUsage(methodSig.Type, typeParamName)
+			}
+			if methodSig.Parameters != nil {
+				for _, param := range methodSig.Parameters.Nodes {
+					count += countTypeParameterUsageInParameter(param, typeParamName)
+				}
+			}
+		}
+
+	case ast.KindIndexSignature:
+		indexSig := member.AsIndexSignatureDeclaration()
+		if indexSig != nil && indexSig.Type != nil {
+			count += countTypeParameterUsage(indexSig.Type, typeParamName)
+		}
+	}
 
 	return count
 }
@@ -45,13 +166,14 @@ func getTypeParameterName(typeParam *ast.Node) string {
 		return ""
 	}
 
-	tp := typeParam.AsTypeParameterDeclaration()
-	if tp == nil || tp.Name == nil {
+	// Type parameters have a Name() method
+	name := typeParam.Name()
+	if name == nil {
 		return ""
 	}
 
-	if ast.IsIdentifier(tp.Name) {
-		identifier := tp.Name.AsIdentifier()
+	if ast.IsIdentifier(name) {
+		identifier := name.AsIdentifier()
 		if identifier != nil {
 			return identifier.Text
 		}
@@ -61,14 +183,13 @@ func getTypeParameterName(typeParam *ast.Node) string {
 }
 
 // checkTypeParameters checks if type parameters are used more than once
-func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *ast.NodeArray) {
-	if typeParameters == nil || typeParameters.Len() == 0 {
+func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *ast.NodeList) {
+	if typeParameters == nil || len(typeParameters.Nodes) == 0 {
 		return
 	}
 
 	// For each type parameter, count how many times it's used in the signature
-	for i := 0; i < typeParameters.Len(); i++ {
-		typeParam := typeParameters.Item(i)
+	for _, typeParam := range typeParameters.Nodes {
 		typeParamName := getTypeParameterName(typeParam)
 
 		if typeParamName == "" {
@@ -81,11 +202,11 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 
 		// Count in parameters
 		if node.Kind == ast.KindFunctionDeclaration ||
-		   node.Kind == ast.KindFunctionExpression ||
-		   node.Kind == ast.KindArrowFunction ||
-		   node.Kind == ast.KindMethodDeclaration {
+			node.Kind == ast.KindFunctionExpression ||
+			node.Kind == ast.KindArrowFunction ||
+			node.Kind == ast.KindMethodDeclaration {
 
-			var parameters *ast.NodeArray
+			var parameters *ast.NodeList
 			var returnType *ast.Node
 
 			switch node.Kind {
@@ -117,9 +238,8 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 
 			// Count in parameters
 			if parameters != nil {
-				for j := 0; j < parameters.Len(); j++ {
-					param := parameters.Item(j)
-					usageCount += countTypeParameterUsage(param, typeParamName)
+				for _, param := range parameters.Nodes {
+					usageCount += countTypeParameterUsageInParameter(param, typeParamName)
 				}
 			}
 
@@ -129,8 +249,8 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 			}
 		} else if node.Kind == ast.KindClassDeclaration || node.Kind == ast.KindClassExpression {
 			// For classes, count usage in heritage clauses and members
-			var heritageClauses *ast.NodeArray
-			var members *ast.NodeArray
+			var heritageClauses *ast.NodeList
+			var members *ast.NodeList
 
 			if node.Kind == ast.KindClassDeclaration {
 				cls := node.AsClassDeclaration()
@@ -147,16 +267,19 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 			}
 
 			if heritageClauses != nil {
-				for j := 0; j < heritageClauses.Len(); j++ {
-					clause := heritageClauses.Item(j)
-					usageCount += countTypeParameterUsage(clause, typeParamName)
+				for _, clause := range heritageClauses.Nodes {
+					heritageClause := clause.AsHeritageClause()
+					if heritageClause != nil && heritageClause.Types != nil {
+						for _, typeExpr := range heritageClause.Types.Nodes {
+							usageCount += countTypeParameterUsage(typeExpr, typeParamName)
+						}
+					}
 				}
 			}
 
 			if members != nil {
-				for j := 0; j < members.Len(); j++ {
-					member := members.Item(j)
-					usageCount += countTypeParameterUsage(member, typeParamName)
+				for _, member := range members.Nodes {
+					usageCount += countTypeParameterUsageInClassMember(member, typeParamName)
 				}
 			}
 		}
@@ -168,9 +291,62 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 	}
 }
 
+// countTypeParameterUsageInClassMember counts usages in a class member
+func countTypeParameterUsageInClassMember(member *ast.Node, typeParamName string) int {
+	if member == nil {
+		return 0
+	}
+
+	count := 0
+	switch member.Kind {
+	case ast.KindPropertyDeclaration:
+		propDecl := member.AsPropertyDeclaration()
+		if propDecl != nil && propDecl.Type != nil {
+			count += countTypeParameterUsage(propDecl.Type, typeParamName)
+		}
+
+	case ast.KindMethodDeclaration:
+		methodDecl := member.AsMethodDeclaration()
+		if methodDecl != nil {
+			if methodDecl.Type != nil {
+				count += countTypeParameterUsage(methodDecl.Type, typeParamName)
+			}
+			if methodDecl.Parameters != nil {
+				for _, param := range methodDecl.Parameters.Nodes {
+					count += countTypeParameterUsageInParameter(param, typeParamName)
+				}
+			}
+		}
+
+	case ast.KindConstructor:
+		constructor := member.AsConstructorDeclaration()
+		if constructor != nil && constructor.Parameters != nil {
+			for _, param := range constructor.Parameters.Nodes {
+				count += countTypeParameterUsageInParameter(param, typeParamName)
+			}
+		}
+
+	case ast.KindGetAccessor:
+		getter := member.AsGetAccessorDeclaration()
+		if getter != nil && getter.Type != nil {
+			count += countTypeParameterUsage(getter.Type, typeParamName)
+		}
+
+	case ast.KindSetAccessor:
+		setter := member.AsSetAccessorDeclaration()
+		if setter != nil && setter.Parameters != nil {
+			for _, param := range setter.Parameters.Nodes {
+				count += countTypeParameterUsageInParameter(param, typeParamName)
+			}
+		}
+	}
+
+	return count
+}
+
 // checkFunctionLike checks function-like nodes for unnecessary type parameters
 func checkFunctionLike(ctx rule.RuleContext, node *ast.Node) {
-	var typeParameters *ast.NodeArray
+	var typeParameters *ast.NodeList
 
 	switch node.Kind {
 	case ast.KindFunctionDeclaration:
@@ -200,7 +376,7 @@ func checkFunctionLike(ctx rule.RuleContext, node *ast.Node) {
 
 // checkClass checks class declarations for unnecessary type parameters
 func checkClass(ctx rule.RuleContext, node *ast.Node) {
-	var typeParameters *ast.NodeArray
+	var typeParameters *ast.NodeList
 
 	if node.Kind == ast.KindClassDeclaration {
 		cls := node.AsClassDeclaration()
