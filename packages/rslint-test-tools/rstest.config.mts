@@ -107,7 +107,7 @@ export default defineConfig({
     // './tests/typescript-eslint/rules/no-restricted-types.test.ts',
     // './tests/typescript-eslint/rules/no-shadow/no-shadow-eslint.test.ts',
     // './tests/typescript-eslint/rules/no-shadow/no-shadow.test.ts',
-    // './tests/typescript-eslint/rules/no-this-alias.test.ts',
+    './tests/typescript-eslint/rules/no-this-alias.test.ts',
     // './tests/typescript-eslint/rules/no-type-alias.test.ts',
     // './tests/typescript-eslint/rules/no-unnecessary-boolean-literal-compare.test.ts',
     // './tests/typescript-eslint/rules/no-unnecessary-condition.test.ts',

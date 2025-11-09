@@ -17,8 +17,7 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 			AllowDestructuring: true,
 			AllowedNames:       []string{},
 		}
-
-		// Parse options with dual-format support
+		// Parse options with dual-format support (handles both array and object formats)
 		if options != nil {
 			var optsMap map[string]interface{}
 			var ok bool
@@ -36,118 +35,155 @@ var NoThisAliasRule = rule.CreateRule(rule.Rule{
 					opts.AllowDestructuring = allowDestructuring
 				}
 				if allowedNames, ok := optsMap["allowedNames"].([]interface{}); ok {
+					opts.AllowedNames = make([]string, 0, len(allowedNames))
 					for _, name := range allowedNames {
-						if nameStr, ok := name.(string); ok {
-							opts.AllowedNames = append(opts.AllowedNames, nameStr)
+						if str, ok := name.(string); ok {
+							opts.AllowedNames = append(opts.AllowedNames, str)
 						}
 					}
 				}
 			}
 		}
 
-		// Helper to check if initializer is `this`
-		isThisKeyword := func(node *ast.Node) bool {
-			return node != nil && node.Kind == ast.KindThisKeyword
+		isNameAllowed := func(name string) bool {
+			for _, allowedName := range opts.AllowedNames {
+				if name == allowedName {
+					return true
+				}
+			}
+			return false
+		}
+
+		checkVariableDeclaration := func(node *ast.Node) {
+			varStmt := node.AsVariableStatement()
+			if varStmt == nil {
+				return
+			}
+
+			if varStmt.DeclarationList == nil {
+				return
+			}
+
+			for _, decl := range varStmt.DeclarationList.Declarations.Nodes {
+				varDecl := decl.AsVariableDeclaration()
+				if varDecl == nil {
+					continue
+				}
+
+				// Check if initializer is 'this'
+				if varDecl.Initializer == nil {
+					continue
+				}
+
+				init := varDecl.Initializer
+				if init.Kind != ast.KindThisKeyword {
+					continue
+				}
+
+				// Check the pattern to determine the type of assignment
+				if varDecl.Name == nil {
+					continue
+				}
+
+				// Handle different binding patterns
+				switch varDecl.Name.Kind {
+				case ast.KindIdentifier:
+					// Simple assignment: const foo = this
+					ident := varDecl.Name.AsIdentifier()
+					if ident == nil {
+						continue
+					}
+					identName := ident.EscapedText
+
+					if !isNameAllowed(identName) {
+						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+							Id:          "thisAssignment",
+							Description: "Unexpected aliasing of 'this' to local variable.",
+						})
+					}
+
+				case ast.KindObjectBindingPattern:
+					// Destructuring: const { props, state } = this
+					if !opts.AllowDestructuring {
+						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+							Id:          "thisDestructure",
+							Description: "Unexpected aliasing of members of 'this' to local variables.",
+						})
+					}
+
+				case ast.KindArrayBindingPattern:
+					// Array destructuring: const [foo, bar] = this
+					if !opts.AllowDestructuring {
+						ctx.ReportNode(varDecl.Name, rule.RuleMessage{
+							Id:          "thisDestructure",
+							Description: "Unexpected aliasing of members of 'this' to local variables.",
+						})
+					}
+				}
+			}
+		}
+
+		checkAssignmentExpression := func(node *ast.Node) {
+			binaryExpr := node.AsBinaryExpression()
+			if binaryExpr == nil {
+				return
+			}
+
+			// Check if this is an assignment (=)
+			if binaryExpr.OperatorToken.Kind != ast.KindEqualsToken {
+				return
+			}
+
+			// Check if right side is 'this'
+			if binaryExpr.Right == nil || binaryExpr.Right.Kind != ast.KindThisKeyword {
+				return
+			}
+
+			// Check if left side is an identifier
+			if binaryExpr.Left == nil {
+				return
+			}
+
+			// Handle different assignment patterns
+			switch binaryExpr.Left.Kind {
+			case ast.KindIdentifier:
+				// Simple assignment: foo = this
+				ident := binaryExpr.Left.AsIdentifier()
+				if ident == nil {
+					return
+				}
+				identName := ident.EscapedText
+
+				if !isNameAllowed(identName) {
+					ctx.ReportNode(binaryExpr.Left, rule.RuleMessage{
+						Id:          "thisAssignment",
+						Description: "Unexpected aliasing of 'this' to local variable.",
+					})
+				}
+
+			case ast.KindObjectBindingPattern:
+				// Destructuring: ({ props, state } = this)
+				if !opts.AllowDestructuring {
+					ctx.ReportNode(binaryExpr.Left, rule.RuleMessage{
+						Id:          "thisDestructure",
+						Description: "Unexpected aliasing of members of 'this' to local variables.",
+					})
+				}
+
+			case ast.KindArrayBindingPattern:
+				// Array destructuring: ([foo, bar] = this)
+				if !opts.AllowDestructuring {
+					ctx.ReportNode(binaryExpr.Left, rule.RuleMessage{
+						Id:          "thisDestructure",
+						Description: "Unexpected aliasing of members of 'this' to local variables.",
+					})
+				}
+			}
 		}
 
 		return rule.RuleListeners{
-			ast.KindVariableDeclaration: func(node *ast.Node) {
-				varDecl := node.AsVariableDeclaration()
-				if varDecl == nil || varDecl.Initializer == nil {
-					return
-				}
-
-				// Check if initializer is `this`
-				if !isThisKeyword(varDecl.Initializer) {
-					return
-				}
-
-				// Get the name node
-				nameNode := varDecl.Name()
-				if nameNode == nil {
-					return
-				}
-
-				// Check if it's destructuring
-				switch nameNode.Kind {
-				case ast.KindObjectBindingPattern, ast.KindArrayBindingPattern:
-					// Destructuring pattern
-					if !opts.AllowDestructuring {
-						ctx.ReportNode(nameNode, rule.RuleMessage{
-							Id:          "thisDestructure",
-							Description: "Destructuring `this` is not allowed.",
-						})
-					}
-					return
-				case ast.KindIdentifier:
-					// Check if the identifier name is in allowedNames
-					id := nameNode.AsIdentifier()
-					if id != nil {
-						idName := id.Text
-						for _, allowedName := range opts.AllowedNames {
-							if idName == allowedName {
-								// Name is allowed, don't report
-								return
-							}
-						}
-					}
-					// Regular identifier assignment - report it
-					ctx.ReportNode(nameNode, rule.RuleMessage{
-						Id:          "thisAssignment",
-						Description: "Unexpected aliasing of `this` to local variable.",
-					})
-					return
-				}
-			},
-			ast.KindBinaryExpression: func(node *ast.Node) {
-				binExpr := node.AsBinaryExpression()
-				if binExpr == nil {
-					return
-				}
-
-				// Check for assignment (=) operator
-				if binExpr.OperatorToken == nil || binExpr.OperatorToken.Kind != ast.KindEqualsToken {
-					return
-				}
-
-				// Check if right side is `this`
-				if !isThisKeyword(binExpr.Right) {
-					return
-				}
-
-				// Check left side
-				if binExpr.Left != nil {
-					switch binExpr.Left.Kind {
-					case ast.KindObjectLiteralExpression, ast.KindArrayLiteralExpression:
-						// Destructuring pattern
-						if !opts.AllowDestructuring {
-							ctx.ReportNode(binExpr.Left, rule.RuleMessage{
-								Id:          "thisDestructure",
-								Description: "Destructuring `this` is not allowed.",
-							})
-						}
-						return
-					case ast.KindIdentifier:
-						// Check if the identifier name is in allowedNames
-						id := binExpr.Left.AsIdentifier()
-						if id != nil {
-							idName := id.Text
-							for _, allowedName := range opts.AllowedNames {
-								if idName == allowedName {
-									// Name is allowed, don't report
-									return
-								}
-							}
-						}
-						// Regular identifier assignment
-						ctx.ReportNode(binExpr.Left, rule.RuleMessage{
-							Id:          "thisAssignment",
-							Description: "Unexpected aliasing of `this` to local variable.",
-						})
-						return
-					}
-				}
-			},
+			ast.KindVariableStatement:  checkVariableDeclaration,
+			ast.KindBinaryExpression:   checkAssignmentExpression,
 		}
 	},
 })
