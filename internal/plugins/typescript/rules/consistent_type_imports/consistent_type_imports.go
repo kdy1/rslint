@@ -230,8 +230,10 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			return
 		}
 
+		// Convert SourceFile to Node for usage analysis
+		sourceFileNode := sourceFile.AsNode()
+
 		// Track imports to check
-		var allTypeOnly bool = true
 		var hasTypeOnlyImports bool = false
 		var hasValueImports bool = false
 		var typeOnlySpecifiers []*ast.Node
@@ -249,13 +251,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				isType := isSymbolTypeBased(symbol)
 
 				// Also check actual usage in the file
-				isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFile)
+				isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFileNode)
 
 				if isType != nil && *isType || isUsedAsTypeOnly {
 					hasTypeOnlyImports = true
 					typeOnlySpecifiers = append(typeOnlySpecifiers, importClause.Name())
 				} else {
-					allTypeOnly = false
 					hasValueImports = true
 					valueSpecifiers = append(valueSpecifiers, importClause.Name())
 				}
@@ -300,13 +301,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					isType := isSymbolTypeBased(symbol)
 
 					// Also check actual usage
-					isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFile)
+					isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFileNode)
 
 					if isType != nil && *isType || isUsedAsTypeOnly {
 						hasTypeOnlyImports = true
 						typeOnlySpecifiers = append(typeOnlySpecifiers, element)
 					} else {
-						allTypeOnly = false
 						hasValueImports = true
 						valueSpecifiers = append(valueSpecifiers, element)
 					}
@@ -324,13 +324,12 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 					symbol := ctx.TypeChecker.GetSymbolAtLocation(namespaceImport.Name())
 					isType := isSymbolTypeBased(symbol)
-					isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFile)
+					isUsedAsTypeOnly := isIdentifierUsedInTypePosition(name, sourceFileNode)
 
 					if isType != nil && *isType || isUsedAsTypeOnly {
 						hasTypeOnlyImports = true
 						typeOnlySpecifiers = append(typeOnlySpecifiers, namespaceImport.Name())
 					} else {
-						allTypeOnly = false
 						hasValueImports = true
 						valueSpecifiers = append(valueSpecifiers, namespaceImport.Name())
 					}
