@@ -1,7 +1,6 @@
 package no_invalid_void_type
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
@@ -52,9 +51,6 @@ func buildInvalidVoidForGenericMessage(generic string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "invalidVoidForGeneric",
 		Description: "`void` is not valid for the generic argument `" + generic + "`.",
-		Data: map[string]interface{}{
-			"generic": generic,
-		},
 	}
 }
 
@@ -94,21 +90,10 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 			return strings.ReplaceAll(name, " ", "")
 		}
 
-		// Helper to get the qualified name from a type reference
-		getTypeReferenceName := func(node *ast.Node) string {
-			if node.Kind != ast.KindTypeReference {
-				return ""
-			}
-			typeRef := node.AsTypeReferenceNode()
-			if typeRef == nil || typeRef.TypeName() == nil {
-				return ""
-			}
-
-			return getEntityName(typeRef.TypeName())
-		}
-
 		// Helper to get entity name from identifier or qualified name
-		getEntityName := func(node *ast.Node) string {
+		// Declare this first since it's used by getTypeReferenceName
+		var getEntityName func(node *ast.Node) string
+		getEntityName = func(node *ast.Node) string {
 			if node == nil {
 				return ""
 			}
@@ -120,10 +105,10 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 				}
 			case ast.KindQualifiedName:
 				if qn := node.AsQualifiedName(); qn != nil {
-					left := getEntityName(qn.Left())
+					left := getEntityName(qn.Left)
 					right := ""
-					if qn.Right() != nil {
-						if id := qn.Right().AsIdentifier(); id != nil {
+					if qn.Right != nil {
+						if id := qn.Right.AsIdentifier(); id != nil {
 							right = id.Text
 						}
 					}
@@ -135,8 +120,42 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 			return ""
 		}
 
+		// Helper to get the qualified name from a type reference
+		getTypeReferenceName := func(node *ast.Node) string {
+			if node.Kind != ast.KindTypeReference {
+				return ""
+			}
+			typeRef := node.AsTypeReferenceNode()
+			if typeRef == nil || typeRef.TypeName == nil {
+				return ""
+			}
+
+			return getEntityName(typeRef.TypeName)
+		}
+
+		// Helper to check if a node has void as a type argument
+		// Declare this first since it's used by isValidVoidUnion
+		var hasVoidTypeArgument func(node *ast.Node) bool
+		hasVoidTypeArgument = func(node *ast.Node) bool {
+			if node.Kind != ast.KindTypeReference {
+				return false
+			}
+			typeRef := node.AsTypeReferenceNode()
+			if typeRef == nil || typeRef.TypeArguments == nil {
+				return false
+			}
+
+			for _, typeArg := range typeRef.TypeArguments.Nodes {
+				if typeArg.Kind == ast.KindVoidKeyword {
+					return true
+				}
+			}
+			return false
+		}
+
 		// Helper to check if void is allowed in generic context
-		isAllowedInGeneric := func(typeRefNode *ast.Node) (bool, string) {
+		var isAllowedInGeneric func(typeRefNode *ast.Node) (bool, string)
+		isAllowedInGeneric = func(typeRefNode *ast.Node) (bool, string) {
 			// If allowInGenericTypeArguments is false, never allow
 			if allow, ok := opts.AllowInGenericTypeArguments.(bool); ok && !allow {
 				return false, ""
@@ -205,24 +224,6 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 			return hasVoid
 		}
 
-		// Helper to check if a node has void as a type argument
-		hasVoidTypeArgument := func(node *ast.Node) bool {
-			if node.Kind != ast.KindTypeReference {
-				return false
-			}
-			typeRef := node.AsTypeReferenceNode()
-			if typeRef == nil || typeRef.TypeArguments() == nil {
-				return false
-			}
-
-			for _, typeArg := range typeRef.TypeArguments().Nodes {
-				if typeArg.Kind == ast.KindVoidKeyword {
-					return true
-				}
-			}
-			return false
-		}
-
 		// Helper to check if node is in a function overload signature (not implementation)
 		isInOverloadSignature := func(node *ast.Node) bool {
 			current := node.Parent
@@ -234,11 +235,11 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 					switch current.Kind {
 					case ast.KindFunctionDeclaration:
 						if fn := current.AsFunctionDeclaration(); fn != nil {
-							return fn.Body() == nil
+							return fn.Body == nil
 						}
 					case ast.KindMethodDeclaration:
 						if method := current.AsMethodDeclaration(); method != nil {
-							return method.Body() == nil
+							return method.Body == nil
 						}
 					case ast.KindMethodSignature:
 						// Method signatures in interfaces don't have bodies
@@ -248,6 +249,26 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 				current = current.Parent
 			}
 			return false
+		}
+
+		// Helper to get the appropriate error message based on options
+		var getInvalidVoidMessage func() rule.RuleMessage
+		getInvalidVoidMessage = func() rule.RuleMessage {
+			allowGeneric := false
+			if allow, ok := opts.AllowInGenericTypeArguments.(bool); ok {
+				allowGeneric = allow
+			} else if allowList, ok := opts.AllowInGenericTypeArguments.([]interface{}); ok {
+				allowGeneric = len(allowList) > 0
+			}
+
+			if opts.AllowAsThisParameter && allowGeneric {
+				return buildInvalidVoidNotReturnOrThisParamOrGenericMessage()
+			} else if opts.AllowAsThisParameter {
+				return buildInvalidVoidNotReturnOrThisParamMessage()
+			} else if allowGeneric {
+				return buildInvalidVoidNotReturnOrGenericMessage()
+			}
+			return buildInvalidVoidNotReturnMessage()
 		}
 
 		// Helper to check if node is in valid context
@@ -313,7 +334,7 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 				case ast.KindTypeAliasDeclaration, ast.KindPropertySignature,
 					ast.KindPropertyDeclaration, ast.KindVariableDeclaration,
 					ast.KindArrayType, ast.KindTypeOperator, ast.KindIntersectionType,
-					ast.KindMappedType, ast.KindConditionalType, ast.KindTypeAssertion,
+					ast.KindMappedType, ast.KindConditionalType, ast.KindTypeAssertionExpression,
 					ast.KindAsExpression, ast.KindRestType:
 					// These are invalid contexts - continue to determine the right message
 					current = current.Parent
@@ -326,25 +347,6 @@ var NoInvalidVoidTypeRule = rule.CreateRule(rule.Rule{
 
 			// If we get here, it's invalid
 			return false, getInvalidVoidMessage()
-		}
-
-		// Helper to get the appropriate error message based on options
-		getInvalidVoidMessage := func() rule.RuleMessage {
-			allowGeneric := false
-			if allow, ok := opts.AllowInGenericTypeArguments.(bool); ok {
-				allowGeneric = allow
-			} else if allowList, ok := opts.AllowInGenericTypeArguments.([]interface{}); ok {
-				allowGeneric = len(allowList) > 0
-			}
-
-			if opts.AllowAsThisParameter && allowGeneric {
-				return buildInvalidVoidNotReturnOrThisParamOrGenericMessage()
-			} else if opts.AllowAsThisParameter {
-				return buildInvalidVoidNotReturnOrThisParamMessage()
-			} else if allowGeneric {
-				return buildInvalidVoidNotReturnOrGenericMessage()
-			}
-			return buildInvalidVoidNotReturnMessage()
 		}
 
 		return rule.RuleListeners{
