@@ -87,15 +87,15 @@ var NoRestrictedTypesRule = rule.CreateRule(rule.Rule{
 				
 			case ast.KindTupleType:
 				// Check for empty tuple []
-				tupleType := node.AsTupleType()
-				if tupleType != nil && len(tupleType.Elements) == 0 {
+				tupleType := node.AsTupleTypeNode()
+				if tupleType != nil && tupleType.Elements != nil && len(tupleType.Elements.Nodes) == 0 {
 					typeName = "[]"
 				}
 				
 			case ast.KindTypeLiteral:
 				// Check for empty object type {}
 				typeLiteral := node.AsTypeLiteralNode()
-				if typeLiteral != nil && len(typeLiteral.Members) == 0 {
+				if typeLiteral != nil && typeLiteral.Members != nil && len(typeLiteral.Members.Nodes) == 0 {
 					typeName = "{}"
 				}
 			}
@@ -114,10 +114,6 @@ var NoRestrictedTypesRule = rule.CreateRule(rule.Rule{
 			message := rule.RuleMessage{
 				Id:          "bannedTypeMessage",
 				Description: fmt.Sprintf("Don't use `%s` as a type.%s", typeName, customMessage),
-				Data: map[string]interface{}{
-					"name":          typeName,
-					"customMessage": customMessage,
-				},
 			}
 
 			// Create fix if available
@@ -149,16 +145,16 @@ func getTypeNameText(ctx rule.RuleContext, typeRef *ast.TypeReferenceNode) strin
 	}
 
 	typeName := getIdentifierOrQualifiedName(ctx, typeRef.TypeName)
-	
+
 	// Handle generic type parameters if present
-	if typeRef.TypeArguments != nil && len(typeRef.TypeArguments) > 0 {
+	if typeRef.TypeArguments != nil && len(typeRef.TypeArguments.Nodes) > 0 {
 		// Build the generic type string like "Type<Arg1, Arg2>"
 		var args []string
-		for _, arg := range typeRef.TypeArguments {
+		for _, arg := range typeRef.TypeArguments.Nodes {
 			argText := getTypeText(ctx, arg)
 			args = append(args, argText)
 		}
-		
+
 		// Join without spaces to match test expectations for patterns like "Banned<A,B>"
 		argsStr := strings.Join(args, ",")
 		typeName = fmt.Sprintf("%s<%s>", typeName, argsStr)
