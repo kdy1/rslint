@@ -101,7 +101,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Handle optional modifier
 		optionalToken := ""
-		if methodSig.QuestionToken != nil {
+		if ast.HasQuestionToken(node) {
 			optionalToken = "?"
 		}
 
@@ -187,7 +187,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		// Handle optional modifier
 		optionalToken := ""
-		if propertySig.QuestionToken != nil {
+		if ast.HasQuestionToken(node) {
 			optionalToken = "?"
 		}
 
