@@ -79,7 +79,7 @@ export default defineConfig({
     // './tests/typescript-eslint/rules/no-confusing-void-expression.test.ts',
     // './tests/typescript-eslint/rules/no-deprecated.test.ts',
     // './tests/typescript-eslint/rules/no-dupe-class-members.test.ts',
-    // './tests/typescript-eslint/rules/no-duplicate-enum-values.test.ts',
+    './tests/typescript-eslint/rules/no-duplicate-enum-values.test.ts',
     // './tests/typescript-eslint/rules/no-dynamic-delete.test.ts',
     // './tests/typescript-eslint/rules/no-empty-object-type.test.ts',
     // './tests/typescript-eslint/rules/no-extra-non-null-assertion.test.ts',
