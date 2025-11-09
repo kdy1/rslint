@@ -217,9 +217,17 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return TruthinessFalsy
 			}
 
-			// Check for literal false
+			// Check boolean literals first (before generic boolean check)
+			if utils.IsTrueLiteralType(ctx.TypeChecker, t) {
+				return TruthinessTruthy
+			}
 			if utils.IsFalseLiteralType(ctx.TypeChecker, t) {
 				return TruthinessFalsy
+			}
+
+			// Check generic boolean - could be true or false
+			if flags&checker.TypeFlagsBoolean != 0 {
+				return TruthinessMaybeTruthy
 			}
 
 			// Check for empty string literal
@@ -230,6 +238,8 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				if typeStr == `""` || typeStr == "" {
 					return TruthinessFalsy
 				}
+				// Non-empty string literal is truthy
+				return TruthinessTruthy
 			}
 
 			// Check for 0 or -0 numeric literal
@@ -238,6 +248,8 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				if typeStr == "0" || typeStr == "-0" {
 					return TruthinessFalsy
 				}
+				// Non-zero number literal is truthy
+				return TruthinessTruthy
 			}
 
 			// Check for bigint 0
@@ -246,11 +258,8 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				if typeStr == "0n" {
 					return TruthinessFalsy
 				}
-			}
-
-			// Check generic boolean - could be true or false
-			if flags&checker.TypeFlagsBoolean != 0 && !utils.IsTrueLiteralType(ctx.TypeChecker, t) && !utils.IsFalseLiteralType(ctx.TypeChecker, t) {
-				return TruthinessMaybeTruthy
+				// Non-zero bigint literal is truthy
+				return TruthinessTruthy
 			}
 
 			// Check generic string - could be empty or non-empty
