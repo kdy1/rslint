@@ -64,11 +64,13 @@ var NoMeaninglessVoidOperatorRule = rule.CreateRule(rule.Rule{
 					}
 
 					suggestion := rule.RuleSuggestion{
-						Desc: rule.RuleMessage{
+						Message: rule.RuleMessage{
 							Id:          "removeVoid",
 							Description: "Remove void operator.",
 						},
-						Fix: rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[voidExpr.Expression.Pos():voidExpr.Expression.End()]),
+						FixesArr: []rule.RuleFix{
+							rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[voidExpr.Expression.Pos():voidExpr.Expression.End()]),
+						},
 					}
 
 					ctx.ReportNodeWithSuggestions(node, message, suggestion)
