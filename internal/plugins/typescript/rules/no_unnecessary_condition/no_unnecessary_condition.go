@@ -3,8 +3,6 @@ package no_unnecessary_condition
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -145,8 +143,11 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			return rule.RuleListeners{}
 		}
 
+		// Declare checkTypeIsTruthy first so it can be used recursively
+		var checkTypeIsTruthy func(t *checker.Type) Truthiness
+
 		// Check if a type is always truthy, always falsy, or may be either
-		checkTypeIsTruthy := func(t *checker.Type) Truthiness {
+		checkTypeIsTruthy = func(t *checker.Type) Truthiness {
 			// Handle any/unknown
 			if utils.IsTypeAnyType(t) || utils.IsTypeUnknownType(t) {
 				return TruthinessMaybeTruthy
@@ -189,24 +190,26 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 
 			// Check for empty string literal
 			if flags&checker.TypeFlagsStringLiteral != 0 {
-				if t.IsStringLiteral() && t.Value() == "" {
+				// Get the string value by converting type to string
+				typeStr := ctx.TypeChecker.TypeToString(t)
+				// Empty string literals are represented as ""
+				if typeStr == `""` || typeStr == "" {
 					return TruthinessFalsy
 				}
 			}
 
 			// Check for 0 or -0 numeric literal
 			if flags&checker.TypeFlagsNumberLiteral != 0 {
-				if t.IsNumberLiteral() {
-					val := t.Value()
-					if numVal, ok := val.(float64); ok && numVal == 0 {
-						return TruthinessFalsy
-					}
+				typeStr := ctx.TypeChecker.TypeToString(t)
+				if typeStr == "0" || typeStr == "-0" {
+					return TruthinessFalsy
 				}
 			}
 
 			// Check for bigint 0
 			if flags&checker.TypeFlagsBigIntLiteral != 0 {
-				if t.IsBigIntLiteral() && t.Value() == "0" {
+				typeStr := ctx.TypeChecker.TypeToString(t)
+				if typeStr == "0n" {
 					return TruthinessFalsy
 				}
 			}
@@ -407,7 +410,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				// Allow literal true/false but not variables containing them
 				if isLiteralTrue || isLiteralFalse {
 					// Check if it's actually a literal in the source
-					if ast.IsTrueKeyword(condition) || ast.IsFalseKeyword(condition) {
+					if condition.Kind == ast.KindTrueKeyword || condition.Kind == ast.KindFalseKeyword {
 						return
 					}
 					// Also allow numeric literals 0 and 1
@@ -431,11 +434,11 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
-			if len(callExpr.Arguments().Nodes) == 0 {
+			if len(callExpr.Arguments.Nodes) == 0 {
 				return
 			}
 
-			callback := callExpr.Arguments().Nodes[0]
+			callback := callExpr.Arguments.Nodes[0]
 
 			// Get the return type of the callback
 			var returnNode *ast.Node
