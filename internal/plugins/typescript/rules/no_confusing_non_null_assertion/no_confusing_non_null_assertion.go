@@ -95,15 +95,20 @@ var NoConfusingNonNullAssertionRule = rule.CreateRule(rule.Rule{
 					// For equality and assignment, suggest removing the !
 					if messageId == "confusingEqual" || messageId == "confusingAssign" {
 						suggestionId := "notNeedInEqualTest"
+						suggestionDesc := "Remove the non-null assertion operator"
 						if messageId == "confusingAssign" {
 							suggestionId = "notNeedInAssign"
 						}
 
 						ctx.ReportNodeWithSuggestions(leftWithoutParens, message,
 							rule.RuleSuggestion{
-								MessageId:   suggestionId,
-								Description: "Remove the non-null assertion operator",
-								Fix:         rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, innerText),
+								Message: rule.RuleMessage{
+									Id:          suggestionId,
+									Description: suggestionDesc,
+								},
+								FixesArr: []rule.RuleFix{
+									rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, innerText),
+								},
 							})
 					} else {
 						// For 'in' and 'instanceof', provide two suggestions:
@@ -114,14 +119,22 @@ var NoConfusingNonNullAssertionRule = rule.CreateRule(rule.Rule{
 
 						ctx.ReportNodeWithSuggestions(leftWithoutParens, message,
 							rule.RuleSuggestion{
-								MessageId:   "notNeedInOperator",
-								Description: "Remove the non-null assertion operator",
-								Fix:         rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, innerText),
+								Message: rule.RuleMessage{
+									Id:          "notNeedInOperator",
+									Description: "Remove the non-null assertion operator",
+								},
+								FixesArr: []rule.RuleFix{
+									rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, innerText),
+								},
 							},
 							rule.RuleSuggestion{
-								MessageId:   "wrapUpLeft",
-								Description: "Wrap the left-hand side in parentheses",
-								Fix:         rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, "("+fullText+")"),
+								Message: rule.RuleMessage{
+									Id:          "wrapUpLeft",
+									Description: "Wrap the left-hand side in parentheses",
+								},
+								FixesArr: []rule.RuleFix{
+									rule.RuleFixReplace(ctx.SourceFile, leftWithoutParens, "("+fullText+")"),
+								},
 							})
 					}
 					return
@@ -178,9 +191,13 @@ var NoConfusingNonNullAssertionRule = rule.CreateRule(rule.Rule{
 
 				ctx.ReportNodeWithSuggestions(node, message,
 					rule.RuleSuggestion{
-						MessageId:   "wrapUpLeft",
-						Description: "Wrap the left-hand side in parentheses",
-						Fix:         rule.RuleFixReplace(ctx.SourceFile, leftNode, "("+leftText+")"),
+						Message: rule.RuleMessage{
+							Id:          "wrapUpLeft",
+							Description: "Wrap the left-hand side in parentheses",
+						},
+						FixesArr: []rule.RuleFix{
+							rule.RuleFixReplace(ctx.SourceFile, leftNode, "("+leftText+")"),
+						},
 					})
 			},
 		}
