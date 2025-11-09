@@ -145,9 +145,9 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 			if symbol == nil {
 				return ""
 			}
-			// Try to get the escaped name
-			if symbol.EscapedName != "" {
-				return symbol.EscapedName
+			// Try to get the name
+			if symbol.Name != "" {
+				return symbol.Name
 			}
 			// Fallback to reading from declarations
 			if symbol.Declarations != nil && len(symbol.Declarations) > 0 {
@@ -173,18 +173,11 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "deprecatedWithReason",
 					Description: "'" + symbolName + "' is deprecated: " + reason,
-					Data: map[string]interface{}{
-						"name":   symbolName,
-						"reason": reason,
-					},
 				})
 			} else {
 				ctx.ReportNode(node, rule.RuleMessage{
 					Id:          "deprecated",
 					Description: "'" + symbolName + "' is deprecated.",
-					Data: map[string]interface{}{
-						"name": symbolName,
-					},
 				})
 			}
 		}
@@ -291,7 +284,7 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 				}
 
 				propAccess := node.AsPropertyAccessExpression()
-				if propAccess == nil || propAccess.Name == nil {
+				if propAccess == nil || propAccess.Name() == nil {
 					return
 				}
 
@@ -302,7 +295,7 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Get the property name
-				nameRange := utils.TrimNodeTextRange(ctx.SourceFile, propAccess.Name)
+				nameRange := utils.TrimNodeTextRange(ctx.SourceFile, propAccess.Name())
 				propName := ctx.SourceFile.Text()[nameRange.Pos():nameRange.End()]
 
 				// Get the property symbol
@@ -314,7 +307,7 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 				// Check if the property is deprecated
 				deprecated, reason := isSymbolDeprecated(prop)
 				if deprecated {
-					reportDeprecation(propAccess.Name, propName, reason)
+					reportDeprecation(propAccess.Name(), propName, reason)
 				}
 			},
 
@@ -334,36 +327,32 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				// Check if it's a string literal type
-				if !utils.IsTypeFlagSet(argType, checker.TypeFlagsStringLiteral) {
-					// Try to resolve template literals or const assertions
-					if elemAccess.ArgumentExpression.Kind == ast.KindStringLiteral ||
-						elemAccess.ArgumentExpression.Kind == ast.KindNoSubstitutionTemplateLiteral {
-						// Get the literal value
-						argRange := utils.TrimNodeTextRange(ctx.SourceFile, elemAccess.ArgumentExpression)
-						argText := ctx.SourceFile.Text()[argRange.Pos():argRange.End()]
-						// Remove quotes
-						if len(argText) >= 2 {
-							propName := argText[1 : len(argText)-1]
-
-							// Get the type of the expression being accessed
-							exprType := ctx.TypeChecker.GetTypeAtLocation(elemAccess.Expression)
-							if exprType != nil {
-								prop := ctx.TypeChecker.GetPropertyOfType(exprType, propName)
-								if prop != nil {
-									deprecated, reason := isSymbolDeprecated(prop)
-									if deprecated {
-										reportDeprecation(elemAccess.ArgumentExpression, propName, reason)
-									}
-								}
-							}
-						}
+				// Try to resolve string literals directly from the node
+				var propName string
+				if elemAccess.ArgumentExpression.Kind == ast.KindStringLiteral ||
+					elemAccess.ArgumentExpression.Kind == ast.KindNoSubstitutionTemplateLiteral {
+					// Get the literal value
+					argRange := utils.TrimNodeTextRange(ctx.SourceFile, elemAccess.ArgumentExpression)
+					argText := ctx.SourceFile.Text()[argRange.Pos():argRange.End()]
+					// Remove quotes
+					if len(argText) >= 2 {
+						propName = argText[1 : len(argText)-1]
+					} else {
+						return
 					}
+				} else if utils.IsTypeFlagSet(argType, checker.TypeFlagsStringLiteral) {
+					// For string literal types, try to extract from the text representation
+					argRange := utils.TrimNodeTextRange(ctx.SourceFile, elemAccess.ArgumentExpression)
+					argText := ctx.SourceFile.Text()[argRange.Pos():argRange.End()]
+					// The text should be a string literal
+					if len(argText) >= 2 && (argText[0] == '"' || argText[0] == '\'' || argText[0] == '`') {
+						propName = argText[1 : len(argText)-1]
+					} else {
+						return
+					}
+				} else {
 					return
 				}
-
-				// Get the string value from the type
-				propName := argType.AsStringLiteralType().Value
 
 				// Get the type of the expression being accessed
 				exprType := ctx.TypeChecker.GetTypeAtLocation(elemAccess.Expression)
@@ -421,8 +410,9 @@ var NoDeprecatedRule = rule.CreateRule(rule.Rule{
 				// Get construct signatures
 				signatures := utils.GetConstructSignatures(ctx.TypeChecker, exprType)
 				for _, sig := range signatures {
-					if sig.Declaration != nil {
-						if deprecated, reason := getDeprecationReason(sig.Declaration); deprecated {
+					decl := checker.Signature_declaration(sig)
+					if decl != nil {
+						if deprecated, reason := getDeprecationReason(decl); deprecated {
 							symbolName := getSymbolName(symbol)
 							if symbolName == "" {
 								nameRange := utils.TrimNodeTextRange(ctx.SourceFile, newExpr.Expression)
