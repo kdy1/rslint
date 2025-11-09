@@ -1,7 +1,7 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
 import path from 'node:path';
 
-
+import rule from '../../src/rules/no-unnecessary-type-assertion';
 
 const rootDir = path.join(__dirname, '..', 'fixtures');
 const ruleTester = new RuleTester({
@@ -24,7 +24,7 @@ const optionsWithExactOptionalPropertyTypes = {
   tsconfigRootDir: rootDir,
 };
 
-ruleTester.run('no-unnecessary-type-assertion', {
+ruleTester.run('no-unnecessary-type-assertion', rule, {
   valid: [
     `
 import { TSESTree } from '@typescript-eslint/utils';
