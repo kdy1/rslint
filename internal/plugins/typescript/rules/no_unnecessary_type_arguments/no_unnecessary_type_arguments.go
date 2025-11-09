@@ -122,23 +122,26 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 		}
 
 		checkTypeReference := func(node *ast.Node, typeArguments []*ast.Node, typeNode *ast.Node) {
-			// TODO(port): This function is disabled because getting type parameters from
-			// type references (classes, interfaces, type aliases) requires accessing internal
-			// TypeScript type system structures that are not properly exposed in typescript-go.
-			// The issue is that GetTypeFromTypeNode on a type parameter AST node returns the
-			// constraint/default type (e.g., IntrinsicType for 'number'), not the TypeParameter
-			// object itself, which causes a panic when passed to Checker_getDefaultFromTypeParameter.
-			//
-			// To properly implement this, we would need:
-			// 1. Access to InterfaceType.allTypeParameters or similar fields
-			// 2. A way to get TypeParameter objects from a generic type's symbol
-			// 3. Or, a different API that works with type references
-			//
-			// For now, this rule only works with call/new expressions and other signatures.
-			_ = node
-			_ = typeArguments
-			_ = typeNode
-			return
+			if typeArguments == nil || len(typeArguments) == 0 {
+				return
+			}
+
+			// Get the type from the type reference
+			refType := ctx.TypeChecker.GetTypeAtLocation(typeNode)
+			if refType == nil {
+				return
+			}
+
+			// For ExpressionWithTypeArguments (extends/implements), we try to get construct signatures
+			// which have type parameters we can check against
+			constructSignatures := utils.GetConstructSignatures(ctx.TypeChecker, refType)
+			if len(constructSignatures) > 0 {
+				// Use the first construct signature
+				getSignature := func() *checker.Signature {
+					return constructSignatures[0]
+				}
+				checkTypeArguments(node, typeArguments, getSignature)
+			}
 		}
 
 		return rule.RuleListeners{
