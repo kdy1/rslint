@@ -1,64 +1,91 @@
 package no_meaningless_void_operator
 
 import (
-	"fmt"
-
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
-func buildMeaninglessVoidOperatorMessage(t string) rule.RuleMessage {
-	return rule.RuleMessage{
-		Id:          "meaninglessVoidOperator",
-		Description: fmt.Sprintf("void operator shouldn't be used on %v; it should convey that a return value is being ignored", t),
-	}
-}
-func buildRemoveVoidMessage() rule.RuleMessage {
-	return rule.RuleMessage{
-		Id:          "removeVoid",
-		Description: "Remove 'void'",
-	}
-}
-
 type NoMeaninglessVoidOperatorOptions struct {
-	CheckNever *bool
+	CheckNever bool `json:"checkNever"`
 }
 
 var NoMeaninglessVoidOperatorRule = rule.CreateRule(rule.Rule{
 	Name: "no-meaningless-void-operator",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		opts, ok := options.(NoMeaninglessVoidOperatorOptions)
-		if !ok {
-			opts = NoMeaninglessVoidOperatorOptions{}
+		opts := NoMeaninglessVoidOperatorOptions{
+			CheckNever: false,
 		}
-		if opts.CheckNever == nil {
-			opts.CheckNever = utils.Ref(false)
+
+		// Parse options with dual-format support (handles both array and object formats)
+		if options != nil {
+			var optsMap map[string]interface{}
+			var ok bool
+
+			// Handle array format: [{ option: value }]
+			if optArray, isArray := options.([]interface{}); isArray && len(optArray) > 0 {
+				optsMap, ok = optArray[0].(map[string]interface{})
+			} else {
+				// Handle direct object format: { option: value }
+				optsMap, ok = options.(map[string]interface{})
+			}
+
+			if ok {
+				if checkNever, ok := optsMap["checkNever"].(bool); ok {
+					opts.CheckNever = checkNever
+				}
+			}
 		}
 
 		return rule.RuleListeners{
 			ast.KindVoidExpression: func(node *ast.Node) {
-				arg := node.AsVoidExpression().Expression
-				argType := ctx.TypeChecker.GetTypeAtLocation(arg)
-
-				mask := checker.TypeFlagsVoidLike | checker.TypeFlagsNever
-
-				for _, t := range utils.UnionTypeParts(argType) {
-					mask &= checker.Type_flags(t)
+				voidExpr := node.AsVoidExpression()
+				if voidExpr == nil {
+					return
 				}
 
-				fixRemoveVoidKeyword := func() rule.RuleFix {
-					return rule.RuleFixRemoveRange(utils.TrimNodeTextRange(ctx.SourceFile, node).WithEnd(arg.Pos()))
+				// Get the type of the expression being voided
+				exprType := utils.GetConstrainedTypeAtLocation(ctx.TypeChecker, voidExpr.Expression)
+				if exprType == nil {
+					return
 				}
 
-				if mask&checker.TypeFlagsVoidLike != 0 {
-					ctx.ReportNodeWithFixes(node, buildMeaninglessVoidOperatorMessage(ctx.TypeChecker.TypeToString(argType)), fixRemoveVoidKeyword())
-				} else if *opts.CheckNever && mask&checker.TypeFlagsNever != 0 {
-					ctx.ReportNodeWithSuggestions(node, buildMeaninglessVoidOperatorMessage(ctx.TypeChecker.TypeToString(argType)), rule.RuleSuggestion{
-						Message:  buildRemoveVoidMessage(),
-						FixesArr: []rule.RuleFix{fixRemoveVoidKeyword()},
-					})
+				// Check if the expression is already void
+				isVoid := utils.IsTypeFlagSet(exprType, checker.TypeFlagsVoid)
+				isUndefined := utils.IsTypeFlagSet(exprType, checker.TypeFlagsUndefined)
+				isNever := utils.IsTypeFlagSet(exprType, checker.TypeFlagsNever)
+
+				// If checkNever is enabled and type is never, report with suggestion only
+				if opts.CheckNever && isNever {
+					message := rule.RuleMessage{
+						Id:          "meaninglessVoidOperator",
+						Description: "void operator is meaningless on a value that is never.",
+					}
+
+					suggestion := rule.RuleSuggestion{
+						Desc: rule.RuleMessage{
+							Id:          "removeVoid",
+							Description: "Remove void operator.",
+						},
+						Fix: rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[voidExpr.Expression.Pos():voidExpr.Expression.End()]),
+					}
+
+					ctx.ReportNodeWithSuggestions(node, message, suggestion)
+					return
+				}
+
+				// If type is void or undefined (but not never when checkNever is false), report with auto-fix
+				if (isVoid || isUndefined) && !isNever {
+					message := rule.RuleMessage{
+						Id:          "meaninglessVoidOperator",
+						Description: "void operator is meaningless on a value that is already void or undefined.",
+					}
+
+					fix := rule.RuleFixReplace(ctx.SourceFile, node, ctx.SourceFile.Text()[voidExpr.Expression.Pos():voidExpr.Expression.End()])
+
+					ctx.ReportNodeWithFixes(node, message, fix)
+					return
 				}
 			},
 		}
