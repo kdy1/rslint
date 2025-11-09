@@ -126,7 +126,7 @@ func evaluateEnumValue(node *ast.Node) (string, string, bool) {
 		// Check for special identifiers like NaN, Infinity
 		identifier := node.AsIdentifier()
 		if identifier != nil {
-			switch identifier.EscapedText {
+			switch identifier.Text {
 			case "NaN":
 				return "NaN", "NaN", false // NaN is never equal to itself
 			case "Infinity":
