@@ -264,9 +264,9 @@ func checkTypeParameters(ctx rule.RuleContext, node *ast.Node, typeParameters *a
 			}
 			// Check if this type parameter is used in another parameter's constraint
 			if otherParam.Kind == ast.KindTypeParameter {
-				constraint := otherParam.Constraint()
-				if constraint != nil {
-					usageCount += countTypeParameterUsage(constraint, typeParamName)
+				tp := otherParam.AsTypeParameter()
+				if tp != nil && tp.Constraint != nil {
+					usageCount += countTypeParameterUsage(tp.Constraint, typeParamName)
 				}
 			}
 		}
