@@ -195,11 +195,20 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			flags := checker.Type_flags(t)
 
 			// Handle intersection types (e.g., string & { __brand: 'Brand' })
-			// If any part of the intersection is a maybe-truthy type, treat the whole as maybe-truthy
+			// For branded types and other intersections, check each constituent
 			if flags&checker.TypeFlagsIntersection != 0 {
-				// For intersections, if any constituent is a base type like string/number/boolean, treat as maybe
-				if flags&(checker.TypeFlagsString|checker.TypeFlagsNumber|checker.TypeFlagsBoolean|checker.TypeFlagsBigInt) != 0 {
-					return TruthinessMaybeTruthy
+				// Get the constituents of the intersection
+				parts := utils.IntersectionTypeParts(t)
+				if len(parts) > 0 {
+					// Check each part
+					for _, part := range parts {
+						partFlags := checker.Type_flags(part)
+						// If any part is a base primitive type (string/number/boolean/bigint),
+						// the intersection can have the same truthiness variability
+						if partFlags&(checker.TypeFlagsString|checker.TypeFlagsNumber|checker.TypeFlagsBoolean|checker.TypeFlagsBigInt) != 0 {
+							return TruthinessMaybeTruthy
+						}
+					}
 				}
 			}
 
@@ -273,7 +282,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 		}
 
 		// Check if a node represents a condition
-		checkNode := func(node *ast.Node, isRoot bool) {
+		checkNode := func(node *ast.Node, isRoot bool, invert bool) {
 			t := ctx.TypeChecker.GetTypeAtLocation(node)
 			constrainedType, isTypeParam := utils.GetConstraintInfo(ctx.TypeChecker, t)
 
@@ -288,6 +297,15 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			}
 
 			truthiness := checkTypeIsTruthy(typeToCheck)
+
+			// Invert the truthiness if this is inside a NOT operator
+			if invert {
+				if truthiness == TruthinessTruthy {
+					truthiness = TruthinessFalsy
+				} else if truthiness == TruthinessFalsy {
+					truthiness = TruthinessTruthy
+				}
+			}
 
 			if truthiness == TruthinessTruthy {
 				ctx.ReportNode(node, buildAlwaysTruthyMessage())
@@ -445,7 +463,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 				}
 			}
 
-			checkNode(condition, true)
+			checkNode(condition, true, false)
 		}
 
 		// Check array predicate callbacks
@@ -513,7 +531,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindIfStatement: func(node *ast.Node) {
 				expr := node.AsIfStatement().Expression
 				if !shouldSkipConditionCheck(expr) {
-					checkNode(expr, true)
+					checkNode(expr, true, false)
 				}
 			},
 
@@ -521,7 +539,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindConditionalExpression: func(node *ast.Node) {
 				condition := node.AsConditionalExpression().Condition
 				if !shouldSkipConditionCheck(condition) {
-					checkNode(condition, true)
+					checkNode(condition, true, false)
 				}
 			},
 
@@ -538,7 +556,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 						(ast.IsBinaryExpression(left) &&
 							(left.AsBinaryExpression().OperatorToken.Kind == ast.KindAmpersandAmpersandToken ||
 							 left.AsBinaryExpression().OperatorToken.Kind == ast.KindBarBarToken)) {
-						checkNode(left, false)
+						checkNode(left, false, false)
 					}
 				} else if op == ast.KindQuestionQuestionToken {
 					checkNullishCoalescing(node)
@@ -551,7 +569,7 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			ast.KindPrefixUnaryExpression: func(node *ast.Node) {
 				expr := node.AsPrefixUnaryExpression()
 				if expr.Operator == ast.KindExclamationToken {
-					checkNode(expr.Operand, false)
+					checkNode(expr.Operand, false, true)
 				}
 			},
 
