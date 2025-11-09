@@ -5,7 +5,6 @@ import (
 
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/fixtures"
 	"github.com/web-infra-dev/rslint/internal/rule_tester"
-	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
 func TestNoMeaninglessVoidOperatorRule(t *testing.T) {
