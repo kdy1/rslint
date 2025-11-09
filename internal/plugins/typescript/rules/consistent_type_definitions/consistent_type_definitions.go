@@ -35,8 +35,8 @@ func isInDeclareGlobal(node *ast.Node) bool {
 						parent := current.Parent
 						if parent != nil && parent.Kind == ast.KindModuleBlock {
 							// Look for declare keyword
-							if current.Modifiers != nil {
-								for _, mod := range current.Modifiers.Nodes {
+							if modifiers := current.Modifiers(); modifiers != nil {
+								for _, mod := range modifiers.Nodes {
 									if mod.Kind == ast.KindDeclareKeyword {
 										return true
 									}
@@ -54,10 +54,11 @@ func isInDeclareGlobal(node *ast.Node) bool {
 
 // Helper to check if node is a default export
 func isDefaultExport(node *ast.Node) bool {
-	if node.Modifiers == nil {
+	modifiers := node.Modifiers()
+	if modifiers == nil {
 		return false
 	}
-	for _, mod := range node.Modifiers.Nodes {
+	for _, mod := range modifiers.Nodes {
 		if mod.Kind == ast.KindDefaultKeyword {
 			return true
 		}
@@ -85,8 +86,15 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node, typeAlias *ast
 	// Get the name and type parameters
 	nameNode := typeAlias.Name()
 	var typeParamsText string
-	if typeAlias.TypeParameters != nil {
-		typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, typeAlias.TypeParameters)
+	if typeAlias.TypeParameters != nil && len(typeAlias.TypeParameters.Nodes) > 0 {
+		// Get range from first to last type parameter
+		firstParam := typeAlias.TypeParameters.Nodes[0]
+		lastParam := typeAlias.TypeParameters.Nodes[len(typeAlias.TypeParameters.Nodes)-1]
+		firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstParam)
+		lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastParam)
+		typeParamsRange := firstRange.WithEnd(lastRange.End())
+		// Include the angle brackets
+		typeParamsRange = typeParamsRange.WithPos(typeParamsRange.Pos() - 1).WithEnd(typeParamsRange.End() + 1)
 		typeParamsText = sourceText[typeParamsRange.Pos():typeParamsRange.End()]
 	}
 
@@ -99,8 +107,8 @@ func convertTypeToInterface(ctx rule.RuleContext, node *ast.Node, typeAlias *ast
 
 	// Get the export/declare modifiers
 	var modifiers []string
-	if node.Modifiers != nil {
-		for _, mod := range node.Modifiers.Nodes {
+	if nodeModifiers := node.Modifiers(); nodeModifiers != nil {
+		for _, mod := range nodeModifiers.Nodes {
 			modRange := utils.TrimNodeTextRange(ctx.SourceFile, mod)
 			modText := sourceText[modRange.Pos():modRange.End()]
 			modifiers = append(modifiers, modText)
@@ -142,14 +150,33 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 		nameText := sourceText[nameRange.Pos():nameRange.End()]
 
 		var typeParamsText string
-		if interfaceDecl.TypeParameters != nil {
-			typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.TypeParameters)
+		if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Nodes) > 0 {
+			// Get range from first to last type parameter
+			firstParam := interfaceDecl.TypeParameters.Nodes[0]
+			lastParam := interfaceDecl.TypeParameters.Nodes[len(interfaceDecl.TypeParameters.Nodes)-1]
+			firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstParam)
+			lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastParam)
+			typeParamsRange := firstRange.WithEnd(lastRange.End())
+			// Include the angle brackets
+			typeParamsRange = typeParamsRange.WithPos(typeParamsRange.Pos() - 1).WithEnd(typeParamsRange.End() + 1)
 			typeParamsText = sourceText[typeParamsRange.Pos():typeParamsRange.End()]
 		}
 
 		// Get the body
-		bodyRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Members)
-		bodyText := sourceText[bodyRange.Pos():bodyRange.End()]
+		var bodyText string
+		if interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) > 0 {
+			firstMember := interfaceDecl.Members.Nodes[0]
+			lastMember := interfaceDecl.Members.Nodes[len(interfaceDecl.Members.Nodes)-1]
+			firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstMember)
+			lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastMember)
+			bodyRange := firstRange.WithEnd(lastRange.End())
+			// Include the braces
+			bodyRange = bodyRange.WithPos(bodyRange.Pos() - 1).WithEnd(bodyRange.End() + 1)
+			bodyText = sourceText[bodyRange.Pos():bodyRange.End()]
+		} else {
+			// Empty interface body
+			bodyText = "{}"
+		}
 
 		result := fmt.Sprintf("type %s%s = %s\nexport default %s", nameText, typeParamsText, bodyText, nameText)
 		return rule.RuleFixReplace(ctx.SourceFile, node, result)
@@ -158,19 +185,38 @@ func convertInterfaceToType(ctx rule.RuleContext, node *ast.Node, interfaceDecl 
 	// Get the name and type parameters
 	nameNode := interfaceDecl.Name()
 	var typeParamsText string
-	if interfaceDecl.TypeParameters != nil {
-		typeParamsRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.TypeParameters)
+	if interfaceDecl.TypeParameters != nil && len(interfaceDecl.TypeParameters.Nodes) > 0 {
+		// Get range from first to last type parameter
+		firstParam := interfaceDecl.TypeParameters.Nodes[0]
+		lastParam := interfaceDecl.TypeParameters.Nodes[len(interfaceDecl.TypeParameters.Nodes)-1]
+		firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstParam)
+		lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastParam)
+		typeParamsRange := firstRange.WithEnd(lastRange.End())
+		// Include the angle brackets
+		typeParamsRange = typeParamsRange.WithPos(typeParamsRange.Pos() - 1).WithEnd(typeParamsRange.End() + 1)
 		typeParamsText = sourceText[typeParamsRange.Pos():typeParamsRange.End()]
 	}
 
 	// Get the body text
-	bodyRange := utils.TrimNodeTextRange(ctx.SourceFile, interfaceDecl.Members)
-	bodyText := sourceText[bodyRange.Pos():bodyRange.End()]
+	var bodyText string
+	if interfaceDecl.Members != nil && len(interfaceDecl.Members.Nodes) > 0 {
+		firstMember := interfaceDecl.Members.Nodes[0]
+		lastMember := interfaceDecl.Members.Nodes[len(interfaceDecl.Members.Nodes)-1]
+		firstRange := utils.TrimNodeTextRange(ctx.SourceFile, firstMember)
+		lastRange := utils.TrimNodeTextRange(ctx.SourceFile, lastMember)
+		bodyRange := firstRange.WithEnd(lastRange.End())
+		// Include the braces
+		bodyRange = bodyRange.WithPos(bodyRange.Pos() - 1).WithEnd(bodyRange.End() + 1)
+		bodyText = sourceText[bodyRange.Pos():bodyRange.End()]
+	} else {
+		// Empty interface body
+		bodyText = "{}"
+	}
 
 	// Get the export/declare modifiers (exclude "default")
 	var modifiers []string
-	if node.Modifiers != nil {
-		for _, mod := range node.Modifiers.Nodes {
+	if nodeModifiers := node.Modifiers(); nodeModifiers != nil {
+		for _, mod := range nodeModifiers.Nodes {
 			if mod.Kind != ast.KindDefaultKeyword {
 				modRange := utils.TrimNodeTextRange(ctx.SourceFile, mod)
 				modText := sourceText[modRange.Pos():modRange.End()]
