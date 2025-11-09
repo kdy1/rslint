@@ -27,7 +27,7 @@ export default defineConfig({
     './tests/typescript-eslint/rules/no-require-imports.test.ts',
     // too many autofix errors
     './tests/typescript-eslint/rules/no-duplicate-type-constituents.test.ts',
-    './tests/typescript-eslint/rules/no_namespace.test.ts',
+    './tests/typescript-eslint/rules/no-namespace.test.ts',
     './tests/typescript-eslint/rules/no-implied-eval.test.ts',
 
     // Additional tests (commented out)
@@ -97,7 +97,6 @@ export default defineConfig({
     // './tests/typescript-eslint/rules/no-misused-promises.test.ts',
     // './tests/typescript-eslint/rules/no-misused-spread.test.ts',
     // './tests/typescript-eslint/rules/no-mixed-enums.test.ts',
-    // './tests/typescript-eslint/rules/no-namespace.test.ts',
     // './tests/typescript-eslint/rules/no-non-null-asserted-nullish-coalescing.test.ts',
     // './tests/typescript-eslint/rules/no-non-null-asserted-optional-chain.test.ts',
     // './tests/typescript-eslint/rules/no-non-null-assertion.test.ts',
