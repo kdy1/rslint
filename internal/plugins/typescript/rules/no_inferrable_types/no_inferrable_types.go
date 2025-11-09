@@ -2,6 +2,7 @@ package no_inferrable_types
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
@@ -37,14 +38,6 @@ var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
 					opts.IgnoreProperties = ignoreProps
 				}
 			}
-		}
-
-		// Helper function to get the text of a type node
-		getTypeText := func(typeNode *ast.Node) string {
-			if typeNode == nil {
-				return ""
-			}
-			return ctx.SourceFile.GetText(typeNode.Pos, typeNode.End)
 		}
 
 		// Helper function to check if a type annotation matches an inferrable type
@@ -255,58 +248,55 @@ var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
 					reportNode = node
 				}
 
-				ctx.ReportNodeWithFixer(reportNode, rule.RuleMessage{
-					Id:          "noInferrableType",
-					Description: "Type " + typeName + " trivially inferred from a " + typeName + " literal, remove type annotation.",
-					Data: map[string]interface{}{
-						"type": typeName,
-					},
-				}, func(fixer rule.Fixer) {
-					// Remove the type annotation
-					// Find the position of the type annotation (after the identifier)
-					typeStart := varDecl.Type.Pos
-					typeEnd := varDecl.Type.End
+				// Create the fix
+				// Find the position of the type annotation (after the identifier)
+				typeStart := varDecl.Type.Pos()
+				typeEnd := varDecl.Type.End()
 
-					// We need to remove ": type" including the colon and spaces
-					// Find the colon before the type
-					nameEnd := varDecl.Name().End
-					colonPos := nameEnd
+				// We need to remove ": type" including the colon and spaces
+				// Find the colon before the type
+				nameEnd := varDecl.Name().End()
+				colonPos := nameEnd
 
-					// Find the colon between name and type
-					sourceText := ctx.SourceFile.GetText(0, ctx.SourceFile.End)
-					for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
-						if sourceText[i] == ':' {
-							colonPos = i
-							break
-						}
+				// Find the colon between name and type
+				sourceText := ctx.SourceFile.Text()
+				for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
+					if sourceText[i] == ':' {
+						colonPos = i
+						break
 					}
+				}
 
-					// Check if there's a definite assignment assertion (!)
-					definiteToken := ""
+				// Check if there's a definite assignment assertion (!)
+				definiteToken := ""
+				for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
+					if sourceText[i] == '!' {
+						definiteToken = "!"
+						break
+					}
+				}
+
+				// Remove from after the name (or definite token) to the end of the type
+				startRemove := nameEnd
+				if definiteToken != "" {
+					// Keep the name, remove the "!" and type annotation
 					for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
 						if sourceText[i] == '!' {
-							definiteToken = "!"
+							startRemove = i
 							break
 						}
 					}
+				} else {
+					// Just remove from after the name
+					startRemove = colonPos
+				}
 
-					// Remove from after the name (or definite token) to the end of the type
-					startRemove := nameEnd
-					if definiteToken != "" {
-						// Keep the name, remove the "!" and type annotation
-						for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
-							if sourceText[i] == '!' {
-								startRemove = i
-								break
-							}
-						}
-					} else {
-						// Just remove from after the name
-						startRemove = colonPos
-					}
+				fix := rule.RuleFixRemoveRange(core.NewTextRange(startRemove, typeEnd))
 
-					fixer.RemoveRange(startRemove, typeEnd)
-				})
+				ctx.ReportNodeWithFixes(reportNode, rule.RuleMessage{
+					Id:          "noInferrableType",
+					Description: "Type " + typeName + " trivially inferred from a " + typeName + " literal, remove type annotation.",
+				}, fix)
 			}
 		}
 
@@ -338,51 +328,49 @@ var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
 					reportNode = node
 				}
 
-				ctx.ReportNodeWithFixer(reportNode, rule.RuleMessage{
-					Id:          "noInferrableType",
-					Description: "Type " + typeName + " trivially inferred from a " + typeName + " literal, remove type annotation.",
-					Data: map[string]interface{}{
-						"type": typeName,
-					},
-				}, func(fixer rule.Fixer) {
-					// Remove the type annotation from parameter
-					nameEnd := param.Name().End
-					typeStart := param.Type.Pos
-					typeEnd := param.Type.End
+				// Create the fix
+				// Remove the type annotation from parameter
+				nameEnd := param.Name().End()
+				typeStart := param.Type.Pos()
+				typeEnd := param.Type.End()
 
-					sourceText := ctx.SourceFile.GetText(0, ctx.SourceFile.End)
-					colonPos := nameEnd
+				sourceText := ctx.SourceFile.Text()
+				colonPos := nameEnd
 
-					// Find the colon between name and type
-					for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
-						if sourceText[i] == ':' {
-							colonPos = i
-							break
-						}
+				// Find the colon between name and type
+				for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
+					if sourceText[i] == ':' {
+						colonPos = i
+						break
 					}
+				}
 
-					// Check for optional token (?)
-					hasOptional := false
+				// Check for optional token (?)
+				hasOptional := false
+				for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
+					if sourceText[i] == '?' {
+						hasOptional = true
+						break
+					}
+				}
+
+				startRemove := colonPos
+				if hasOptional {
+					// Remove from the optional token
 					for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
 						if sourceText[i] == '?' {
-							hasOptional = true
+							startRemove = i
 							break
 						}
 					}
+				}
 
-					startRemove := colonPos
-					if hasOptional {
-						// Remove from the optional token
-						for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
-							if sourceText[i] == '?' {
-								startRemove = i
-								break
-							}
-						}
-					}
+				fix := rule.RuleFixRemoveRange(core.NewTextRange(startRemove, typeEnd))
 
-					fixer.RemoveRange(startRemove, typeEnd)
-				})
+				ctx.ReportNodeWithFixes(reportNode, rule.RuleMessage{
+					Id:          "noInferrableType",
+					Description: "Type " + typeName + " trivially inferred from a " + typeName + " literal, remove type annotation.",
+				}, fix)
 			}
 		}
 
@@ -403,7 +391,7 @@ var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Skip optional properties (they're allowed to have type annotations)
-			if propDecl.QuestionToken != nil {
+			if propDecl.PostfixToken != nil && propDecl.PostfixToken.Kind == ast.KindQuestionToken {
 				return
 			}
 
@@ -424,40 +412,38 @@ var NoInferrableTypesRule = rule.CreateRule(rule.Rule{
 					reportNode = node
 				}
 
-				ctx.ReportNodeWithFixer(reportNode, rule.RuleMessage{
+				// Create the fix
+				// Remove the type annotation from property
+				nameEnd := propDecl.Name().End()
+				typeStart := propDecl.Type.Pos()
+				typeEnd := propDecl.Type.End()
+
+				sourceText := ctx.SourceFile.Text()
+				colonPos := nameEnd
+
+				// Find the colon between name and type
+				for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
+					if sourceText[i] == ':' {
+						colonPos = i
+						break
+					}
+				}
+
+				// Check for definite assignment assertion (!)
+				startRemove := colonPos
+				for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
+					if sourceText[i] == '!' {
+						startRemove = i
+						break
+					}
+				}
+
+				fix := rule.RuleFixRemoveRange(core.NewTextRange(startRemove, typeEnd))
+
+				ctx.ReportNodeWithFixes(reportNode, rule.RuleMessage{
 					Id:          "noInferrableType",
 					Description: "Type " + typeName + " trivially inferred from a " + typeName + " literal, remove type annotation.",
-					Data: map[string]interface{}{
-						"type": typeName,
-					},
-				}, func(fixer rule.Fixer) {
-					// Remove the type annotation from property
-					nameEnd := propDecl.Name().End
-					typeStart := propDecl.Type.Pos
-					typeEnd := propDecl.Type.End
-
-					sourceText := ctx.SourceFile.GetText(0, ctx.SourceFile.End)
-					colonPos := nameEnd
-
-					// Find the colon between name and type
-					for i := nameEnd; i < typeStart && i < len(sourceText); i++ {
-						if sourceText[i] == ':' {
-							colonPos = i
-							break
-						}
-					}
-
-					// Check for definite assignment assertion (!)
-					startRemove := colonPos
-					for i := nameEnd; i < colonPos && i < len(sourceText); i++ {
-						if sourceText[i] == '!' {
-							startRemove = i
-							break
-						}
-					}
-
-					fixer.RemoveRange(startRemove, typeEnd)
-				})
+				}, fix)
 			}
 		}
 
