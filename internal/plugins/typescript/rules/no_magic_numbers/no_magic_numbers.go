@@ -177,21 +177,6 @@ var NoMagicNumbersRule = rule.CreateRule(rule.Rule{
 			return false
 		}
 
-		// Helper to check if a node is within a subtree
-		nodeIsWithinSubtree := func(node *ast.Node, subtree *ast.Node) bool {
-			if subtree == nil {
-				return false
-			}
-			current := node
-			for current != nil {
-				if current == subtree {
-					return true
-				}
-				current = current.Parent
-			}
-			return false
-		}
-
 		// Helper to check if node is a numeric literal type
 		isNumericLiteralType := func(node *ast.Node) bool {
 			if !opts.IgnoreNumericLiteralTypes {
