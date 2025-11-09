@@ -1,10 +1,10 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../src/rules/no-type-alias';
 
 const ruleTester = new RuleTester();
 
-ruleTester.run('no-type-alias', {
+ruleTester.run('no-type-alias', rule, {
   valid: [
     {
       code: "type A = 'a' & ('b' | 'c');",
