@@ -466,6 +466,34 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			checkNode(condition, true)
 		}
 
+		// Helper to check if expression should skip condition checking
+		shouldSkipConditionCheck := func(expr *ast.Node) bool {
+			if isComparisonExpression(expr) {
+				return true
+			}
+			if ast.IsPrefixUnaryExpression(expr) {
+				return true
+			}
+			if ast.IsBinaryExpression(expr) {
+				op := expr.AsBinaryExpression().OperatorToken.Kind
+				// Skip logical operators - they handle their own checks
+				if op == ast.KindAmpersandAmpersandToken || op == ast.KindBarBarToken {
+					return true
+				}
+			}
+			// Skip if the expression type is already boolean (not a boolean literal)
+			// Boolean types are meant to be used in conditionals
+			exprType := ctx.TypeChecker.GetTypeAtLocation(expr)
+			flags := checker.Type_flags(exprType)
+			if flags&checker.TypeFlagsBoolean != 0 {
+				// Make sure it's not a boolean literal (true/false), just generic boolean
+				if !utils.IsTrueLiteralType(ctx.TypeChecker, exprType) && !utils.IsFalseLiteralType(ctx.TypeChecker, exprType) {
+					return true
+				}
+			}
+			return false
+		}
+
 		// Check array predicate callbacks
 		checkArrayPredicate := func(node *ast.Node) {
 			callExpr := node.AsCallExpression()
@@ -506,34 +534,6 @@ var NoUnnecessaryConditionRule = rule.CreateRule(rule.Rule{
 			} else if truthiness == TruthinessFalsy {
 				ctx.ReportNode(returnNode, buildAlwaysFalsyFuncMessage())
 			}
-		}
-
-		// Helper to check if expression should skip condition checking
-		shouldSkipConditionCheck := func(expr *ast.Node) bool {
-			if isComparisonExpression(expr) {
-				return true
-			}
-			if ast.IsPrefixUnaryExpression(expr) {
-				return true
-			}
-			if ast.IsBinaryExpression(expr) {
-				op := expr.AsBinaryExpression().OperatorToken.Kind
-				// Skip logical operators - they handle their own checks
-				if op == ast.KindAmpersandAmpersandToken || op == ast.KindBarBarToken {
-					return true
-				}
-			}
-			// Skip if the expression type is already boolean (not a boolean literal)
-			// Boolean types are meant to be used in conditionals
-			exprType := ctx.TypeChecker.GetTypeAtLocation(expr)
-			flags := checker.Type_flags(exprType)
-			if flags&checker.TypeFlagsBoolean != 0 {
-				// Make sure it's not a boolean literal (true/false), just generic boolean
-				if !utils.IsTrueLiteralType(ctx.TypeChecker, exprType) && !utils.IsFalseLiteralType(ctx.TypeChecker, exprType) {
-					return true
-				}
-			}
-			return false
 		}
 
 		return rule.RuleListeners{
