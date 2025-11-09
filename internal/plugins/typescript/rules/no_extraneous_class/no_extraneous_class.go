@@ -52,23 +52,23 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 		}
 
 		checkClass := func(node *ast.Node) {
-			// Try to get class as declaration or expression
-			var classLike *ast.ClassDeclaration
+			// Get class declaration (works for both ClassDeclaration and ClassExpression)
+			var classDecl *ast.ClassDeclaration
 			if node.Kind == ast.KindClassDeclaration {
-				classLike = node.AsClassDeclaration()
+				classDecl = node.AsClassDeclaration()
 			} else if node.Kind == ast.KindClassExpression {
-				expr := node.AsClassExpression()
-				if expr != nil {
-					// ClassExpression embeds ClassDeclaration
-					classLike = (*ast.ClassDeclaration)(expr)
+				// ClassExpression can be used as ClassDeclaration for member access
+				classExpr := node.AsClassExpression()
+				if classExpr == nil {
+					return
 				}
+				// Access the underlying class declaration fields
+				classDecl = classExpr.ClassDeclaration
 			}
 
-			if classLike == nil {
+			if classDecl == nil {
 				return
 			}
-
-			classDecl := classLike
 
 			// Get the node to report on (prefer name, fallback to class node)
 			reportNode := classDecl.Name()
