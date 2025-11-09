@@ -62,21 +62,26 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Find the type parameter declaration
-				var typeParamDecl *ast.TypeParameterDeclaration
+				var typeParamDecl *ast.Node
 				for _, decl := range declarations {
 					if ast.IsTypeParameterDeclaration(decl) {
-						typeParamDecl = decl.AsTypeParameter()
+						typeParamDecl = decl
 						break
 					}
 				}
 
-				if typeParamDecl == nil || typeParamDecl.Default == nil {
+				if typeParamDecl == nil {
+					break
+				}
+
+				typeParamNode := typeParamDecl.AsTypeParameter()
+				if typeParamNode == nil || typeParamNode.DefaultType == nil {
 					// No default, so we can stop checking
 					break
 				}
 
 				// Get the type from the default type node
-				defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamDecl.Default)
+				defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamNode.DefaultType)
 				if defaultType == nil {
 					break
 				}
@@ -187,9 +192,9 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					if typeAliasDecl.TypeParameters != nil && typeAliasDecl.TypeParameters.Nodes != nil {
 						typeParametersNodes = typeAliasDecl.TypeParameters.Nodes
 					}
-				} else if ast.IsConstructSignature(decl) {
-					constructSig := decl.AsConstructSignature()
-					if constructSig.TypeParameters != nil && constructSig.TypeParameters.Nodes != nil {
+				} else if decl.Kind == ast.KindConstructSignature {
+					constructSig := decl.AsConstructSignatureDeclaration()
+					if constructSig != nil && constructSig.TypeParameters != nil && constructSig.TypeParameters.Nodes != nil {
 						typeParametersNodes = constructSig.TypeParameters.Nodes
 					}
 				}
@@ -240,21 +245,26 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					}
 
 					// Find the type parameter declaration
-					var typeParamDecl *ast.TypeParameterDeclaration
+					var typeParamDecl *ast.Node
 					for _, decl := range declarations {
 						if ast.IsTypeParameterDeclaration(decl) {
-							typeParamDecl = decl.AsTypeParameter()
+							typeParamDecl = decl
 							break
 						}
 					}
 
-					if typeParamDecl == nil || typeParamDecl.Default == nil {
+					if typeParamDecl == nil {
+						break
+					}
+
+					typeParamNode := typeParamDecl.AsTypeParameter()
+					if typeParamNode == nil || typeParamNode.DefaultType == nil {
 						// No default, so we can stop checking
 						break
 					}
 
 					// Get the type from the default type node
-					defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamDecl.Default)
+					defaultType = checker.Checker_getTypeFromTypeNode(ctx.TypeChecker, typeParamNode.DefaultType)
 					if defaultType == nil {
 						break
 					}
