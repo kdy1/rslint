@@ -52,34 +52,16 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 		}
 
 		checkClass := func(node *ast.Node) {
-			// Get class declaration (works for both ClassDeclaration and ClassExpression)
-			var classDecl *ast.ClassDeclaration
-			if node.Kind == ast.KindClassDeclaration {
-				classDecl = node.AsClassDeclaration()
-			} else if node.Kind == ast.KindClassExpression {
-				// ClassExpression can be used as ClassDeclaration for member access
-				classExpr := node.AsClassExpression()
-				if classExpr == nil {
-					return
-				}
-				// Access the underlying class declaration fields
-				classDecl = classExpr.ClassDeclaration
-			}
-
-			if classDecl == nil {
-				return
-			}
-
 			// Get the node to report on (prefer name, fallback to class node)
-			reportNode := classDecl.Name()
+			reportNode := node.Name()
 			if reportNode == nil {
 				reportNode = node
 			}
 
 			// Check for decorators
 			hasDecorators := false
-			if classDecl.Modifiers() != nil {
-				for _, modifier := range classDecl.Modifiers().Nodes {
+			if node.Modifiers() != nil {
+				for _, modifier := range node.Modifiers().Nodes {
 					if modifier.Kind == ast.KindDecorator {
 						hasDecorators = true
 						break
@@ -97,10 +79,11 @@ var NoExtraneousClassRule = rule.CreateRule(rule.Rule{
 			hasStaticMember := false
 			isEmpty := true
 
-			if classDecl.Members != nil {
-				isEmpty = len(classDecl.Members.Nodes) == 0
+			members := node.Members()
+			if members != nil {
+				isEmpty = len(members) == 0
 
-				for _, member := range classDecl.Members.Nodes {
+				for _, member := range members {
 					// Check if it's a constructor
 					if member.Kind == ast.KindConstructor {
 						hasConstructor = true
