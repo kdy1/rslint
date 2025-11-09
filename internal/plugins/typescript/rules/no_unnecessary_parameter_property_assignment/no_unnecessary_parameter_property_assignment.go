@@ -160,7 +160,7 @@ var NoUnnecessaryParameterPropertyAssignmentRule = rule.CreateRule(rule.Rule{
 
 		return rule.RuleListeners{
 			// Track when entering a constructor to collect parameter properties
-			ast.KindConstructorDeclaration: func(node *ast.Node) {
+			ast.KindConstructor: func(node *ast.Node) {
 				parameterProperties = make(map[string]bool)
 
 				constructor := node.AsConstructorDeclaration()
