@@ -89,7 +89,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	// Convert method signature to property signature
 	convertMethodToProperty := func(node *ast.Node) string {
-		methodSig := node.AsMethodSignature()
+		methodSig := node.AsMethodSignatureDeclaration()
 		if methodSig == nil {
 			return ""
 		}
@@ -175,7 +175,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 	// Convert property signature to method signature
 	convertPropertyToMethod := func(node *ast.Node) string {
-		propertySig := node.AsPropertySignature()
+		propertySig := node.AsPropertySignatureDeclaration()
 		if propertySig == nil {
 			return ""
 		}
@@ -277,7 +277,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				continue
 			}
 
-			methodSig := member.AsMethodSignature()
+			methodSig := member.AsMethodSignatureDeclaration()
 			if methodSig == nil {
 				continue
 			}
@@ -299,7 +299,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		}
 
 		// Get the name from the first method
-		firstMethod := methods[0].AsMethodSignature()
+		firstMethod := methods[0].AsMethodSignatureDeclaration()
 		if firstMethod == nil {
 			return ""
 		}
@@ -310,7 +310,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		// Build intersection of function types
 		var functionTypes []string
 		for _, method := range methods {
-			methodSig := method.AsMethodSignature()
+			methodSig := method.AsMethodSignatureDeclaration()
 			if methodSig == nil {
 				continue
 			}
@@ -442,7 +442,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 				} else if len(methodGroup) == 1 {
 					// Single method signature
 					method := methodGroup[0]
-					methodSig := method.AsMethodSignature()
+					methodSig := method.AsMethodSignatureDeclaration()
 					if methodSig == nil {
 						continue
 					}
@@ -468,7 +468,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 			// Also check for non-grouped method signatures (shouldn't happen, but just in case)
 			for _, member := range members {
 				if member.Kind == ast.KindMethodSignature {
-					methodSig := member.AsMethodSignature()
+					methodSig := member.AsMethodSignatureDeclaration()
 					if methodSig == nil {
 						continue
 					}
@@ -501,7 +501,7 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 					continue
 				}
 
-				propertySig := member.AsPropertySignature()
+				propertySig := member.AsPropertySignatureDeclaration()
 				if propertySig == nil || propertySig.Type == nil {
 					continue
 				}
