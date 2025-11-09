@@ -50,19 +50,19 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 				var defaultType *checker.Type
 
 				// Get the symbol from the type parameter
-				symbol := checker.Type_getSymbol(typeParam)
+				symbol := checker.Type_symbol(typeParam)
 				if symbol == nil {
 					break
 				}
 
 				// Get the declarations for this symbol
-				declarations := checker.Symbol_getDeclarations(symbol)
+				declarations := symbol.Declarations
 				if len(declarations) == 0 {
 					break
 				}
 
 				// Find the type parameter declaration
-				var typeParamDecl *ast.TypeParameter
+				var typeParamDecl *ast.TypeParameterDeclaration
 				for _, decl := range declarations {
 					if ast.IsTypeParameterDeclaration(decl) {
 						typeParamDecl = decl.AsTypeParameter()
@@ -155,13 +155,13 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 			}
 
 			// Get the symbol from the type
-			symbol := checker.Type_getSymbol(refType)
+			symbol := checker.Type_symbol(refType)
 			if symbol == nil {
 				return
 			}
 
 			// Get the declarations for this symbol
-			declarations := checker.Symbol_getDeclarations(symbol)
+			declarations := symbol.Declarations
 			if len(declarations) == 0 {
 				return
 			}
@@ -228,19 +228,19 @@ var NoUnnecessaryTypeArgumentsRule = rule.CreateRule(rule.Rule{
 					var defaultType *checker.Type
 
 					// Get the symbol from the type parameter
-					symbol := checker.Type_getSymbol(typeParam)
+					symbol := checker.Type_symbol(typeParam)
 					if symbol == nil {
 						break
 					}
 
 					// Get the declarations for this symbol
-					declarations := checker.Symbol_getDeclarations(symbol)
+					declarations := symbol.Declarations
 					if len(declarations) == 0 {
 						break
 					}
 
 					// Find the type parameter declaration
-					var typeParamDecl *ast.TypeParameter
+					var typeParamDecl *ast.TypeParameterDeclaration
 					for _, decl := range declarations {
 						if ast.IsTypeParameterDeclaration(decl) {
 							typeParamDecl = decl.AsTypeParameter()
