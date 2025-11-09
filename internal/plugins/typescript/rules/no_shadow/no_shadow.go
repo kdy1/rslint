@@ -1,6 +1,7 @@
 package no_shadow
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
@@ -90,6 +91,66 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 			return ""
 		}
 
+		// Helper to check if a node contains another node
+		contains := func(parent *ast.Node, child *ast.Node) bool {
+			if parent == nil || child == nil {
+				return false
+			}
+			current := child
+			for current != nil {
+				if current == parent {
+					return true
+				}
+				current = current.Parent
+			}
+			return false
+		}
+
+		// Helper to check if node is in initialization context
+		isInInitialization := func(node *ast.Node) bool {
+			// Walk up the tree to check if we're in an initialization
+			parent := node.Parent
+			for parent != nil {
+				switch parent.Kind {
+				case ast.KindVariableDeclaration:
+					// Check if this is part of the initializer
+					varDecl := parent.AsVariableDeclaration()
+					if varDecl != nil && varDecl.Initializer != nil {
+						if contains(varDecl.Initializer, node) {
+							return true
+						}
+					}
+				case ast.KindCallExpression:
+					// Check for array methods like .map, .filter, .find
+					callExpr := parent.AsCallExpression()
+					if callExpr != nil {
+						if propAccess := callExpr.Expression.AsPropertyAccessExpression(); propAccess != nil {
+							nameNode := propAccess.Name()
+							if nameNode != nil {
+								methodName := getIdentifierName(nameNode)
+								if methodName == "map" || methodName == "filter" || methodName == "find" ||
+									methodName == "forEach" || methodName == "some" || methodName == "every" ||
+									methodName == "reduce" || methodName == "reduceRight" {
+									return true
+								}
+							}
+						}
+					}
+				case ast.KindBinaryExpression:
+					// Check for logical operators
+					binExpr := parent.AsBinaryExpression()
+					if binExpr != nil {
+						if binExpr.OperatorToken.Kind == ast.KindBarBarToken ||
+							binExpr.OperatorToken.Kind == ast.KindAmpersandAmpersandToken {
+							return true
+						}
+					}
+				}
+				parent = parent.Parent
+			}
+			return false
+		}
+
 		// Helper to create a new scope
 		createScope := func(isTypeScope bool) {
 			currentScope = &scope{
@@ -170,103 +231,13 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 						Description: "'" + name + "' is already declared in the upper scope.",
 					})
 				} else if shadowedVar != nil {
-					// Get position of shadowed variable
-					shadowedRange := utils.TrimNodeTextRange(ctx.SourceFile, shadowedVar.identifierNode)
-					shadowedLine := getLineNumber(ctx.SourceFile, shadowedRange.Pos())
-					shadowedColumn := getColumnNumber(ctx.SourceFile, shadowedRange.Pos())
-
+					// Simple message without line/column numbers since we don't have easy access to them
 					ctx.ReportNode(node, rule.RuleMessage{
 						Id:          "noShadow",
-						Description: "'" + name + "' is already declared in the upper scope on line " +
-									 string(rune(shadowedLine)) + ":" + string(rune(shadowedColumn)) + ".",
+						Description: fmt.Sprintf("'%s' is already declared in the upper scope.", name),
 					})
 				}
 			}
-		}
-
-		// Helper to check if node is in initialization context
-		isInInitialization := func(node *ast.Node) bool {
-			// Walk up the tree to check if we're in an initialization
-			parent := node.Parent
-			for parent != nil {
-				switch parent.Kind {
-				case ast.KindVariableDeclaration:
-					// Check if this is part of the initializer
-					varDecl := parent.AsVariableDeclaration()
-					if varDecl != nil && varDecl.DeclarationList != nil {
-						for _, decl := range varDecl.DeclarationList.Declarations.Nodes {
-							if vd := decl.AsVariableDeclaration(); vd != nil {
-								if vd.Initializer != nil && contains(vd.Initializer, node) {
-									return true
-								}
-							}
-						}
-					}
-				case ast.KindCallExpression:
-					// Check for array methods like .map, .filter, .find
-					callExpr := parent.AsCallExpression()
-					if callExpr != nil {
-						if propAccess := callExpr.Expression.AsPropertyAccessExpression(); propAccess != nil {
-							nameNode := propAccess.Name
-							if nameNode != nil {
-								methodName := getIdentifierName(nameNode)
-								if methodName == "map" || methodName == "filter" || methodName == "find" ||
-									methodName == "forEach" || methodName == "some" || methodName == "every" ||
-									methodName == "reduce" || methodName == "reduceRight" {
-									return true
-								}
-							}
-						}
-					}
-				case ast.KindBinaryExpression:
-					// Check for logical operators
-					binExpr := parent.AsBinaryExpression()
-					if binExpr != nil {
-						if binExpr.OperatorToken.Kind == ast.KindBarBarToken ||
-							binExpr.OperatorToken.Kind == ast.KindAmpersandAmpersandToken {
-							return true
-						}
-					}
-				}
-				parent = parent.Parent
-			}
-			return false
-		}
-
-		// Helper to check if a node contains another node
-		contains := func(parent *ast.Node, child *ast.Node) bool {
-			if parent == nil || child == nil {
-				return false
-			}
-			current := child
-			for current != nil {
-				if current == parent {
-					return true
-				}
-				current = current.Parent
-			}
-			return false
-		}
-
-		// Helper functions for line/column numbers
-		getLineNumber := func(file *ast.SourceFile, pos int) int {
-			lineStarts := file.GetLineStarts()
-			for i := len(lineStarts) - 1; i >= 0; i-- {
-				if pos >= lineStarts[i] {
-					return i + 1
-				}
-			}
-			return 1
-		}
-
-		getColumnNumber := func(file *ast.SourceFile, pos int) int {
-			lineStarts := file.GetLineStarts()
-			for i := len(lineStarts) - 1; i >= 0; i-- {
-				if pos >= lineStarts[i] {
-					return pos - lineStarts[i] + 1
-				}
-			}
-			return 1
 		}
 
 		// Helper to handle hoisting
@@ -298,8 +269,8 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 			for parent != nil {
 				if parent.Kind == ast.KindModuleDeclaration {
 					modDecl := parent.AsModuleDeclaration()
-					if modDecl != nil && modDecl.Name != nil {
-						name := getIdentifierName(modDecl.Name)
+					if modDecl != nil && modDecl.Name() != nil {
+						name := getIdentifierName(modDecl.Name())
 						if name == "global" {
 							return true
 						}
@@ -542,23 +513,23 @@ var NoShadowRule = rule.CreateRule(rule.Rule{
 
 				for _, decl := range varStmt.DeclarationList.Declarations.Nodes {
 					if vd := decl.AsVariableDeclaration(); vd != nil {
-						if vd.Name != nil {
-							name := getIdentifierName(vd.Name)
+						if vd.Name() != nil {
+							name := getIdentifierName(vd.Name())
 
 							// Skip if in global augmentation
 							if isInGlobalAugmentation(node) {
-								declareVariable(name, vd.Name, false, false)
+								declareVariable(name, vd.Name(), false, false)
 								continue
 							}
 
 							// Skip global checks in .d.ts files with builtinGlobals
 							if isInDtsFile() && opts.BuiltinGlobals && globalVars[name] {
-								declareVariable(name, vd.Name, false, false)
+								declareVariable(name, vd.Name(), false, false)
 								continue
 							}
 
-							checkShadowing(name, vd.Name, false, false)
-							declareVariable(name, vd.Name, false, false)
+							checkShadowing(name, vd.Name(), false, false)
+							declareVariable(name, vd.Name(), false, false)
 						}
 					}
 				}
