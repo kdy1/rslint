@@ -16,7 +16,7 @@ var NoMisusedNewRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkInterfaceMembers(ctx, interfaceDecl.Name(), interfaceDecl.Members)
+				checkInterfaceMembers(ctx, interfaceDecl.Name(), node.Members())
 			},
 			ast.KindTypeLiteral: func(node *ast.Node) {
 				typeLiteral := node.AsTypeLiteralNode()
@@ -24,7 +24,7 @@ var NoMisusedNewRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkInterfaceMembers(ctx, nil, typeLiteral.Members)
+				checkInterfaceMembers(ctx, nil, node.Members())
 			},
 			// Check for 'new' method signature in classes
 			ast.KindClassDeclaration: func(node *ast.Node) {
@@ -33,7 +33,7 @@ var NoMisusedNewRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkClassMembers(ctx, classDecl)
+				checkClassMembers(ctx, node)
 			},
 			ast.KindClassExpression: func(node *ast.Node) {
 				classExpr := node.AsClassExpression()
@@ -41,19 +41,19 @@ var NoMisusedNewRule = rule.CreateRule(rule.Rule{
 					return
 				}
 
-				checkClassMembers(ctx, classExpr)
+				checkClassMembers(ctx, node)
 			},
 		}
 	},
 })
 
 // checkInterfaceMembers checks for misused 'new' or 'constructor' in interfaces/type literals
-func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, members *ast.NodeArray) {
+func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, members []*ast.Node) {
 	if members == nil {
 		return
 	}
 
-	for _, member := range members.Nodes {
+	for _, member := range members {
 		if member.Kind != ast.KindMethodSignature && member.Kind != ast.KindConstructSignature {
 			continue
 		}
@@ -76,7 +76,7 @@ func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, member
 		}
 
 		// Check for method signature named 'constructor' or 'new'
-		methodSig := member.AsMethodSignature()
+		methodSig := member.AsMethodSignatureDeclaration()
 		if methodSig == nil {
 			continue
 		}
@@ -89,7 +89,7 @@ func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, member
 		if methodSig.Name.Kind == ast.KindIdentifier {
 			identifier := methodSig.Name.AsIdentifier()
 			if identifier != nil {
-				methodName = identifier.EscapedText
+				methodName = identifier.Text()
 			}
 		}
 
@@ -112,7 +112,7 @@ func checkInterfaceMembers(ctx rule.RuleContext, interfaceName *ast.Node, member
 }
 
 // checkClassMembers checks for misused 'new' method signature in classes
-func checkClassMembers(ctx rule.RuleContext, classNode ast.ClassLikeDeclaration) {
+func checkClassMembers(ctx rule.RuleContext, classNode *ast.Node) {
 	members := classNode.Members()
 	if members == nil {
 		return
@@ -120,7 +120,7 @@ func checkClassMembers(ctx rule.RuleContext, classNode ast.ClassLikeDeclaration)
 
 	className := getClassName(classNode)
 
-	for _, member := range members.Nodes {
+	for _, member := range members {
 		if member.Kind != ast.KindMethodDeclaration {
 			continue
 		}
@@ -143,7 +143,7 @@ func checkClassMembers(ctx rule.RuleContext, classNode ast.ClassLikeDeclaration)
 		if methodDecl.Name.Kind == ast.KindIdentifier {
 			identifier := methodDecl.Name.AsIdentifier()
 			if identifier != nil {
-				methodName = identifier.EscapedText
+				methodName = identifier.Text()
 			}
 		}
 
@@ -166,7 +166,7 @@ func shouldReportConstructorInInterface(ctx rule.RuleContext, constructSig *ast.
 }
 
 // shouldReportNewInInterface checks if a 'new' method should be reported in an interface
-func shouldReportNewInInterface(ctx rule.RuleContext, methodSig *ast.MethodSignature, interfaceName *ast.Node) bool {
+func shouldReportNewInInterface(ctx rule.RuleContext, methodSig *ast.MethodSignatureDeclaration, interfaceName *ast.Node) bool {
 	// If we don't have an interface name (type literal), we can't check the return type
 	if interfaceName == nil {
 		return false
@@ -176,7 +176,7 @@ func shouldReportNewInInterface(ctx rule.RuleContext, methodSig *ast.MethodSigna
 	if interfaceName.Kind == ast.KindIdentifier {
 		identifier := interfaceName.AsIdentifier()
 		if identifier != nil {
-			interfaceNameText = identifier.EscapedText
+			interfaceNameText = identifier.Text()
 		}
 	}
 
@@ -243,12 +243,12 @@ func shouldReportNewInClass(ctx rule.RuleContext, methodDecl *ast.MethodDeclarat
 }
 
 // getClassName extracts the class name from a class declaration or expression
-func getClassName(classNode ast.ClassLikeDeclaration) string {
+func getClassName(classNode *ast.Node) string {
 	var name *ast.Node
 
-	if classDecl, ok := classNode.(*ast.ClassDeclaration); ok {
+	if classDecl := classNode.AsClassDeclaration(); classDecl != nil {
 		name = classDecl.Name
-	} else if classExpr, ok := classNode.(*ast.ClassExpression); ok {
+	} else if classExpr := classNode.AsClassExpression(); classExpr != nil {
 		name = classExpr.Name
 	}
 
@@ -259,7 +259,7 @@ func getClassName(classNode ast.ClassLikeDeclaration) string {
 	if name.Kind == ast.KindIdentifier {
 		identifier := name.AsIdentifier()
 		if identifier != nil {
-			return identifier.EscapedText
+			return identifier.Text()
 		}
 	}
 
@@ -277,7 +277,7 @@ func getTypeReferenceName(typeRef *ast.TypeReferenceNode) string {
 	if typeName.Kind == ast.KindIdentifier {
 		identifier := typeName.AsIdentifier()
 		if identifier != nil {
-			return identifier.EscapedText
+			return identifier.Text()
 		}
 	}
 
@@ -288,7 +288,7 @@ func getTypeReferenceName(typeRef *ast.TypeReferenceNode) string {
 			if qualifiedName.Right.Kind == ast.KindIdentifier {
 				identifier := qualifiedName.Right.AsIdentifier()
 				if identifier != nil {
-					return identifier.EscapedText
+					return identifier.Text()
 				}
 			}
 		}
