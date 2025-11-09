@@ -32,18 +32,19 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 				}
 
 				// Check for non-null assertion before optional chaining: foo!?.bar or foo!?.()
-				// The parent of the NonNullExpression should be a PropertyAccessExpression or CallExpression
-				// with a QuestionDotToken
+				// The parent of the NonNullExpression should be a PropertyAccessExpression, CallExpression,
+				// or ElementAccessExpression with a QuestionDotToken, and the NonNullExpression must be
+				// the Expression (left side) of that parent, not an argument
 				if expression != nil {
 					parent := node.Parent
 					if parent != nil {
-						// Check if parent has QuestionDotToken
+						// Check if parent has QuestionDotToken AND this node is the Expression (not ArgumentExpression)
 						hasQuestionDot := false
 
 						// For property access: obj!?.prop
 						if ast.IsPropertyAccessExpression(parent) {
 							propAccess := parent.AsPropertyAccessExpression()
-							if propAccess != nil && propAccess.QuestionDotToken != nil {
+							if propAccess != nil && propAccess.QuestionDotToken != nil && propAccess.Expression == node {
 								hasQuestionDot = true
 							}
 						}
@@ -51,7 +52,7 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 						// For call expression: obj!?.()
 						if ast.IsCallExpression(parent) {
 							callExpr := parent.AsCallExpression()
-							if callExpr != nil && callExpr.QuestionDotToken != nil {
+							if callExpr != nil && callExpr.QuestionDotToken != nil && callExpr.Expression == node {
 								hasQuestionDot = true
 							}
 						}
@@ -59,7 +60,7 @@ var NoExtraNonNullAssertionRule = rule.CreateRule(rule.Rule{
 						// For element access: obj!?.[prop]
 						if ast.IsElementAccessExpression(parent) {
 							elemAccess := parent.AsElementAccessExpression()
-							if elemAccess != nil && elemAccess.QuestionDotToken != nil {
+							if elemAccess != nil && elemAccess.QuestionDotToken != nil && elemAccess.Expression == node {
 								hasQuestionDot = true
 							}
 						}
