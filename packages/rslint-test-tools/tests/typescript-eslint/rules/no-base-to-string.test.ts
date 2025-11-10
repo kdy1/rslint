@@ -1,45 +1,15 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
-
-
 import { getFixturesRootDir } from '../RuleTester';
 
-const rootDir = getFixturesRootDir();
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
       project: './tsconfig.json',
-      tsconfigRootDir: rootDir,
+      tsconfigRootDir: getFixturesRootDir(),
     },
   },
 });
 
-/**
- * ref: https://github.com/typescript-eslint/typescript-eslint/issues/11043
- * Be careful with dynamic test case generation.
- * Iterate based on the following cases:
- * 1. literalListBasic
- * ```
-[
-  "''",
-  "'text'",
-  'true',
-  'false',
-  '1',
-  '1n',
-  '[]',
-  '/regex/',
-];
- * ```
- * 2. literalListNeedParen
- * ```
-[
-  "__dirname === 'foobar'",
-  '{}.constructor()',
-  '() => {}',
-  'function() {}',
-];
- * ```
- */
 ruleTester.run('no-base-to-string', {
   valid: [
     // template
@@ -299,6 +269,71 @@ declare const foo: Foo;
 String(foo);
       `,
       options: [{ ignoredTypeNames: ['Foo'] }],
+    },
+    {
+      code: `
+interface MyError<T> {}
+declare const error: MyError<number>;
+error.toString();
+      `,
+      options: [{ ignoredTypeNames: ['MyError'] }],
+    },
+    {
+      code: `
+type MyError<T> = {};
+declare const error: MyError<number>;
+error.toString();
+      `,
+      options: [{ ignoredTypeNames: ['MyError'] }],
+    },
+    {
+      code: `
+class MyError<T> {}
+declare const error: MyError<number>;
+error.toString();
+      `,
+      options: [{ ignoredTypeNames: ['MyError'] }],
+    },
+    {
+      code: `
+interface Animal {}
+interface Serializable {}
+interface Cat extends Animal, Serializable {}
+
+declare const whiskers: Cat;
+whiskers.toString();
+      `,
+      options: [{ ignoredTypeNames: ['Animal'] }],
+    },
+    {
+      code: `
+interface MyError extends Error {}
+
+declare const error: MyError;
+error.toString();
+      `,
+    },
+    {
+      code: `
+class UnknownBase {}
+class CustomError extends UnknownBase {}
+
+declare const err: CustomError;
+err.toString();
+      `,
+      options: [{ ignoredTypeNames: ['UnknownBase'] }],
+    },
+    {
+      code: `
+interface Animal {}
+interface Dog extends Animal {}
+interface Cat extends Animal {}
+
+declare const dog: Dog;
+declare const cat: Cat;
+cat.toString();
+      `,
+      options: [{ ignoredTypeNames: ['Animal'] }],
     },
     `
 function String(value) {
@@ -2238,6 +2273,61 @@ v.join();
             name: 'v',
           },
           messageId: 'baseArrayJoin',
+        },
+      ],
+    },
+    {
+      code: `
+interface Dog extends Animal {}
+
+declare const labrador: Dog;
+labrador.toString();
+      `,
+      errors: [
+        {
+          data: {
+            certainty: 'will',
+            name: 'labrador',
+          },
+          messageId: 'baseToString',
+        },
+      ],
+    },
+    {
+      code: `
+interface A extends B {}
+interface B extends A {}
+
+declare const a: A;
+a.toString();
+      `,
+      errors: [
+        {
+          data: {
+            certainty: 'will',
+            name: 'a',
+          },
+          messageId: 'baseToString',
+        },
+      ],
+    },
+    {
+      code: `
+        interface Base {}
+        interface Left extends Base {}
+        interface Right extends Base {}
+        interface Diamond extends Left, Right {}
+
+        declare const d: Diamond;
+        d.toString();
+      `,
+      errors: [
+        {
+          data: {
+            certainty: 'will',
+            name: 'd',
+          },
+          messageId: 'baseToString',
         },
       ],
     },
