@@ -80,27 +80,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 		return isObjectTypeLiteral(typeNode)
 	}
 
-	// Helper to check if interface is in a globally-scoped module
-	isInGlobalModule := func(node *ast.Node) bool {
-		current := node.Parent
-		for current != nil {
-			if current.Kind == ast.KindModuleDeclaration {
-				moduleDecl := current.AsModuleDeclaration()
-				if moduleDecl != nil && moduleDecl.Name() != nil {
-					// Check if module name is 'global'
-					if ast.IsIdentifier(moduleDecl.Name()) {
-						ident := moduleDecl.Name().AsIdentifier()
-						if ident != nil && ident.Text == "global" {
-							return true
-						}
-					}
-				}
-			}
-			current = current.Parent
-		}
-		return false
-	}
-
 	checkTypeAlias := func(node *ast.Node) {
 		if opts.Style != DefinitionStyleInterface {
 			return
@@ -129,15 +108,6 @@ func run(ctx rule.RuleContext, options any) rule.RuleListeners {
 
 		interfaceDecl := node.AsInterfaceDeclaration()
 		if interfaceDecl == nil {
-			return
-		}
-
-		// Don't fix interfaces in global modules (see typescript-eslint #2707)
-		if isInGlobalModule(node) {
-			ctx.ReportNode(node, rule.RuleMessage{
-				Id:          "typeOverInterface",
-				Description: "Use a type literal instead of an interface.",
-			})
 			return
 		}
 
