@@ -26,13 +26,15 @@
       "getBaseTypeOfLiteralType",
       "getWidenedType",
       "isTypeAssignableTo",
-      "isTypeStrictSubtypeOf"
+      "isTypeStrictSubtypeOf",
+      "isTypeIdenticalTo",
+      "getDefaultFromTypeParameter"
     ]
   },
   "ExtraFields": {
     "Type": ["alias", "flags", "symbol", "objectFlags"],
     "TupleType": ["combinedFlags"],
-    "Signature": ["parameters", "declaration"],
+    "Signature": ["parameters", "declaration", "typeParameters"],
     "Checker": ["numberType", "booleanType", "globalRegExpType"],
     "InterfaceType": ["thisType"]
   }

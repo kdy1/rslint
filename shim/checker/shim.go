@@ -103,6 +103,8 @@ func Checker_getReturnTypeOfSignature(recv *checker.Checker, sig *checker.Signat
 func Checker_getApparentType(recv *checker.Checker, t *checker.Type) *checker.Type
 //go:linkname Checker_getTypeArguments github.com/microsoft/typescript-go/internal/checker.(*Checker).getTypeArguments
 func Checker_getTypeArguments(recv *checker.Checker, t *checker.Type) []*checker.Type
+//go:linkname Checker_getDefaultFromTypeParameter github.com/microsoft/typescript-go/internal/checker.(*Checker).getDefaultFromTypeParameter
+func Checker_getDefaultFromTypeParameter(recv *checker.Checker, t *checker.Type) *checker.Type
 //go:linkname Checker_getTypeFromTypeNode github.com/microsoft/typescript-go/internal/checker.(*Checker).getTypeFromTypeNode
 func Checker_getTypeFromTypeNode(recv *checker.Checker, node *ast.Node) *checker.Type
 //go:linkname Checker_isArrayType github.com/microsoft/typescript-go/internal/checker.(*Checker).isArrayType
@@ -125,6 +127,10 @@ func Checker_getAwaitedType(recv *checker.Checker, t *checker.Type) *checker.Typ
 func Checker_getAccessedPropertyName(recv *checker.Checker, access *ast.Node) (string, bool)
 //go:linkname Checker_getPropertyNameForKnownSymbolName github.com/microsoft/typescript-go/internal/checker.(*Checker).getPropertyNameForKnownSymbolName
 func Checker_getPropertyNameForKnownSymbolName(recv *checker.Checker, symbolName string) string
+//go:linkname Checker_isTypeIdenticalTo github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeIdenticalTo
+func Checker_isTypeIdenticalTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
+//go:linkname Checker_typeToString github.com/microsoft/typescript-go/internal/checker.(*Checker).typeToString
+func Checker_typeToString(recv *checker.Checker, t *checker.Type, enclosingDeclaration *ast.Node) string
 //go:linkname Checker_isTypeAssignableTo github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeAssignableTo
 func Checker_isTypeAssignableTo(recv *checker.Checker, source *checker.Type, target *checker.Type) bool
 //go:linkname Checker_isTypeStrictSubtypeOf github.com/microsoft/typescript-go/internal/checker.(*Checker).isTypeStrictSubtypeOf
@@ -853,6 +859,9 @@ func Signature_parameters(v *checker.Signature) []*ast.Symbol {
 }
 func Signature_declaration(v *checker.Signature) *ast.Node {
   return ((*extra_Signature)(unsafe.Pointer(v))).declaration
+}
+func Signature_typeParameters(v *checker.Signature) []*checker.Type {
+  return ((*extra_Signature)(unsafe.Pointer(v))).typeParameters
 }
 type SignatureCheckMode = checker.SignatureCheckMode
 const SignatureCheckModeBivariantCallback = checker.SignatureCheckModeBivariantCallback
