@@ -32,6 +32,10 @@ ruleTester.run('no-unnecessary-type-conversion', {
     'Boolean(0);',
     '!!0;',
     'BigInt(3);',
+    '~~1.1;',
+    '~~-1.1;',
+    '~~(1.5 + 2.3);',
+    '~~(1 / 3);',
 
     // things that are not type conversion idioms (but look similar) are valid
     "new String('asdf');",
@@ -93,6 +97,14 @@ ruleTester.run('no-unnecessary-type-conversion', {
     '~~new Number();',
     'Boolean(new Boolean());',
     '!!new Boolean();',
+    `
+      enum CustomIds {
+        Id1 = 'id1',
+        Id2 = 'id2',
+      }
+      const customId = 'id1';
+      const compareWithToString = customId === CustomIds.Id1.toString();
+    `,
   ],
 
   invalid: [
@@ -714,6 +726,76 @@ let str = 'asdf';
               output: `
         let str = 'asdf';
         (str satisfies string).length;
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: '~~1;',
+      errors: [
+        {
+          column: 1,
+          endColumn: 3,
+          messageId: 'unnecessaryTypeConversion',
+          suggestions: [
+            {
+              messageId: 'suggestRemove',
+              output: '1;',
+            },
+            {
+              messageId: 'suggestSatisfies',
+              output: '1 satisfies number;',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: '~~-1;',
+      errors: [
+        {
+          column: 1,
+          endColumn: 3,
+          messageId: 'unnecessaryTypeConversion',
+          suggestions: [
+            {
+              messageId: 'suggestRemove',
+              output: '(-1);',
+            },
+            {
+              messageId: 'suggestSatisfies',
+              output: '(-1) satisfies number;',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `
+        declare const threeOrFour: 3 | 4;
+        ~~threeOrFour;
+      `,
+      errors: [
+        {
+          column: 9,
+          endColumn: 11,
+          line: 3,
+          messageId: 'unnecessaryTypeConversion',
+          suggestions: [
+            {
+              messageId: 'suggestRemove',
+              output: `
+        declare const threeOrFour: 3 | 4;
+        threeOrFour;
+      `,
+            },
+            {
+              messageId: 'suggestSatisfies',
+              output: `
+        declare const threeOrFour: 3 | 4;
+        threeOrFour satisfies number;
       `,
             },
           ],
