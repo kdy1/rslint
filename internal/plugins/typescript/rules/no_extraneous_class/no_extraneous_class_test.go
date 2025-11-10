@@ -44,6 +44,16 @@ func TestNoExtraneousClassRule(t *testing.T) {
     return 'I am foo!';
   }
 }`},
+			{Code: `@FooDecorator
+class Foo {}`, Options: map[string]interface{}{"allowWithDecorator": true}},
+			{Code: `@FooDecorator
+class Foo {
+  constructor(foo: Foo) {
+    foo.subscribe(a => {
+      console.log(a);
+    });
+  }
+}`, Options: map[string]interface{}{"allowWithDecorator": true}},
 			{Code: `abstract class Foo {
   abstract property: string;
 }`},
@@ -51,7 +61,19 @@ func TestNoExtraneousClassRule(t *testing.T) {
   abstract method(): string;
 }`},
 			{Code: `class Foo {
-  prop: string;
+  accessor prop: string;
+}`},
+			{Code: `class Foo {
+  accessor prop = 'bar';
+  static bar() {
+    return false;
+  }
+}`},
+			{Code: `abstract class Foo {
+  accessor prop: string;
+}`},
+			{Code: `abstract class Foo {
+  abstract accessor prop: string;
 }`},
 		},
 		// Invalid cases
@@ -64,14 +86,14 @@ func TestNoExtraneousClassRule(t *testing.T) {
 			},
 			{
 				Code: `class Foo {
-  constructor() {}
-}`,
-				Errors: []rule_tester.InvalidTestCaseError{
-					{MessageId: "onlyConstructor"},
-				},
-			},
-			{
-				Code: `export class Bar {
+  public prop = 1;
+  constructor() {
+    class Bar {
+      static PROP = 2;
+    }
+  }
+}
+export class Bar {
   public static helper(): void {}
   private static privateHelper(): boolean {
     return true;
@@ -79,6 +101,30 @@ func TestNoExtraneousClassRule(t *testing.T) {
 }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "onlyStatic"},
+					{MessageId: "onlyStatic"},
+				},
+			},
+			{
+				Code: `class Foo {
+  constructor() {}
+}`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "onlyConstructor"},
+				},
+			},
+			{
+				Code: `export class AClass {
+  public static helper(): void {}
+  private static privateHelper(): boolean {
+    return true;
+  }
+  constructor() {
+    class nestedClass {}
+  }
+}`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "onlyStatic"},
+					{MessageId: "empty"},
 				},
 			},
 			{
@@ -87,6 +133,28 @@ func TestNoExtraneousClassRule(t *testing.T) {
 }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "onlyStatic"},
+				},
+			},
+			{
+				Code: `@FooDecorator
+class Foo {}`,
+				Options: map[string]interface{}{"allowWithDecorator": false},
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "empty"},
+				},
+			},
+			{
+				Code: `@FooDecorator
+class Foo {
+  constructor(foo: Foo) {
+    foo.subscribe(a => {
+      console.log(a);
+    });
+  }
+}`,
+				Options: map[string]interface{}{"allowWithDecorator": false},
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "onlyConstructor"},
 				},
 			},
 			{
@@ -109,6 +177,22 @@ func TestNoExtraneousClassRule(t *testing.T) {
 }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{MessageId: "onlyConstructor"},
+				},
+			},
+			{
+				Code: `class Foo {
+  static accessor prop: string;
+}`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "onlyStatic"},
+				},
+			},
+			{
+				Code: `abstract class Foo {
+  static accessor prop: string;
+}`,
+				Errors: []rule_tester.InvalidTestCaseError{
+					{MessageId: "onlyStatic"},
 				},
 			},
 		},
