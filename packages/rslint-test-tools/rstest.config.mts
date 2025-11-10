@@ -75,7 +75,7 @@ export default defineConfig({
     // './tests/typescript-eslint/rules/naming-convention/naming-convention.test.ts',
     // './tests/typescript-eslint/rules/no-array-constructor.test.ts',
     // './tests/typescript-eslint/rules/no-base-to-string.test.ts',
-    // './tests/typescript-eslint/rules/no-confusing-non-null-assertion.test.ts',
+    './tests/typescript-eslint/rules/no-confusing-non-null-assertion.test.ts',
     // './tests/typescript-eslint/rules/no-confusing-void-expression.test.ts',
     // './tests/typescript-eslint/rules/no-deprecated.test.ts',
     // './tests/typescript-eslint/rules/no-dupe-class-members.test.ts',
