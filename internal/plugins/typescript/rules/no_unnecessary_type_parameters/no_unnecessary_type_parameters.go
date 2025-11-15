@@ -126,7 +126,7 @@ func countTypeParameterUsage(node *ast.Node, typeParamName string) int {
 				for _, arg := range typeRef.TypeArguments.Nodes {
 					if hasTypeParameter(arg, typeParamName) {
 						// Type parameter found in type arguments - count as valid usage
-						return 2
+						count += 2
 					}
 				}
 			}
