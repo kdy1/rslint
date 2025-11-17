@@ -1,6 +1,6 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../src/rules/no-invalid-this';
 
 const ruleTester = new RuleTester();
 
@@ -9,7 +9,7 @@ const errors = [
   { messageId: 'unexpectedThis' as const },
 ];
 
-ruleTester.run('no-invalid-this', {
+ruleTester.run('no-invalid-this', rule, {
   valid: [
     `
 describe('foo', () => {
