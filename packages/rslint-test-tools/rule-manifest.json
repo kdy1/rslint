@@ -52,6 +52,12 @@
       "failing_case": []
     },
     {
+      "name": "no-deprecated",
+      "group": "@typescript-eslint",
+      "status": "full",
+      "failing_case": []
+    },
+    {
       "name": "no-duplicate-type-constituents",
       "group": "@typescript-eslint",
       "status": "full",
