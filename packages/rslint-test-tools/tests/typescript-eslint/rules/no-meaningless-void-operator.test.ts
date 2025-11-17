@@ -1,18 +1,6 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
-import { getFixturesRootDir } from '../RuleTester';
-
-const rootDir = getFixturesRootDir();
-
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parserOptions: {
-      project: './tsconfig.json',
-      tsconfigRootDir: rootDir,
-    },
-  },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('no-meaningless-void-operator', {
   valid: [
