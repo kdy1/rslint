@@ -13,11 +13,11 @@ import (
 func certaintyToString(certainty usefulness) string {
 	switch certainty {
 	case usefulnessAlways:
-		return "always"
+		return "will"
 	case usefulnessNever:
-		return "always"
+		return "will"
 	case usefulnessSometimes:
-		return "always"
+		return "may"
 	default:
 		panic("unknown certainty")
 	}
@@ -37,7 +37,8 @@ func buildBaseToStringMessage(name string, certainty usefulness) rule.RuleMessag
 }
 
 type NoBaseToStringOptions struct {
-	IgnoredTypeNames []string
+	IgnoredTypeNames []string `json:"ignoredTypeNames"`
+	CheckUnknown     bool     `json:"checkUnknown"`
 }
 
 type usefulness uint32
@@ -48,15 +49,68 @@ const (
 	usefulnessSometimes
 )
 
+func parseOptions(options any) NoBaseToStringOptions {
+	defaultOpts := NoBaseToStringOptions{
+		IgnoredTypeNames: []string{"Error", "RegExp", "URL", "URLSearchParams"},
+		CheckUnknown:     false,
+	}
+	if options == nil {
+		return defaultOpts
+	}
+	// Handle direct NoBaseToStringOptions struct (for Go tests)
+	if opts, ok := options.(NoBaseToStringOptions); ok {
+		// Merge with defaults - if IgnoredTypeNames is nil, use default
+		if opts.IgnoredTypeNames == nil {
+			opts.IgnoredTypeNames = defaultOpts.IgnoredTypeNames
+		}
+		return opts
+	}
+	// Handle array format: [{ option: value }]
+	if arr, ok := options.([]interface{}); ok {
+		if len(arr) > 0 {
+			if m, ok := arr[0].(map[string]interface{}); ok {
+				opts := defaultOpts
+				if v, ok := m["checkUnknown"].(bool); ok {
+					opts.CheckUnknown = v
+				}
+				if v, ok := m["ignoredTypeNames"].([]interface{}); ok {
+					var names []string
+					for _, name := range v {
+						if str, ok := name.(string); ok {
+							names = append(names, str)
+						}
+					}
+					opts.IgnoredTypeNames = names
+				}
+				return opts
+			}
+		}
+		return defaultOpts
+	}
+	// Handle direct object format
+	if m, ok := options.(map[string]interface{}); ok {
+		opts := defaultOpts
+		if v, ok := m["checkUnknown"].(bool); ok {
+			opts.CheckUnknown = v
+		}
+		if v, ok := m["ignoredTypeNames"].([]interface{}); ok {
+			var names []string
+			for _, name := range v {
+				if str, ok := name.(string); ok {
+					names = append(names, str)
+				}
+			}
+			opts.IgnoredTypeNames = names
+		}
+		return opts
+	}
+	return defaultOpts
+}
+
 var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 	Name: "no-base-to-string",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		opts, ok := options.(NoBaseToStringOptions)
-		if !ok {
-			opts = NoBaseToStringOptions{
-				IgnoredTypeNames: []string{"Error", "RegExp", "URL", "URLSearchParams"},
-			}
-		}
+		opts := parseOptions(options)
 
 		var collectToStringCertainty func(
 			t *checker.Type,
@@ -196,12 +250,31 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 				return usefulnessAlways
 			}
 
+			// Handle any type
+			if utils.IsTypeAnyType(t) {
+				if opts.CheckUnknown {
+					return usefulnessSometimes
+				}
+				return usefulnessAlways
+			}
+
+			// Handle unknown type
+			if utils.IsTypeUnknownType(t) {
+				if opts.CheckUnknown {
+					return usefulnessSometimes
+				}
+				return usefulnessAlways
+			}
+
 			if utils.IsTypeParameter(t) {
 				constraint := checker.Checker_getBaseConstraintOfType(ctx.TypeChecker, t)
 				if constraint != nil {
 					return collectToStringCertainty(constraint, visited)
 				}
 				// unconstrained generic means `unknown`
+				if opts.CheckUnknown {
+					return usefulnessSometimes
+				}
 				return usefulnessAlways
 			}
 
@@ -210,18 +283,37 @@ var NoBaseToStringRule = rule.CreateRule(rule.Rule{
 				return usefulnessAlways
 			}
 
+			// Check if type name is in ignored list
 			if slices.Contains(opts.IgnoredTypeNames, utils.GetTypeName(ctx.TypeChecker, t)) {
 				return usefulnessAlways
 			}
 
-			if utils.IsIntersectionType(t) {
-				return collectIntersectionTypeCertainty(t, func(t *checker.Type) usefulness {
-					return collectToStringCertainty(t, visited)
-				})
+			// Check if the type alias or type symbol name is in ignored list
+			// This allows type aliases like "type Foo = { a: string } | { b: string }"
+			// to be properly ignored when "Foo" is in ignoredTypeNames
+			// This check must be done before expanding union/intersection types
+			// to preserve the alias information
+			// Following TypeScript-ESLint: const symbol = type.aliasSymbol ?? type.getSymbol()
+			var symbol *ast.Symbol
+			alias := checker.Type_alias(t)
+			if alias != nil {
+				symbol = alias.Symbol()
+			}
+			if symbol == nil {
+				symbol = checker.Type_symbol(t)
+			}
+			if symbol != nil && slices.Contains(opts.IgnoredTypeNames, symbol.Name) {
+				return usefulnessAlways
 			}
 
 			if utils.IsUnionType(t) {
 				return collectUnionTypeCertainty(t, func(t *checker.Type) usefulness {
+					return collectToStringCertainty(t, visited)
+				})
+			}
+
+			if utils.IsIntersectionType(t) {
+				return collectIntersectionTypeCertainty(t, func(t *checker.Type) usefulness {
 					return collectToStringCertainty(t, visited)
 				})
 			}
