@@ -1,8 +1,17 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
+import { getFixturesRootDir } from '../RuleTester';
 
+const rootDir = getFixturesRootDir();
 
-const ruleTester = new RuleTester();
+const ruleTester = new RuleTester({
+  languageOptions: {
+    parserOptions: {
+      project: './tsconfig.json',
+      tsconfigRootDir: rootDir,
+    },
+  },
+});
 
 ruleTester.run('prefer-literal-enum-member', {
   valid: [
