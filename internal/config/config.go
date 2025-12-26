@@ -69,6 +69,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/non_nullable_type_assertion_style"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/only_throw_error"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_as_const"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_literal_enum_member"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_promise_reject_errors"
 	// "github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_readonly_parameter_types" // Temporarily disabled - incomplete implementation
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_reduce_type_parameter"
@@ -427,6 +428,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/non-nullable-type-assertion-style", non_nullable_type_assertion_style.NonNullableTypeAssertionStyleRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/only-throw-error", only_throw_error.OnlyThrowErrorRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-as-const", prefer_as_const.PreferAsConstRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/prefer-literal-enum-member", prefer_literal_enum_member.PreferLiteralEnumMemberRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-promise-reject-errors", prefer_promise_reject_errors.PreferPromiseRejectErrorsRule)
 	// TODO: prefer-readonly-parameter-types needs complete implementation for proper type checking
 	// Temporarily disabled until the isReadonlyType function is fully implemented with proper
