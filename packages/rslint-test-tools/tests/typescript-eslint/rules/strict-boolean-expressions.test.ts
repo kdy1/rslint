@@ -1,20 +1,20 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
-import * as path from 'node:path';
 
 
 import { getFixturesRootDir } from '../RuleTester';
 
-const rootPath = getFixturesRootDir();
+const rootDir = getFixturesRootDir();
+
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
       project: './tsconfig.json',
-      tsconfigRootDir: rootPath,
+      tsconfigRootDir: rootDir,
     },
   },
 });
 
-ruleTester.run('strict-boolean-expressions', {
+ruleTester.run('strict-boolean-expressions', rule, {
   valid: [
     // boolean in boolean context
     "true ? 'a' : 'b';",
@@ -385,7 +385,7 @@ if (x) {
       `,
       languageOptions: {
         parserOptions: {
-          tsconfigRootDir: path.join(rootPath, 'unstrict'),
+          tsconfigRootDir: path.join(rootDir, 'unstrict'),
         },
       },
       options: [
@@ -3270,7 +3270,7 @@ if (x) {
       ],
       languageOptions: {
         parserOptions: {
-          tsconfigRootDir: path.join(rootPath, 'unstrict'),
+          tsconfigRootDir: path.join(rootDir, 'unstrict'),
         },
       },
       output: null,
@@ -3544,6 +3544,7 @@ assert(foo, Boolean(nullableString));
       // a bug.
       //
       // See https://github.com/microsoft/TypeScript/issues/59707
+      skip: true,
       code: `
 function asserts1(x: string | number | undefined): asserts x {}
 function asserts2(x: string | number | undefined): asserts x {}
@@ -3608,7 +3609,6 @@ someAssert(Boolean(maybeString));
         },
       ],
       output: null,
-      skip: true,
     },
     {
       // The implementation signature doesn't count towards the call signatures
