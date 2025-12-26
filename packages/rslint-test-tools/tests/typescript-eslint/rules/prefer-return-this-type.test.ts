@@ -1,18 +1,6 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
-import { getFixturesRootDir } from '../RuleTester';
-
-const rootPath = getFixturesRootDir();
-
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parserOptions: {
-      project: './tsconfig.json',
-      tsconfigRootDir: rootPath,
-    },
-  },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('prefer-return-this-type', {
   valid: [
@@ -98,6 +86,19 @@ class Foo {
     `
 class Foo {
   f?: string;
+}
+    `,
+    `
+declare const valueUnion: BaseUnion | string;
+
+class BaseUnion {
+  f(): BaseUnion | string {
+    if (Math.random()) {
+      return this;
+    }
+
+    return valueUnion;
+  }
 }
     `,
   ],
@@ -394,6 +395,42 @@ class Animal<T> {
   eat(): this {
     console.log("I'm moving!");
     return this;
+  }
+}
+      `,
+    },
+    {
+      code: `
+declare const valueUnion: number | string;
+
+class BaseUnion {
+  f(): BaseUnion | string {
+    if (Math.random()) {
+      return this;
+    }
+
+    return valueUnion;
+  }
+}
+      `,
+      errors: [
+        {
+          column: 8,
+          endColumn: 17,
+          line: 5,
+          messageId: 'useThisType',
+        },
+      ],
+      output: `
+declare const valueUnion: number | string;
+
+class BaseUnion {
+  f(): this | string {
+    if (Math.random()) {
+      return this;
+    }
+
+    return valueUnion;
   }
 }
       `,
