@@ -14,6 +14,13 @@ func buildMissingAsyncMessage() rule.RuleMessage {
 	}
 }
 
+func buildMissingAsyncHybridReturnMessage() rule.RuleMessage {
+	return rule.RuleMessage{
+		Id:          "missingAsyncHybridReturn",
+		Description: "Functions that return promises in some cases must be async.",
+	}
+}
+
 type PromiseFunctionAsyncOptions struct {
 	AllowAny *bool
 	// TODO(port): TypeOrValueSpecifier
@@ -106,7 +113,10 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 				return
 			}
 
+			hasExplicitReturnType := node.Type() != nil
 			everySignatureReturnsPromise := true
+			anySignatureReturnsPromise := false
+
 			for _, signature := range signatures {
 				returnType := checker.Checker_getReturnTypeOfSignature(ctx.TypeChecker, signature)
 				if !*opts.AllowAny && utils.IsTypeFlagSet(returnType, checker.TypeFlagsAnyOrUnknown) {
@@ -117,11 +127,13 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 				}
 
 				// require all potential return types to be promise/any/unknown
-				everySignatureReturnsPromise = everySignatureReturnsPromise && containsAllTypesByName(
+				sigReturnsPromise := containsAllTypesByName(
 					returnType,
 					// If no return type is explicitly set, we check if any parts of the return type match a Promise (instead of requiring all to match).
-					node.Type() != nil,
+					hasExplicitReturnType,
 				)
+				everySignatureReturnsPromise = everySignatureReturnsPromise && sigReturnsPromise
+				anySignatureReturnsPromise = anySignatureReturnsPromise || sigReturnsPromise
 			}
 
 			if !everySignatureReturnsPromise {
@@ -132,8 +144,35 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 			if ast.IsMethodDeclaration(node) {
 				insertAsyncBeforeNode = node.Name()
 			}
+
+			// Use hybrid message if no explicit return type and it's a union with promises
+			message := buildMissingAsyncMessage()
+			if !hasExplicitReturnType && anySignatureReturnsPromise {
+				// Check if the return type is a union/hybrid by seeing if any signature returns promise
+				// but not all parts are promises (which would be caught by everySignatureReturnsPromise check)
+				for _, signature := range signatures {
+					returnType := checker.Checker_getReturnTypeOfSignature(ctx.TypeChecker, signature)
+					// If it's a union type with both promise and non-promise
+					if utils.IsUnionType(returnType) {
+						hasPromise := false
+						hasNonPromise := false
+						for _, unionType := range returnType.Types() {
+							if containsAllTypesByName(unionType, false) {
+								hasPromise = true
+							} else {
+								hasNonPromise = true
+							}
+						}
+						if hasPromise && hasNonPromise {
+							message = buildMissingAsyncHybridReturnMessage()
+							break
+						}
+					}
+				}
+			}
+
 			// TODO(port): getFunctionHeadLoc
-			ctx.ReportNodeWithFixes(node, buildMissingAsyncMessage(), rule.RuleFixInsertBefore(ctx.SourceFile, insertAsyncBeforeNode, " async "))
+			ctx.ReportNodeWithFixes(node, message, rule.RuleFixInsertBefore(ctx.SourceFile, insertAsyncBeforeNode, " async "))
 		}
 
 		if *opts.CheckArrowFunctions {
