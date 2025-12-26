@@ -1,6 +1,6 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../../src/rules/promise-function-async';
 import { getFixturesRootDir } from '../RuleTester';
 
 const rootDir = getFixturesRootDir();
@@ -14,7 +14,7 @@ const ruleTester = new RuleTester({
   },
 });
 
-ruleTester.run('promise-function-async', {
+ruleTester.run('promise-function-async', rule, {
   valid: [
     `
 const nonAsyncNonPromiseArrowFunction = (n: number) => n;
