@@ -5,12 +5,16 @@ import type {
 
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
 
-import type {
-  MessageIds,
-  Options,
-} from '../../src/rules/sort-type-constituents';
+type Options = [
+  {
+    checkIntersections?: boolean;
+    checkUnions?: boolean;
+    caseSensitive?: boolean;
+    groupOrder?: string[];
+  },
+];
 
-
+type MessageIds = 'notSortedNamed' | 'notSorted' | 'suggestFix';
 
 const ruleTester = new RuleTester();
 
