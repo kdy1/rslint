@@ -4,5 +4,21 @@ toolchain go1.25.0
 
 use (
 	.
-	./typescript-go
+	./shim/api
+	./shim/api/encoder
+	./shim/ast
+	./shim/bundled
+	./shim/checker
+	./shim/collections
+	./shim/compiler
+	./shim/core
+	./shim/ls
+	./shim/lsp/lsproto
+	./shim/project
+	./shim/scanner
+	./shim/tsoptions
+	./shim/tspath
+	./shim/vfs
+	./shim/vfs/cachedvfs
+	./shim/vfs/osvfs
 )
