@@ -1,6 +1,6 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../../internal/plugins/typescript/rules/prefer_reduce_type_parameter';
 import { getFixturesRootDir } from '../RuleTester';
 
 const rootPath = getFixturesRootDir();
@@ -14,7 +14,7 @@ const ruleTester = new RuleTester({
   },
 });
 
-ruleTester.run('prefer-reduce-type-parameter', {
+ruleTester.run('prefer-reduce-type-parameter', rule, {
   valid: [
     `
       new (class Mine {
