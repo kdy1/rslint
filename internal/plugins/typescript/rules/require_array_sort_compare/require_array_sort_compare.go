@@ -15,18 +15,36 @@ func buildRequireCompareMessage() rule.RuleMessage {
 }
 
 type RequireArraySortCompareOptions struct {
-	IgnoreStringArrays *bool
+	IgnoreStringArrays bool
 }
 
 var RequireArraySortCompareRule = rule.CreateRule(rule.Rule{
 	Name: "require-array-sort-compare",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		opts, ok := options.(RequireArraySortCompareOptions)
-		if !ok {
-			opts = RequireArraySortCompareOptions{}
+		opts := RequireArraySortCompareOptions{
+			IgnoreStringArrays: true, // Default value is true
 		}
-		if opts.IgnoreStringArrays == nil {
-			opts.IgnoreStringArrays = utils.Ref(true)
+
+		// Parse options from map format
+		if options != nil {
+			var optsMap map[string]interface{}
+			var ok bool
+
+			// Handle array format: [{ option: value }]
+			if optArray, isArray := options.([]interface{}); isArray && len(optArray) > 0 {
+				optsMap, ok = optArray[0].(map[string]interface{})
+			} else {
+				// Handle direct object format: { option: value }
+				optsMap, ok = options.(map[string]interface{})
+			}
+
+			if ok {
+				if val, exists := optsMap["ignoreStringArrays"]; exists {
+					if boolVal, isBool := val.(bool); isBool {
+						opts.IgnoreStringArrays = boolVal
+					}
+				}
+			}
 		}
 
 		return rule.RuleListeners{
@@ -47,7 +65,7 @@ var RequireArraySortCompareRule = rule.CreateRule(rule.Rule{
 
 				calleeObjType := utils.GetConstrainedTypeAtLocation(ctx.TypeChecker, callee.Expression())
 
-				if *opts.IgnoreStringArrays && checker.Checker_isArrayOrTupleType(ctx.TypeChecker, calleeObjType) {
+				if opts.IgnoreStringArrays && checker.Checker_isArrayOrTupleType(ctx.TypeChecker, calleeObjType) {
 					if utils.Every(checker.Checker_getTypeArguments(ctx.TypeChecker, calleeObjType), func(t *checker.Type) bool {
 						return utils.IsTypeFlagSet(t, checker.TypeFlagsString)
 					}) {
