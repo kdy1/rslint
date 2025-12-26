@@ -179,6 +179,54 @@ throw new Map();
 				AllowThrowingUnknown: utils.Ref(false),
 			},
 		},
+		{
+			Code: `
+try {
+} catch (e) {
+  throw e;
+}
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+		},
+		{
+			Code: `
+try {
+} catch (eOuter) {
+  try {
+    if (Math.random() > 0.5) {
+      throw eOuter;
+    }
+  } catch (eInner) {
+    if (Math.random() > 0.5) {
+      throw eOuter;
+    } else {
+      throw eInner;
+    }
+  }
+}
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+		},
+		{
+			Code: `
+Promise.reject('foo').catch(e => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+		},
 	}, []rule_tester.InvalidTestCase{
 		{
 			Code: "throw undefined;",
@@ -555,6 +603,130 @@ throw new UnknownError();
       `,
 			Options: OnlyThrowErrorOptions{
 				Allow:                []utils.TypeOrValueSpecifier{{From: utils.TypeOrValueSpecifierFromFile, Name: []string{"CustomError"}}},
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+let x = 1;
+Promise.reject('foo').catch(e => {
+  throw x;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+Promise.reject('foo').catch((...e) => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+declare const x: any[];
+Promise.reject('foo').catch(...x, e => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+declare const x: any[];
+Promise.reject('foo').then(...x, e => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+declare const onFulfilled: any;
+declare const x: any[];
+Promise.reject('foo').then(onFulfilled, ...x, e => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+Promise.reject('foo').then((...e) => {
+  throw e;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
+				AllowThrowingAny:     utils.Ref(false),
+				AllowThrowingUnknown: utils.Ref(false),
+			},
+			Errors: []rule_tester.InvalidTestCaseError{
+				{
+					MessageId: "object",
+				},
+			},
+		},
+		{
+			Code: `
+Promise.reject('foo').then(e => {
+  throw globalThis;
+});
+      `,
+			Options: OnlyThrowErrorOptions{
+				AllowRethrowing:      utils.Ref(true),
 				AllowThrowingAny:     utils.Ref(false),
 				AllowThrowingUnknown: utils.Ref(false),
 			},
