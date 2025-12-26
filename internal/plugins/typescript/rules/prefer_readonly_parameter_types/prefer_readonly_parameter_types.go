@@ -3,6 +3,7 @@ package prefer_readonly_parameter_types
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/microsoft/typescript-go/shim/compiler"
 	"github.com/web-infra-dev/rslint/internal/rule"
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
@@ -78,11 +79,64 @@ func parseOptions(options any) PreferReadonlyParameterTypesOptions {
 	return opts
 }
 
+type readonlynessResult int
+
+const (
+	readonlynessUnknown readonlynessResult = iota
+	readonlynessMutable
+	readonlynessReadonly
+)
+
+// isPropertyReadonly checks if a property is readonly in a type
+func isPropertyReadonly(t *checker.Type, propName string, typeChecker *checker.Checker) bool {
+	// Get all properties of the type
+	properties := t.GetProperties()
+	for _, prop := range properties {
+		if prop.EscapedName == propName {
+			// Check if the property has readonly modifier
+			if len(prop.Declarations) > 0 {
+				decl := prop.Declarations[0]
+				// Check for readonly modifier on property declaration
+				if decl.Modifiers() != nil {
+					for _, mod := range decl.Modifiers() {
+						if mod.Kind == ast.KindReadonlyKeyword {
+							return true
+						}
+					}
+				}
+			}
+			return false
+		}
+	}
+	// If property not found, conservatively return false
+	return false
+}
+
 // isReadonlyType checks if a type is readonly
-// This is a simplified implementation that focuses on the most common cases
-func isReadonlyType(t *checker.Type, opts PreferReadonlyParameterTypesOptions) bool {
+func isReadonlyType(
+	program *compiler.Program,
+	typeChecker *checker.Checker,
+	t *checker.Type,
+	opts PreferReadonlyParameterTypesOptions,
+	seenTypes map[*checker.Type]bool,
+) readonlynessResult {
 	if t == nil {
-		return false
+		return readonlynessUnknown
+	}
+
+	// Check if we've seen this type before (recursive types)
+	if seenTypes[t] {
+		return readonlynessReadonly
+	}
+
+	// Check allow list
+	if len(opts.Allow) > 0 {
+		typeString := typeChecker.TypeToString(t)
+		for _, allowed := range opts.Allow {
+			if typeString == allowed {
+				return readonlynessReadonly
+			}
+		}
 	}
 
 	flags := checker.Type_flags(t)
@@ -94,38 +148,202 @@ func isReadonlyType(t *checker.Type, opts PreferReadonlyParameterTypesOptions) b
 		checker.TypeFlagsNull|checker.TypeFlagsNever|
 		checker.TypeFlagsESSymbolLike|checker.TypeFlagsAny|
 		checker.TypeFlagsUnknown) {
-		return true
+		return readonlynessReadonly
 	}
 
 	// Enum types
 	if utils.IsTypeFlagSet(t, checker.TypeFlagsEnumLike) {
-		return true
+		return readonlynessReadonly
+	}
+
+	// Mark this type as seen
+	seenTypes[t] = true
+	defer delete(seenTypes, t)
+
+	// Check for arrays and tuples
+	if arrayResult := isReadonlyArrayOrTuple(program, typeChecker, t, opts, seenTypes); arrayResult != readonlynessUnknown {
+		return arrayResult
 	}
 
 	// Union types - all members must be readonly
 	if flags&checker.TypeFlagsUnion != 0 {
 		for _, memberType := range t.Types() {
-			if !isReadonlyType(memberType, opts) {
-				return false
+			if isReadonlyType(program, typeChecker, memberType, opts, seenTypes) == readonlynessMutable {
+				return readonlynessMutable
 			}
 		}
-		return true
+		return readonlynessReadonly
 	}
 
-	// Intersection types - at least one member must be readonly
+	// Intersection types - at least one member must provide readonly constraint
 	if flags&checker.TypeFlagsIntersection != 0 {
+		hasReadonly := false
 		for _, memberType := range t.Types() {
-			if isReadonlyType(memberType, opts) {
-				return true
+			result := isReadonlyType(program, typeChecker, memberType, opts, seenTypes)
+			if result == readonlynessReadonly {
+				hasReadonly = true
+			} else if result == readonlynessMutable {
+				return readonlynessMutable
 			}
 		}
-		return false
+		if hasReadonly {
+			return readonlynessReadonly
+		}
+		return readonlynessUnknown
 	}
 
-	// For now, conservatively treat all object types as NOT readonly
-	// unless they meet specific conditions we can detect
-	// This simplified version will be less accurate but won't cause build errors
-	return false
+	// Check for objects
+	if flags&checker.TypeFlagsObject != 0 {
+		return isReadonlyObject(program, typeChecker, t, opts, seenTypes)
+	}
+
+	return readonlynessUnknown
+}
+
+// isReadonlyArrayOrTuple checks if array/tuple types are readonly
+func isReadonlyArrayOrTuple(
+	program *compiler.Program,
+	typeChecker *checker.Checker,
+	t *checker.Type,
+	opts PreferReadonlyParameterTypesOptions,
+	seenTypes map[*checker.Type]bool,
+) readonlynessResult {
+	// Check if it's an array type
+	if checker.Checker_isArrayType(typeChecker, t) {
+		symbol := checker.Type_symbol(t)
+		if symbol != nil {
+			escapedName := symbol.EscapedName
+			// Mutable Array type
+			if escapedName == "Array" {
+				return readonlynessMutable
+			}
+			// ReadonlyArray
+			if escapedName == "ReadonlyArray" {
+				typeArgs := checker.Checker_getTypeArguments(typeChecker, t)
+				if len(typeArgs) > 0 {
+					// Check element type is also readonly
+					for _, typeArg := range typeArgs {
+						if isReadonlyType(program, typeChecker, typeArg, opts, seenTypes) == readonlynessMutable {
+							return readonlynessMutable
+						}
+					}
+				}
+				return readonlynessReadonly
+			}
+		}
+	}
+
+	// Check if it's a tuple type
+	if checker.IsTupleType(t) {
+		target := t.Target()
+		if target != nil && target.AsTupleType() != nil {
+			// Check if tuple is readonly
+			if !target.AsTupleType().Readonly {
+				return readonlynessMutable
+			}
+			// Check all element types are readonly
+			typeArgs := checker.Checker_getTypeArguments(typeChecker, t)
+			for _, typeArg := range typeArgs {
+				if isReadonlyType(program, typeChecker, typeArg, opts, seenTypes) == readonlynessMutable {
+					return readonlynessMutable
+				}
+			}
+			return readonlynessReadonly
+		}
+	}
+
+	return readonlynessUnknown
+}
+
+// isReadonlyObject checks if an object type is readonly
+func isReadonlyObject(
+	program *compiler.Program,
+	typeChecker *checker.Checker,
+	t *checker.Type,
+	opts PreferReadonlyParameterTypesOptions,
+	seenTypes map[*checker.Type]bool,
+) readonlynessResult {
+	// Check index signatures
+	stringIndexType := typeChecker.GetIndexTypeOfType(t, checker.IndexKindString)
+	if stringIndexType != nil {
+		indexInfo := typeChecker.GetIndexInfoOfType(t, checker.IndexKindString)
+		if indexInfo != nil && !indexInfo.IsReadonly {
+			return readonlynessMutable
+		}
+		if stringIndexType != t && !seenTypes[stringIndexType] {
+			if isReadonlyType(program, typeChecker, stringIndexType, opts, seenTypes) == readonlynessMutable {
+				return readonlynessMutable
+			}
+		}
+	}
+
+	numberIndexType := typeChecker.GetIndexTypeOfType(t, checker.IndexKindNumber)
+	if numberIndexType != nil {
+		indexInfo := typeChecker.GetIndexInfoOfType(t, checker.IndexKindNumber)
+		if indexInfo != nil && !indexInfo.IsReadonly {
+			return readonlynessMutable
+		}
+		if numberIndexType != t && !seenTypes[numberIndexType] {
+			if isReadonlyType(program, typeChecker, numberIndexType, opts, seenTypes) == readonlynessMutable {
+				return readonlynessMutable
+			}
+		}
+	}
+
+	// Check properties
+	properties := t.GetProperties()
+	if len(properties) > 0 {
+		for _, prop := range properties {
+			// Check if property is a method and we should treat methods as readonly
+			if opts.TreatMethodsAsReadonly {
+				if len(prop.Declarations) > 0 {
+					decl := prop.Declarations[len(prop.Declarations)-1]
+					if ast.IsMethodDeclaration(decl) || ast.IsMethodSignature(decl) {
+						continue
+					}
+					// Check if it's a function-valued property
+					propType := typeChecker.GetTypeOfSymbolAtLocation(prop, decl)
+					if propType != nil && utils.IsTypeFlagSet(propType, checker.TypeFlagsObject) {
+						callSigs := utils.GetCallSignatures(typeChecker, propType)
+						if len(callSigs) > 0 {
+							continue
+						}
+					}
+				}
+			}
+
+			// Check if this is a private identifier (always readonly)
+			if len(prop.Declarations) > 0 {
+				decl := prop.Declarations[0]
+				if decl.Name() != nil && ast.IsPrivateIdentifier(decl.Name()) {
+					continue
+				}
+			}
+
+			// Check if property is readonly
+			if !isPropertyReadonly(t, prop.EscapedName, typeChecker) {
+				return readonlynessMutable
+			}
+		}
+
+		// All properties are readonly, now check their types
+		for _, prop := range properties {
+			if len(prop.Declarations) > 0 {
+				decl := prop.Declarations[0]
+				propType := typeChecker.GetTypeOfSymbolAtLocation(prop, decl)
+				if propType != nil && !seenTypes[propType] {
+					if isReadonlyType(program, typeChecker, propType, opts, seenTypes) == readonlynessMutable {
+						return readonlynessMutable
+					}
+				}
+			}
+		}
+
+		return readonlynessReadonly
+	}
+
+	// Empty interface/object
+	return readonlynessReadonly
 }
 
 // checkParameter validates a parameter node
@@ -146,8 +364,12 @@ func checkParameter(ctx rule.RuleContext, param *ast.Node, opts PreferReadonlyPa
 		return
 	}
 
+	// Create a new seenTypes map for each parameter check
+	seenTypes := make(map[*checker.Type]bool)
+
 	// Check if the parameter type is readonly
-	if !isReadonlyType(paramType, opts) {
+	result := isReadonlyType(ctx.Program, ctx.TypeChecker, paramType, opts, seenTypes)
+	if result == readonlynessMutable {
 		ctx.ReportNode(param, buildShouldBeReadonlyMessage())
 	}
 }
