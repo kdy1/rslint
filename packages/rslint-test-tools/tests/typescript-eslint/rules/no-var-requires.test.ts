@@ -1,10 +1,10 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../src/rules/no-var-requires';
 
 const ruleTester = new RuleTester();
 
-ruleTester.run('no-var-requires', {
+ruleTester.run('no-var-requires', rule, {
   valid: [
     "import foo = require('foo');",
     "require('foo');",
