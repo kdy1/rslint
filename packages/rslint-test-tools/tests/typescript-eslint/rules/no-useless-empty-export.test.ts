@@ -1,14 +1,14 @@
-// this rule tests the spacing, which prettier will want to fix and break the tests
-/* eslint "@typescript-eslint/internal/plugin-test-formatting": ["error", { formatWithPrettier: false }] */
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
+import { getFixturesRootDir } from '../RuleTester';
 
+const rootPath = getFixturesRootDir();
 
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
-      ecmaVersion: 2020,
-      sourceType: 'module',
+      project: './tsconfig.json',
+      tsconfigRootDir: rootPath,
     },
   },
 });

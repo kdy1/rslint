@@ -1,320 +1,178 @@
 package no_useless_empty_export
 
 import (
-	"strings"
-
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/web-infra-dev/rslint/internal/rule"
 )
 
-func isEmptyExport(node *ast.Node) bool {
-	if node.Kind != ast.KindExportDeclaration {
-		return false
-	}
-
-	exportDecl := node.AsExportDeclaration()
-	if exportDecl == nil {
-		return false
-	}
-	// Empty export is either:
-	// 1. export {} - no export clause and no module specifier
-	// 2. export {} from "module" would have module specifier
-	if exportDecl.ModuleSpecifier != nil {
-		return false
-	}
-
-	// Check if it's specifically an empty export {}
-	// For export {}, ExportClause might be a NamedExports with zero elements
-	if exportDecl.ExportClause == nil {
-		// Could be export declaration with embedded declaration like:
-		// export const _ = {} or export function foo() {}
-		// These are NOT empty exports
-		return false
-	}
-
-	// If there's an export clause, check if it's empty
-	if exportDecl.ExportClause.Kind == ast.KindNamedExports {
-		namedExports := exportDecl.ExportClause.AsNamedExports()
-		if namedExports == nil {
-			return false
-		}
-		return len(namedExports.Elements.Nodes) == 0
-	}
-
-	return false
-}
-
-func hasExportModifier(node *ast.Node) bool {
-	switch node.Kind {
-	case ast.KindVariableStatement:
-		varStmt := node.AsVariableStatement()
-		if varStmt == nil {
-			return false
-		}
-		if varStmt.Modifiers() != nil {
-			for _, mod := range varStmt.Modifiers().Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindFunctionDeclaration:
-		funcDecl := node.AsFunctionDeclaration()
-		if funcDecl == nil {
-			return false
-		}
-		if m := funcDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindClassDeclaration:
-		classDecl := node.AsClassDeclaration()
-		if classDecl == nil {
-			return false
-		}
-		if m := classDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindInterfaceDeclaration:
-		interfaceDecl := node.AsInterfaceDeclaration()
-		if interfaceDecl == nil {
-			return false
-		}
-		if m := interfaceDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindTypeAliasDeclaration:
-		typeAlias := node.AsTypeAliasDeclaration()
-		if typeAlias == nil {
-			return false
-		}
-		if m := typeAlias.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindEnumDeclaration:
-		enumDecl := node.AsEnumDeclaration()
-		if enumDecl == nil {
-			return false
-		}
-		if m := enumDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindModuleDeclaration:
-		moduleDecl := node.AsModuleDeclaration()
-		if moduleDecl == nil {
-			return false
-		}
-		if m := moduleDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindExportKeyword {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func hasDeclareModifier(node *ast.Node) bool {
-	switch node.Kind {
-	case ast.KindVariableStatement:
-		varStmt := node.AsVariableStatement()
-		if varStmt == nil {
-			return false
-		}
-		if varStmt.Modifiers() != nil {
-			for _, mod := range varStmt.Modifiers().Nodes {
-				if mod.Kind == ast.KindDeclareKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindFunctionDeclaration:
-		funcDecl := node.AsFunctionDeclaration()
-		if funcDecl == nil {
-			return false
-		}
-		if m := funcDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindDeclareKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindClassDeclaration:
-		classDecl := node.AsClassDeclaration()
-		if classDecl == nil {
-			return false
-		}
-		if m := classDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindDeclareKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindEnumDeclaration:
-		enumDecl := node.AsEnumDeclaration()
-		if enumDecl == nil {
-			return false
-		}
-		if m := enumDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindDeclareKeyword {
-					return true
-				}
-			}
-		}
-	case ast.KindModuleDeclaration:
-		moduleDecl := node.AsModuleDeclaration()
-		if moduleDecl == nil {
-			return false
-		}
-		if m := moduleDecl.Modifiers(); m != nil {
-			for _, mod := range m.Nodes {
-				if mod.Kind == ast.KindDeclareKeyword {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func isExportOrImportStatement(node *ast.Node) bool {
-	switch node.Kind {
-	case ast.KindExportDeclaration:
-		exportDecl := node.AsExportDeclaration()
-		if exportDecl == nil {
-			return false
-		}
-		// Check if it's a type-only export
-		if exportDecl.IsTypeOnly {
-			return false
-		}
-		// export * from 'module'
-		if exportDecl.ModuleSpecifier != nil && exportDecl.ExportClause == nil {
-			return true
-		}
-		// export * as ns from 'module'
-		if exportDecl.ModuleSpecifier != nil && exportDecl.ExportClause != nil && ast.IsNamespaceExport(exportDecl.ExportClause) {
-			return true
-		}
-		// export { x } or export { x } from 'module'
-		if exportDecl.ExportClause != nil && exportDecl.ExportClause.Kind == ast.KindNamedExports {
-			namedExports := exportDecl.ExportClause.AsNamedExports()
-			if namedExports != nil && len(namedExports.Elements.Nodes) > 0 {
-				return true
-			}
-		}
-		return false
-	case ast.KindExportAssignment:
-		// This covers export = and possibly export default
-		return true
-	case ast.KindImportDeclaration:
-		importDecl := node.AsImportDeclaration()
-		if importDecl == nil {
-			return false
-		}
-		// Skip type-only imports
-		if importDecl.ImportClause != nil && importDecl.ImportClause.IsTypeOnly() {
-			return false
-		}
-		return true
-	case ast.KindImportEqualsDeclaration:
-		return true
-	case ast.KindVariableStatement:
-		// Check for export const _ = {}
-		// Skip if it has declare modifier
-		if hasDeclareModifier(node) {
-			return false
-		}
-		return hasExportModifier(node)
-	case ast.KindFunctionDeclaration, ast.KindClassDeclaration:
-		// Skip if it has declare modifier
-		if hasDeclareModifier(node) {
-			return false
-		}
-		return hasExportModifier(node)
-	case ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration:
-		// Type-only declarations don't count as runtime exports
-		return false
-	case ast.KindEnumDeclaration:
-		// Enums are runtime values (unless they have declare modifier)
-		if hasDeclareModifier(node) {
-			return false
-		}
-		return hasExportModifier(node)
-	case ast.KindModuleDeclaration:
-		// Module declarations with declare are ambient
-		if hasDeclareModifier(node) {
-			return false
-		}
-		return hasExportModifier(node)
-	case ast.KindExpressionStatement:
-		// ExpressionStatement by itself is not an export
-		// Export default expressions would be handled by KindExportAssignment
-		return false
-	}
-	return false
-}
-
-func isDefinitionFile(fileName string) bool {
-	return strings.HasSuffix(fileName, ".d.ts")
-}
-
 var NoUselessEmptyExportRule = rule.CreateRule(rule.Rule{
 	Name: "no-useless-empty-export",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
-		// In a definition file, export {} is necessary to make the module properly
-		// encapsulated, even when there are other exports
-		if isDefinitionFile(ctx.SourceFile.FileName()) {
-			return rule.RuleListeners{}
+		return rule.RuleListeners{
+			ast.KindExportDeclaration: func(node *ast.Node) {
+				exportDecl := node.AsExportDeclaration()
+				if exportDecl == nil {
+					return
+				}
+
+				// Check if this is an empty export: export {}
+				// An empty export has no export clause (or an empty one) and no module specifier
+				if exportDecl.ExportClause != nil {
+					// Check if it's a named export clause
+					if ast.IsNamedExports(exportDecl.ExportClause) {
+						namedExports := exportDecl.ExportClause.AsNamedExports()
+						// If there are elements in the named exports, it's not empty
+						if namedExports != nil && namedExports.Elements != nil && len(namedExports.Elements.Nodes) > 0 {
+							return
+						}
+					} else {
+						// If it's not a named export, it's not an empty export
+						return
+					}
+				}
+
+				// If there's a module specifier (from clause), it's a re-export, not an empty export
+				if exportDecl.ModuleSpecifier != nil {
+					return
+				}
+
+				// Now we have confirmed this is an empty export: export {}
+				// Check if the file has other imports or exports that make it a module already
+				sourceFile := ctx.SourceFile
+				if sourceFile == nil || sourceFile.Statements == nil {
+					return
+				}
+
+				hasOtherModuleSyntax := false
+				for _, stmt := range sourceFile.Statements.Nodes {
+					// Skip the current export declaration
+					if stmt == node {
+						continue
+					}
+
+					// Check for import declarations (but not type-only imports)
+					if stmt.Kind == ast.KindImportDeclaration {
+						importDecl := stmt.AsImportDeclaration()
+						if importDecl != nil {
+							// Check if it's a type-only import
+							isTypeOnly := false
+							if importDecl.ImportClause != nil {
+								if importDecl.ImportClause.IsTypeOnly {
+									isTypeOnly = true
+								}
+							}
+							if !isTypeOnly {
+								hasOtherModuleSyntax = true
+								break
+							}
+						}
+						continue
+					}
+
+					// Check for export declarations
+					if stmt.Kind == ast.KindExportDeclaration {
+						hasOtherModuleSyntax = true
+						break
+					}
+
+					// Check for export assignments (export = )
+					if stmt.Kind == ast.KindExportAssignment {
+						hasOtherModuleSyntax = true
+						break
+					}
+
+					// Check for import equals declarations (import _ = require('_'))
+					if stmt.Kind == ast.KindImportEqualsDeclaration {
+						hasOtherModuleSyntax = true
+						break
+					}
+
+					// Check for declarations with export modifier
+					modifiers := getModifiers(stmt)
+					if modifiers != nil {
+						hasExportModifier := false
+						hasDeclareModifier := false
+						for _, modifier := range modifiers.Nodes {
+							if modifier.Kind == ast.KindExportKeyword {
+								hasExportModifier = true
+							}
+							if modifier.Kind == ast.KindDeclareKeyword {
+								hasDeclareModifier = true
+							}
+						}
+						// Only count as module syntax if it has export but not declare
+						// or if it's not a type-only export
+						if hasExportModifier {
+							// Check if this is a type-only export
+							isTypeOnlyExport := false
+							if stmt.Kind == ast.KindTypeAliasDeclaration {
+								isTypeOnlyExport = true
+							} else if stmt.Kind == ast.KindInterfaceDeclaration {
+								isTypeOnlyExport = true
+							}
+							// If it's not type-only, or if it's a value export, count it
+							if !isTypeOnlyExport && !hasDeclareModifier {
+								hasOtherModuleSyntax = true
+								break
+							}
+						}
+					}
+				}
+
+				// If the file already has other module syntax, the empty export is useless
+				if hasOtherModuleSyntax {
+					ctx.ReportNodeWithFixes(
+						node,
+						rule.RuleMessage{
+							Id:          "uselessExport",
+							Description: "Empty export statement is useless because the file already contains other module syntax.",
+						},
+						rule.RuleFixRemove(ctx.SourceFile, node),
+					)
+				}
+			},
 		}
-
-		// First pass: collect all statements to check for exports
-		var emptyExports []*ast.Node
-		hasOtherExports := false
-
-		// Check all statements upfront
-		for _, statement := range ctx.SourceFile.Statements.Nodes {
-			if isEmptyExport(statement) {
-				emptyExports = append(emptyExports, statement)
-			} else if isExportOrImportStatement(statement) {
-				hasOtherExports = true
-			}
-		}
-
-		// If there are other exports, report the empty exports as useless
-		if hasOtherExports {
-			for _, emptyExport := range emptyExports {
-				ctx.ReportNodeWithFixes(emptyExport, rule.RuleMessage{
-					Id:          "uselessExport",
-					Description: "Empty export does nothing and can be removed.",
-				}, rule.RuleFixRemove(ctx.SourceFile, emptyExport))
-			}
-		}
-
-		// Return empty listeners since we already processed everything
-		return rule.RuleListeners{}
 	},
 })
+
+// Helper function to get modifiers from various declaration types
+func getModifiers(node *ast.Node) *ast.NodeArray {
+	switch node.Kind {
+	case ast.KindVariableStatement:
+		stmt := node.AsVariableStatement()
+		if stmt != nil {
+			return stmt.Modifiers()
+		}
+	case ast.KindFunctionDeclaration:
+		decl := node.AsFunctionDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	case ast.KindClassDeclaration:
+		decl := node.AsClassDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	case ast.KindInterfaceDeclaration:
+		decl := node.AsInterfaceDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	case ast.KindTypeAliasDeclaration:
+		decl := node.AsTypeAliasDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	case ast.KindEnumDeclaration:
+		decl := node.AsEnumDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	case ast.KindModuleDeclaration:
+		decl := node.AsModuleDeclaration()
+		if decl != nil {
+			return decl.Modifiers()
+		}
+	}
+	return nil
+}
