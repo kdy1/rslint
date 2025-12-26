@@ -1,18 +1,8 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
 
-import { getFixturesRootDir } from '../RuleTester';
 
-const rootPath = getFixturesRootDir();
-
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parserOptions: {
-      project: './tsconfig.json',
-      tsconfigRootDir: rootPath,
-    },
-  },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('prefer-includes', {
   valid: [
