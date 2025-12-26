@@ -9,6 +9,10 @@ import (
 	"github.com/web-infra-dev/rslint/internal/utils"
 )
 
+type NoUnsafeMemberAccessOptions struct {
+	AllowOptionalChaining bool `json:"allowOptionalChaining"`
+}
+
 func buildUnsafeComputedMemberAccessMessage(property, t string) rule.RuleMessage {
 	return rule.RuleMessage{
 		Id:          "unsafeComputedMemberAccess",
@@ -43,9 +47,66 @@ func createDataType(t *checker.Type) string {
 	return "`any`"
 }
 
+func parseOptions(options any) NoUnsafeMemberAccessOptions {
+	opts := NoUnsafeMemberAccessOptions{}
+	if options == nil {
+		return opts
+	}
+	// Handle array format: [{ option: value }]
+	if arr, ok := options.([]interface{}); ok {
+		if len(arr) > 0 {
+			if m, ok := arr[0].(map[string]interface{}); ok {
+				if v, ok := m["allowOptionalChaining"].(bool); ok {
+					opts.AllowOptionalChaining = v
+				}
+			}
+		}
+		return opts
+	}
+	// Handle direct object format
+	if m, ok := options.(map[string]interface{}); ok {
+		if v, ok := m["allowOptionalChaining"].(bool); ok {
+			opts.AllowOptionalChaining = v
+		}
+	}
+	return opts
+}
+
+// Check if the current member expression uses optional chaining directly
+func isDirectlyOptionalChain(node *ast.Node) bool {
+	if ast.IsPropertyAccessExpression(node) && node.AsPropertyAccessExpression().QuestionDotToken != nil {
+		return true
+	}
+	if ast.IsElementAccessExpression(node) && node.AsElementAccessExpression().QuestionDotToken != nil {
+		return true
+	}
+	return false
+}
+
+// shouldAllowWithOptionalChaining checks if a node should be allowed when allowOptionalChaining is true
+// The rule is: if the parent expression of the current node uses optional chaining (i.e., has ?.)
+// then we allow the current node
+func shouldAllowWithOptionalChaining(node *ast.Node) bool {
+	// Get the expression that this member access is operating on
+	expression := node.Expression()
+	if expression == nil {
+		return false
+	}
+
+	// Check if the expression itself is an optional chain
+	// e.g., in `value?.middle.inner`, when we're checking `.inner`,
+	// the expression is `value?.middle` which has optional chaining
+	if ast.IsAccessExpression(expression) && isDirectlyOptionalChain(expression) {
+		return true
+	}
+
+	return false
+}
+
 var NoUnsafeMemberAccessRule = rule.CreateRule(rule.Rule{
 	Name: "no-unsafe-member-access",
 	Run: func(ctx rule.RuleContext, options any) rule.RuleListeners {
+		opts := parseOptions(options)
 		compilerOptions := ctx.Program.Options()
 		isNoImplicitThis := utils.IsStrictCompilerOptionEnabled(
 			compilerOptions,
@@ -90,6 +151,12 @@ var NoUnsafeMemberAccessRule = rule.CreateRule(rule.Rule{
 			stateCache[node] = state
 
 			if state == stateUnsafe {
+				// If allowOptionalChaining is enabled and the parent expression uses optional chaining
+				// then we should allow it (skip reporting)
+				if opts.AllowOptionalChaining && shouldAllowWithOptionalChaining(node) {
+					return state
+				}
+
 				var property *ast.Node
 				var propertyName string
 				if ast.IsPropertyAccessExpression(node) {
