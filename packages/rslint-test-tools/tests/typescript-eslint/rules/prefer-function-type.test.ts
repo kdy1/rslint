@@ -1,10 +1,4 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
-import { AST_NODE_TYPES } from '@typescript-eslint/utils';
-
-export const phrases = {
-  [AST_NODE_TYPES.TSInterfaceDeclaration]: 'Interface',
-  [AST_NODE_TYPES.TSTypeLiteral]: 'Type literal',
-} as const;
 
 const ruleTester = new RuleTester();
 
@@ -54,11 +48,7 @@ interface Foo {
       `,
       errors: [
         {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
           messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
         },
       ],
       output: `
@@ -74,13 +64,7 @@ export default interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: null,
     },
@@ -92,13 +76,7 @@ interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 // comment
@@ -113,13 +91,7 @@ export interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 /** comment */
@@ -134,13 +106,7 @@ export interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 // comment
@@ -154,13 +120,7 @@ function foo(bar: { /* comment */ (s: string): number } | undefined): number {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 function foo(bar: /* comment */ ((s: string) => number) | undefined): number {
@@ -175,13 +135,7 @@ type Foo = {
 };
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type Foo = () => string;
@@ -194,13 +148,7 @@ function foo(bar: { (s: string): number }): number {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 function foo(bar: (s: string) => number): number {
@@ -215,13 +163,7 @@ function foo(bar: { (s: string): number } | undefined): number {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 function foo(bar: ((s: string) => number) | undefined): number {
@@ -236,13 +178,7 @@ interface Foo extends Function {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type Foo = () => void;
@@ -255,13 +191,7 @@ interface Foo<T> {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type Foo<T> = (bar: T) => string;
@@ -274,13 +204,7 @@ interface Foo<T> {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type Foo<T> = (this: T) => void;
@@ -291,13 +215,7 @@ type Foo<T> = (this: T) => void;
 type Foo<T> = { (this: string): T };
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type Foo<T> = (this: string) => T;
@@ -310,13 +228,7 @@ interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            interfaceName: 'Foo',
-          },
-          messageId: 'unexpectedThisOnFunctionOnlyInterface',
-          type: AST_NODE_TYPES.TSThisType,
-        },
+        {          messageId: 'unexpectedThisOnFunctionOnlyInterface',        },
       ],
       output: null,
     },
@@ -327,13 +239,7 @@ interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            interfaceName: 'Foo',
-          },
-          messageId: 'unexpectedThisOnFunctionOnlyInterface',
-          type: AST_NODE_TYPES.TSThisType,
-        },
+        {          messageId: 'unexpectedThisOnFunctionOnlyInterface',        },
       ],
       output: null,
     },
@@ -353,13 +259,7 @@ interface Foo {
 }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSInterfaceDeclaration],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 // isn't actually valid ts but want to not give message saying it refers to Foo.
@@ -379,13 +279,7 @@ type Foo = () => {
 type X = {} | { (): void; }
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type X = {} | (() => void)
@@ -396,13 +290,7 @@ type X = {} | (() => void)
 type X = {} & { (): void; };
       `,
       errors: [
-        {
-          data: {
-            literalOrInterface: phrases[AST_NODE_TYPES.TSTypeLiteral],
-          },
-          messageId: 'functionTypeOverCallableType',
-          type: AST_NODE_TYPES.TSCallSignatureDeclaration,
-        },
+        {          messageId: 'functionTypeOverCallableType',        },
       ],
       output: `
 type X = {} & (() => void);
