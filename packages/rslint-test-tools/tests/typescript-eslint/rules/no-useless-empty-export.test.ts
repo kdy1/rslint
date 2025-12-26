@@ -163,5 +163,16 @@ import _ = require('_');
 
       `,
     },
+    {
+      code: `
+import { A } from '_';
+export {};
+      `,
+      errors: [error],
+      output: `
+import { A } from '_';
+
+      `,
+    },
   ],
 });
