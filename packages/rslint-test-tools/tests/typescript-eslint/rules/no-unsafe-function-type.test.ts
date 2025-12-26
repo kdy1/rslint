@@ -1,10 +1,10 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
+import rule from '../../src/rules/no-unsafe-function-type';
 
 const ruleTester = new RuleTester();
 
-ruleTester.run('no-unsafe-function-type', {
+ruleTester.run('no-unsafe-function-type', rule, {
   valid: [
     'let value: () => void;',
     'let value: <T>(t: T) => T;',
