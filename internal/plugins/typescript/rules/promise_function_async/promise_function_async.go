@@ -14,6 +14,13 @@ func buildMissingAsyncMessage() rule.RuleMessage {
 	}
 }
 
+func buildMissingAsyncHybridReturnMessage() rule.RuleMessage {
+	return rule.RuleMessage{
+		Id:          "missingAsyncHybridReturn",
+		Description: "Functions that return promises must be async. Consider adding an explicit return type annotation if the function is intended to return a union of promise and non-promise types.",
+	}
+}
+
 type PromiseFunctionAsyncOptions struct {
 	AllowAny *bool
 	// TODO(port): TypeOrValueSpecifier
@@ -107,6 +114,8 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 			}
 
 			everySignatureReturnsPromise := true
+			isHybridReturnType := false
+
 			for _, signature := range signatures {
 				returnType := checker.Checker_getReturnTypeOfSignature(ctx.TypeChecker, signature)
 				if !*opts.AllowAny && utils.IsTypeFlagSet(returnType, checker.TypeFlagsAnyOrUnknown) {
@@ -114,6 +123,22 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 					// TODO(port): getFunctionHeadLoc
 					ctx.ReportNode(node, buildMissingAsyncMessage())
 					return
+				}
+
+				// Check if this is a hybrid return type (union of Promise and non-Promise)
+				if utils.IsUnionType(returnType) && node.Type() == nil {
+					// For union types without explicit return type annotation,
+					// check if not all parts are Promise types
+					allPartsArePromise := true
+					for _, typePart := range returnType.Types() {
+						if !containsAllTypesByName(typePart, true) {
+							allPartsArePromise = false
+							break
+						}
+					}
+					if !allPartsArePromise {
+						isHybridReturnType = true
+					}
 				}
 
 				// require all potential return types to be promise/any/unknown
@@ -132,8 +157,15 @@ var PromiseFunctionAsyncRule = rule.CreateRule(rule.Rule{
 			if ast.IsMethodDeclaration(node) {
 				insertAsyncBeforeNode = node.Name()
 			}
+
+			// Use appropriate message based on whether this is a hybrid return type
+			message := buildMissingAsyncMessage()
+			if isHybridReturnType {
+				message = buildMissingAsyncHybridReturnMessage()
+			}
+
 			// TODO(port): getFunctionHeadLoc
-			ctx.ReportNodeWithFixes(node, buildMissingAsyncMessage(), rule.RuleFixInsertBefore(ctx.SourceFile, insertAsyncBeforeNode, " async "))
+			ctx.ReportNodeWithFixes(node, message, rule.RuleFixInsertBefore(ctx.SourceFile, insertAsyncBeforeNode, " async "))
 		}
 
 		if *opts.CheckArrowFunctions {
