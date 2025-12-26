@@ -37,10 +37,10 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_explicit_any"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_extra_non_null_assertion"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_extraneous_class"
-	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_invalid_void_type"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_floating_promises"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_for_in_array"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_implied_eval"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_invalid_void_type"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_meaningless_void_operator"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_misused_promises"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_misused_spread"
@@ -48,8 +48,8 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_namespace"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_non_null_asserted_optional_chain"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_redundant_type_constituents"
-	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_this_alias"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_require_imports"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_this_alias"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unnecessary_boolean_literal_compare"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unnecessary_condition"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/no_unnecessary_template_expression"
@@ -69,6 +69,7 @@ import (
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/non_nullable_type_assertion_style"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/only_throw_error"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_as_const"
+	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_find"
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_promise_reject_errors"
 	// "github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_readonly_parameter_types" // Temporarily disabled - incomplete implementation
 	"github.com/web-infra-dev/rslint/internal/plugins/typescript/rules/prefer_reduce_type_parameter"
@@ -427,6 +428,7 @@ func registerAllTypeScriptEslintPluginRules() {
 	GlobalRuleRegistry.Register("@typescript-eslint/non-nullable-type-assertion-style", non_nullable_type_assertion_style.NonNullableTypeAssertionStyleRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/only-throw-error", only_throw_error.OnlyThrowErrorRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-as-const", prefer_as_const.PreferAsConstRule)
+	GlobalRuleRegistry.Register("@typescript-eslint/prefer-find", prefer_find.PreferFindRule)
 	GlobalRuleRegistry.Register("@typescript-eslint/prefer-promise-reject-errors", prefer_promise_reject_errors.PreferPromiseRejectErrorsRule)
 	// TODO: prefer-readonly-parameter-types needs complete implementation for proper type checking
 	// Temporarily disabled until the isReadonlyType function is fully implemented with proper
