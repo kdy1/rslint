@@ -1,9 +1,9 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
 import { getFixturesRootDir } from '../RuleTester';
 
 const rootDir = getFixturesRootDir();
+
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
