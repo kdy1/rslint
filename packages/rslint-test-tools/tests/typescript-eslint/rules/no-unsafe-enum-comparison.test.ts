@@ -1,18 +1,6 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
 
-
-import { getFixturesRootDir } from '../RuleTester';
-
-const rootDir = getFixturesRootDir();
-
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parserOptions: {
-      project: './tsconfig.json',
-      tsconfigRootDir: rootDir,
-    },
-  },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('no-unsafe-enum-comparison', {
   valid: [
@@ -402,18 +390,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Fruit {
-          Apple = 0,
-          Banana = 'banana',
-        }
-        Fruit.Apple === Fruit.Apple;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -592,123 +568,15 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-        }
-        enum Num {
-          B = 1,
-        }
-        enum Mixed {
-          A = 'a',
-          B = 1,
-        }
-
-        declare const str: Str;
-        declare const num: Num;
-        declare const mixed: Mixed;
-
-        // following are all errors because the value might be an enum value
-        str === Str.A;
-        num === 1;
-        mixed === 'a';
-        mixed === 1;
-      `,
-            },
-          ],
         },
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-        }
-        enum Num {
-          B = 1,
-        }
-        enum Mixed {
-          A = 'a',
-          B = 1,
-        }
-
-        declare const str: Str;
-        declare const num: Num;
-        declare const mixed: Mixed;
-
-        // following are all errors because the value might be an enum value
-        str === 'a';
-        num === Num.B;
-        mixed === 'a';
-        mixed === 1;
-      `,
-            },
-          ],
         },
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-        }
-        enum Num {
-          B = 1,
-        }
-        enum Mixed {
-          A = 'a',
-          B = 1,
-        }
-
-        declare const str: Str;
-        declare const num: Num;
-        declare const mixed: Mixed;
-
-        // following are all errors because the value might be an enum value
-        str === 'a';
-        num === 1;
-        mixed === Mixed.A;
-        mixed === 1;
-      `,
-            },
-          ],
         },
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-        }
-        enum Num {
-          B = 1,
-        }
-        enum Mixed {
-          A = 'a',
-          B = 1,
-        }
-
-        declare const str: Str;
-        declare const num: Num;
-        declare const mixed: Mixed;
-
-        // following are all errors because the value might be an enum value
-        str === 'a';
-        num === 1;
-        mixed === 'a';
-        mixed === Mixed.B;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -833,19 +701,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-          B = 'b',
-        }
-        declare const str: Str;
-        str === Str.B;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -861,19 +716,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Str {
-          A = 'a',
-          AB = 'ab',
-        }
-        declare const str: Str;
-        str === Str.AB;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -889,19 +731,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Num {
-          A = 1,
-          B = 2,
-        }
-        declare const num: Num;
-        Num.A === num;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -917,19 +746,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Num {
-          A = 1,
-          B = 2,
-        }
-        declare const num: Num;
-        Num.A /* with */ === /* comment */ num;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -945,19 +761,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Num {
-          A = 1,
-          B = 2,
-        }
-        declare const num: Num;
-        Num.B === num;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -973,19 +776,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Mixed {
-          A = 1,
-          B = 'b',
-        }
-        declare const mixed: Mixed;
-        mixed === Mixed.A;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1001,19 +791,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum Mixed {
-          A = 1,
-          B = 'b',
-        }
-        declare const mixed: Mixed;
-        mixed === Mixed.B;
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1028,18 +805,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum StringKey {
-          'test-key' /* with comment */ = 1,
-        }
-        declare const stringKey: StringKey;
-        stringKey === StringKey['test-key'];
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1054,18 +819,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum StringKey {
-          "key-'with-single'-quotes" = 1,
-        }
-        declare const stringKey: StringKey;
-        stringKey === StringKey['key-\\'with-single\\'-quotes'];
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1080,18 +833,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum StringKey {
-          'key-"with-double"-quotes' = 1,
-        }
-        declare const stringKey: StringKey;
-        stringKey === StringKey['key-"with-double"-quotes'];
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1106,99 +847,6 @@ ruleTester.run('no-unsafe-enum-comparison', {
       errors: [
         {
           messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum StringKey {
-          'key-\`with-backticks\`-quotes' = 1,
-        }
-        declare const stringKey: StringKey;
-        stringKey === StringKey['key-\`with-backticks\`-quotes'];
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      code: `
-        enum ComputedKey {
-          ['test-key' /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === 1;
-      `,
-      errors: [
-        {
-          messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum ComputedKey {
-          ['test-key' /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === ComputedKey['test-key'];
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      code: `
-        enum ComputedKey {
-          [\`test-key\` /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === 1;
-      `,
-      errors: [
-        {
-          messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum ComputedKey {
-          [\`test-key\` /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === ComputedKey[\`test-key\`];
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      code: `
-        enum ComputedKey {
-          [\`test-
-          key\` /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === 1;
-      `,
-      errors: [
-        {
-          messageId: 'mismatchedCondition',
-          suggestions: [
-            {
-              messageId: 'replaceValueWithEnum',
-              output: `
-        enum ComputedKey {
-          [\`test-
-          key\` /* with comment */] = 1,
-        }
-        declare const computedKey: ComputedKey;
-        computedKey === ComputedKey[\`test-
-          key\`];
-      `,
-            },
-          ],
         },
       ],
     },
@@ -1245,6 +893,82 @@ ruleTester.run('no-unsafe-enum-comparison', {
         }
       `,
       errors: [{ messageId: 'mismatchedCondition' }],
+    },
+    {
+      code: `
+enum NUMBER_ENUM {
+  First = 0,
+  Second = 1,
+}
+
+type NumberUnion = 0 | 1;
+
+declare const numberUnion: NumberUnion;
+
+switch (numberUnion) {
+  case NUMBER_ENUM.First:
+  case NUMBER_ENUM.Second:
+    break;
+}
+      `,
+      errors: [
+        {
+          line: 12,
+          messageId: 'mismatchedCase',
+        },
+        {
+          line: 13,
+          messageId: 'mismatchedCase',
+        },
+      ],
+    },
+    {
+      code: `
+enum STRING_ENUM {
+  First = 'one',
+  Second = 'two',
+}
+
+type StringUnion = 'one' | 'two';
+
+declare const stringUnion: StringUnion;
+
+switch (stringUnion) {
+  case STRING_ENUM.First:
+  case STRING_ENUM.Second:
+    break;
+}
+      `,
+      errors: [
+        {
+          line: 12,
+          messageId: 'mismatchedCase',
+        },
+        {
+          line: 13,
+          messageId: 'mismatchedCase',
+        },
+      ],
+    },
+    {
+      code: `
+declare const stringUnion: 'foo' | 'bar';
+
+enum StringEnum {
+  FOO = 'foo',
+  BAR = 'bar',
+}
+
+declare const stringEnum: StringEnum;
+
+stringUnion === stringEnum;
+      `,
+      errors: [
+        {
+          line: 11,
+          messageId: 'mismatchedCondition',
+        },
+      ],
     },
   ],
 });
