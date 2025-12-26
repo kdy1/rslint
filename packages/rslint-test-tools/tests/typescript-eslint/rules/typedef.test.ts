@@ -13,7 +13,7 @@ const ruleTester = new RuleTester({
   },
 });
 
-ruleTester.run('typedef', {
+ruleTester.run('@typescript-eslint/typedef', {
   valid: [
     // Array destructuring
     {
