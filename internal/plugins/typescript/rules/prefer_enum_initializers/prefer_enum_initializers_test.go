@@ -45,7 +45,7 @@ func TestPreferEnumInitializersRule(t *testing.T) {
 				Code: `enum Direction { Up }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    18,
 					},
@@ -57,12 +57,12 @@ func TestPreferEnumInitializersRule(t *testing.T) {
 				Code: `enum Direction { Up, Down }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    18,
 					},
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    22,
 					},
@@ -74,7 +74,7 @@ func TestPreferEnumInitializersRule(t *testing.T) {
 				Code: `enum Direction { Up = 'Up', Down }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    29,
 					},
@@ -86,7 +86,7 @@ func TestPreferEnumInitializersRule(t *testing.T) {
 				Code: `enum Direction { Up, Down = 'Down' }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    18,
 					},
@@ -98,12 +98,12 @@ func TestPreferEnumInitializersRule(t *testing.T) {
 				Code: `enum E { A, B = 1, C }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    10,
 					},
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    20,
 					},
@@ -120,12 +120,12 @@ enum Status {
 }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      3,
 						Column:    3,
 					},
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      5,
 						Column:    3,
 					},
@@ -137,7 +137,7 @@ enum Status {
 				Code: `enum E { "a" }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    10,
 					},
@@ -149,7 +149,7 @@ enum Status {
 				Code: `enum E { 1 }`,
 				Errors: []rule_tester.InvalidTestCaseError{
 					{
-						MessageId: "noInitializer",
+						MessageId: "defineInitializer",
 						Line:      1,
 						Column:    10,
 					},
