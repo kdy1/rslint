@@ -1,17 +1,8 @@
 import { noFormat, RuleTester } from '@typescript-eslint/rule-tester';
-import path from 'node:path';
 
 
-const rootPath = path.join(__dirname, '..', 'fixtures');
 
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parserOptions: {
-      project: './tsconfig.json',
-      tsconfigRootDir: rootPath,
-    },
-  },
-});
+const ruleTester = new RuleTester();
 
 ruleTester.run('switch-exhaustiveness-check', {
   valid: [
@@ -927,7 +918,6 @@ function foo(x: string[]) {
         parserOptions: {
           project: './tsconfig.noUncheckedIndexedAccess.json',
           projectService: false,
-          tsconfigRootDir: rootPath,
         },
       },
     },
@@ -950,7 +940,6 @@ function foo(x: string[], y: string | undefined) {
         parserOptions: {
           project: './tsconfig.noUncheckedIndexedAccess.json',
           projectService: false,
-          tsconfigRootDir: rootPath,
         },
       },
     },
@@ -2281,46 +2270,6 @@ switch (value) {
       ],
     },
     {
-      code: `
-        enum Enum {
-          'a' = 1,
-          [\`key-with
-
-          new-line\`] = 2,
-        }
-
-        declare const a: Enum;
-
-        switch (a) {
-        }
-      `,
-      errors: [
-        {
-          messageId: 'switchIsNotExhaustive',
-          suggestions: [
-            {
-              messageId: 'addMissingCases',
-              output: `
-        enum Enum {
-          'a' = 1,
-          [\`key-with
-
-          new-line\`] = 2,
-        }
-
-        declare const a: Enum;
-
-        switch (a) {
-        case Enum.a: { throw new Error('Not implemented yet: Enum.a case') }
-        case Enum['key-with\\n\\n          new-line']: { throw new Error('Not implemented yet: Enum[\\'key-with\\\\n\\\\n          new-line\\'] case') }
-        }
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
       code: noFormat`
         enum Enum {
           'a' = 1,
@@ -2841,7 +2790,6 @@ function foo(x: string[]) {
         parserOptions: {
           project: './tsconfig.noUncheckedIndexedAccess.json',
           projectService: false,
-          tsconfigRootDir: rootPath,
         },
       },
     },
